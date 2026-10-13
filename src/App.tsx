@@ -29,9 +29,14 @@ import {
   BookOpen,
   Search,
   Filter,
-  FileText
+  FileText,
+  Box,
+  Eye,
+  EyeOff,
+  Palette
 } from 'lucide-react';
 import { SPREADSHEET_ID, MONTH_TABS, processSheetCSV } from './sheetData';
+import { Background3D } from './components/Background3D';
 
 // The 10 specific slicers required
 const SLICERS = [
@@ -73,6 +78,8 @@ const PIE_COLORS = [
 export default function App() {
   const [selectedSlicer, setSelectedSlicer] = useState<SlicerType>('Common Dashboard');
   const [selectedMonth, setSelectedMonth] = useState<string>('Sep 26');
+  const [bgTheme, setBgTheme] = useState<'executive-slate' | 'deep-navy' | 'frost-minimal'>('executive-slate');
+  const [is3DActive, setIs3DActive] = useState<boolean>(true);
   const [deptSearch, setDeptSearch] = useState<string>('');
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -205,8 +212,20 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-slate-50 to-blue-50/30 text-slate-800 flex flex-col font-sans">
-      
+    <div
+      className={`min-h-screen relative overflow-x-hidden ${
+        bgTheme === 'deep-navy'
+          ? 'bg-theme-navy'
+          : bgTheme === 'frost-minimal'
+          ? 'bg-theme-frost'
+          : 'bg-theme-executive'
+      } text-slate-800 flex flex-col font-sans transition-colors duration-500`}
+    >
+      {/* Dynamic 3D Perspective Background Animation Layer */}
+      {is3DActive && (
+        <Background3D theme={bgTheme} intensity="normal" interactive={true} />
+      )}
+
       {/* SVG Gradients for 3D Bar Highlights */}
       <svg width="0" height="0" className="absolute">
         <defs>
@@ -228,8 +247,8 @@ export default function App() {
         </defs>
       </svg>
 
-      {/* Header with 3D Depth Styling */}
-      <header className="bg-white/90 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30 shadow-3d-sm">
+      {/* Header with 3D Depth Styling & Theme Controls */}
+      <header className="bg-white/92 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30 shadow-3d-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
           
           {/* Title and Tamil Nadu Emblem Brand */}
@@ -252,9 +271,39 @@ export default function App() {
             </div>
           </div>
 
-          {/* Right Header Controls: Month Filter + 3D Refresh Button */}
-          <div className="flex items-center gap-2.5 sm:gap-3">
+          {/* Right Header Controls: Theme + 3D Toggle + Month Filter + 3D Refresh */}
+          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
             
+            {/* Background Theme Selector */}
+            <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-xl border border-slate-200 shadow-3d-sm" title="Professional Background Theme">
+              <Palette className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+              <select
+                id="bg-theme-select"
+                value={bgTheme}
+                onChange={(e) => setBgTheme(e.target.value as any)}
+                className="py-0.5 text-xs font-bold text-slate-800 bg-transparent focus:outline-none cursor-pointer"
+                aria-label="Select background color theme"
+              >
+                <option value="executive-slate">Executive Slate</option>
+                <option value="deep-navy">Deep Navy</option>
+                <option value="frost-minimal">Frost Pearl</option>
+              </select>
+            </div>
+
+            {/* 3D Animation Toggle Button */}
+            <button
+              onClick={() => setIs3DActive(!is3DActive)}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-3d-sm border ${
+                is3DActive
+                  ? 'bg-blue-50 text-blue-900 border-blue-200 hover:bg-blue-100'
+                  : 'bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200'
+              }`}
+              title={is3DActive ? 'Pause 3D animated background' : 'Enable 3D animated background'}
+            >
+              <Box className={`w-3.5 h-3.5 ${is3DActive ? 'text-blue-600 animate-spin' : 'text-slate-400'}`} style={{ animationDuration: '9s' }} />
+              <span className="hidden sm:inline">3D {is3DActive ? 'Active' : 'Off'}</span>
+            </button>
+
             {/* Month Filter Dropdown */}
             <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-xl border border-slate-200 shadow-3d-sm">
               <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
@@ -293,7 +342,7 @@ export default function App() {
               <span>{refreshing ? 'Syncing...' : 'Refresh'}</span>
             </button>
 
-            <span className="text-[11px] font-medium text-slate-400 hidden lg:inline">
+            <span className="text-[11px] font-medium text-slate-400 hidden xl:inline">
               Synced: {formatLastSync(data?.lastRefreshedAt)}
             </span>
           </div>
@@ -302,7 +351,7 @@ export default function App() {
       </header>
 
       {/* Main Layout: 3D Left Sidebar Slicers + Dynamic Workspace */}
-      <div className="max-w-7xl w-full mx-auto flex-1 flex flex-col md:flex-row p-4 sm:p-6 gap-6">
+      <div className="max-w-7xl w-full mx-auto flex-1 flex flex-col md:flex-row p-4 sm:p-6 gap-6 relative z-10">
         
         {/* Left Sidebar — 10 Slicers in Single-Column Grid */}
         <aside className="w-full md:w-64 shrink-0">
