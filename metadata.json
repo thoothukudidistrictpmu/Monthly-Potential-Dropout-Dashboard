@@ -1,0 +1,6 @@
+{
+  "name": "Monthly Potential Dropout Monitoring Dashboard",
+  "description": "Monthly Potential Dropout Monitoring Dashboard for Thoothukudi District Administration to monitor school dropouts, re-admissions, student migration, and department-wise interventions across all blocks.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
