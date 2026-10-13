@@ -31,6 +31,7 @@ import {
   Filter,
   FileText
 } from 'lucide-react';
+import { SPREADSHEET_ID, MONTH_TABS, processSheetCSV } from './sheetData';
 
 // The 10 specific slicers required
 const SLICERS = [
@@ -82,16 +83,42 @@ export default function App() {
     if (isManualRefresh) setRefreshing(true);
     setError(null);
     try {
-      const endpoint = isManualRefresh ? '/api/refresh' : '/api/data';
-      const url = `${endpoint}?month=${encodeURIComponent(monthToFetch)}`;
-      const res = await fetch(url, {
-        method: isManualRefresh ? 'POST' : 'GET',
-      });
-      if (!res.ok) {
-        throw new Error(`Failed to load data for sheet "${monthToFetch}" (Status ${res.status})`);
+      let fetchedData = null;
+
+      // 1. Try server endpoint first (/api/data or Vercel serverless /api/data)
+      try {
+        const endpoint = isManualRefresh ? '/api/refresh' : '/api/data';
+        const url = `${endpoint}?month=${encodeURIComponent(monthToFetch)}`;
+        const res = await fetch(url, {
+          method: isManualRefresh ? 'POST' : 'GET',
+        });
+        if (res.ok) {
+          const contentType = res.headers.get('content-type') || '';
+          if (contentType.includes('application/json')) {
+            const json = await res.json();
+            if (json && json.data) {
+              fetchedData = json.data;
+            }
+          }
+        }
+      } catch (apiErr) {
+        console.warn('API endpoint unavailable, falling back to direct Google Sheet connection:', apiErr);
       }
-      const json = await res.json();
-      setData(json.data);
+
+      // 2. If API was not available or gave an error (e.g. running on Vercel without express),
+      // fetch directly from Google Sheets published/public gviz CSV export!
+      if (!fetchedData) {
+        const targetGid = MONTH_TABS[monthToFetch] || MONTH_TABS['Sep 26'];
+        const directUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&gid=${targetGid}`;
+        const sheetRes = await fetch(directUrl);
+        if (!sheetRes.ok) {
+          throw new Error(`Google Sheet returned HTTP ${sheetRes.status} for sheet "${monthToFetch}".`);
+        }
+        const csvText = await sheetRes.text();
+        fetchedData = processSheetCSV(csvText, monthToFetch);
+      }
+
+      setData(fetchedData);
     } catch (err: any) {
       console.error('Fetch error:', err);
       setError(err.message || 'Unable to connect to Google Sheet.');
@@ -153,12 +180,14 @@ export default function App() {
     );
   }
 
-  const { summary, charts, departments, divisions } = data || {
-    summary: { potentialDropout: 0, readmitted: 0, migrated: 0, repeaters: 0 },
-    charts: { blockWise: [], lineDepartment: [], classWise: [] },
-    departments: [],
-    divisions: [],
+  const summary = data?.summary || { potentialDropout: 0, readmitted: 0, migrated: 0, repeaters: 0 };
+  const charts = {
+    blockWise: (data?.charts?.blockWise || data?.blockData || []) as Array<{ name: string; count: number }>,
+    lineDepartment: (data?.charts?.lineDepartment || data?.lineDepartmentData || []) as Array<{ name: string; count: number; fullName?: string }>,
+    classWise: (data?.charts?.classWise || data?.classData || []) as Array<{ name: string; value: number; count?: number; sortOrder?: number }>,
   };
+  const departments = (data?.departments || []) as any[];
+  const divisions = (data?.divisions || []) as any[];
 
   // Custom 3D Chart Tooltip
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -576,7 +605,7 @@ export default function App() {
                         filter="url(#shadow3D)"
                         label={{ position: 'top', fill: '#4f46e5', fontSize: 11, fontWeight: 800 }}
                       >
-                        {charts.classWise.map((_entry: any, index: number) => (
+                        {(charts.classWise || []).map((_entry: any, index: number) => (
                           <Cell
                             key={`cell-${index}`}
                             fill={PIE_COLORS[index % PIE_COLORS.length]}
@@ -874,7 +903,7 @@ export default function App() {
                     </div>
 
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
-                      {charts.blockWise.map((b: any) => (
+                      {(charts.blockWise || []).map((b: any) => (
                         <div
                           key={b.name}
                           className="p-2.5 rounded-xl bg-slate-50/80 border border-slate-200/60 flex items-center justify-between hover:bg-white hover:shadow-3d-sm transition-all"
