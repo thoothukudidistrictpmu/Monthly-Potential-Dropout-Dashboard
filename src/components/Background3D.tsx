@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 
 interface Background3DProps {
-  theme?: 'executive-slate' | 'deep-navy' | 'frost-minimal';
+  theme?: 'semi-light' | 'executive-slate' | 'deep-navy' | 'frost-minimal';
   intensity?: 'normal' | 'subtle';
   interactive?: boolean;
 }
@@ -35,7 +35,7 @@ interface Shape3D {
 }
 
 export const Background3D: React.FC<Background3DProps> = ({
-  theme = 'executive-slate',
+  theme = 'semi-light',
   intensity = 'normal',
   interactive = true,
 }) => {
@@ -79,6 +79,19 @@ export const Background3D: React.FC<Background3DProps> = ({
 
     // Color definitions based on theme
     const themePalettes = {
+      'semi-light': {
+        nodeColors: [
+          'rgba(37, 99, 235, 0.65)',   // royal blue
+          'rgba(13, 148, 136, 0.62)',  // deep teal
+          'rgba(79, 70, 229, 0.58)',  // indigo
+          'rgba(2, 132, 199, 0.6)',    // sky blue
+        ],
+        lineColor: 'rgba(100, 116, 139, 0.22)',
+        shapeStroke: 'rgba(37, 99, 235, 0.45)',
+        shapeFill: 'rgba(219, 234, 254, 0.20)',
+        cubeStroke: 'rgba(13, 148, 136, 0.45)',
+        cubeFill: 'rgba(204, 251, 241, 0.20)',
+      },
       'executive-slate': {
         nodeColors: ['rgba(37, 99, 235, 0.45)', 'rgba(13, 148, 136, 0.45)', 'rgba(79, 70, 229, 0.4)'],
         lineColor: 'rgba(148, 163, 184, 0.18)',
@@ -88,12 +101,12 @@ export const Background3D: React.FC<Background3DProps> = ({
         cubeFill: 'rgba(204, 251, 241, 0.12)',
       },
       'deep-navy': {
-        nodeColors: ['rgba(59, 130, 246, 0.55)', 'rgba(96, 165, 250, 0.45)', 'rgba(45, 212, 191, 0.4)'],
-        lineColor: 'rgba(100, 116, 139, 0.22)',
-        shapeStroke: 'rgba(96, 165, 250, 0.45)',
-        shapeFill: 'rgba(191, 219, 254, 0.15)',
-        cubeStroke: 'rgba(56, 189, 248, 0.4)',
-        cubeFill: 'rgba(186, 230, 253, 0.15)',
+        nodeColors: ['rgba(96, 165, 250, 0.75)', 'rgba(56, 189, 248, 0.7)', 'rgba(45, 212, 191, 0.65)', 'rgba(129, 140, 248, 0.6)'],
+        lineColor: 'rgba(96, 165, 250, 0.28)',
+        shapeStroke: 'rgba(96, 165, 250, 0.65)',
+        shapeFill: 'rgba(30, 58, 138, 0.25)',
+        cubeStroke: 'rgba(45, 212, 191, 0.65)',
+        cubeFill: 'rgba(13, 148, 136, 0.22)',
       },
       'frost-minimal': {
         nodeColors: ['rgba(100, 116, 139, 0.3)', 'rgba(148, 163, 184, 0.3)', 'rgba(59, 130, 246, 0.25)'],
@@ -105,7 +118,7 @@ export const Background3D: React.FC<Background3DProps> = ({
       },
     };
 
-    const palette = themePalettes[theme] || themePalettes['executive-slate'];
+    const palette = themePalettes[theme] || themePalettes['semi-light'];
 
     // 1. Generate 3D floating interconnected nodes
     const nodeCount = intensity === 'subtle' ? 22 : 36;

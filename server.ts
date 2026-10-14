@@ -19,9 +19,11 @@ interface CacheEntry {
 const cacheStore: Record<string, CacheEntry> = {};
 const CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes cache
 
-async function fetchSpreadsheetData(month = 'Sep 26', forceRefresh = false) {
-  const targetGid = MONTH_TABS[month] || MONTH_TABS['Sep 26'];
-  const cacheKey = month;
+async function fetchSpreadsheetData(month = 'Sep 2026', forceRefresh = false) {
+  // Normalize month name to sheet tab name
+  const normalizedMonth = month === 'Sep 26' ? 'Sep 2026' : month === 'Oct 26' ? 'Oct 2026' : month === 'Nov 26' ? 'Nov 2026' : month;
+  const targetGid = MONTH_TABS[normalizedMonth] || MONTH_TABS[month] || MONTH_TABS['Sep 2026'];
+  const cacheKey = normalizedMonth;
 
   if (!forceRefresh && cacheStore[cacheKey] && Date.now() - cacheStore[cacheKey].timestamp < CACHE_TTL_MS) {
     return { data: cacheStore[cacheKey].data, cached: true, timestamp: cacheStore[cacheKey].timestamp };
@@ -34,11 +36,11 @@ async function fetchSpreadsheetData(month = 'Sep 26', forceRefresh = false) {
     );
 
     if (!res.ok) {
-      throw new Error(`Failed to fetch Google Sheet data for sheet "${month}" (Status ${res.status})`);
+      throw new Error(`Failed to fetch Google Sheet data for sheet "${normalizedMonth}" (Status ${res.status})`);
     }
 
     const csvText = await res.text();
-    const payload = processSheetCSV(csvText, month);
+    const payload = processSheetCSV(csvText, normalizedMonth);
 
     cacheStore[cacheKey] = {
       data: payload,
@@ -54,7 +56,7 @@ async function fetchSpreadsheetData(month = 'Sep 26', forceRefresh = false) {
 
 app.get('/api/data', async (req, res) => {
   try {
-    const month = (req.query.month as string) || 'Sep 26';
+    const month = (req.query.month as string) || 'Sep 2026';
     const result = await fetchSpreadsheetData(month, false);
     res.json(result);
   } catch (e: any) {
@@ -64,7 +66,7 @@ app.get('/api/data', async (req, res) => {
 
 app.post('/api/refresh', async (req, res) => {
   try {
-    const month = (req.query.month as string) || 'Sep 26';
+    const month = (req.query.month as string) || 'Sep 2026';
     const result = await fetchSpreadsheetData(month, true);
     res.json(result);
   } catch (e: any) {

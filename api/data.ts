@@ -16,8 +16,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  const month = (req.query.month as string) || 'Sep 26';
-  const targetGid = MONTH_TABS[month] || MONTH_TABS['Sep 26'];
+  const month = (req.query.month as string) || 'Sep 2026';
+  const normalizedMonth = month === 'Sep 26' ? 'Sep 2026' : month === 'Oct 26' ? 'Oct 2026' : month === 'Nov 26' ? 'Nov 2026' : month;
+  const targetGid = MONTH_TABS[normalizedMonth] || MONTH_TABS[month] || MONTH_TABS['Sep 2026'];
 
   try {
     const sheetRes = await fetch(
@@ -26,11 +27,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     );
 
     if (!sheetRes.ok) {
-      throw new Error(`Google Sheet returned HTTP ${sheetRes.status} for "${month}"`);
+      throw new Error(`Google Sheet returned HTTP ${sheetRes.status} for "${normalizedMonth}"`);
     }
 
     const csvText = await sheetRes.text();
-    const payload = processSheetCSV(csvText, month);
+    const payload = processSheetCSV(csvText, normalizedMonth);
 
     // Cache on Vercel Edge for 60 seconds, stale while revalidate 300 seconds
     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
