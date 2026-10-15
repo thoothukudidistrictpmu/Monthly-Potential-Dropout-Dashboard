@@ -101,9 +101,10 @@ export default function App() {
   const [revenueSearch, setRevenueSearch] = useState<string>('');
   const [abstractSearch, setAbstractSearch] = useState<string>('');
   
-  // Department-edited status, dropout reason, and remarks state (keyed by student EMIS or sNo)
+  // Department-edited status, dropout reason, counselling, and remarks state (keyed by student EMIS or sNo)
   const [editedStatuses, setEditedStatuses] = useState<Record<string, string>>({});
   const [editedDropoutReasons, setEditedDropoutReasons] = useState<Record<string, string>>({});
+  const [editedCounselling, setEditedCounselling] = useState<Record<string, string>>({});
   const [editedRemarks, setEditedRemarks] = useState<Record<string, string>>({});
   const [statusSaveNotice, setStatusSaveNotice] = useState<string | null>(null);
 
@@ -112,7 +113,7 @@ export default function App() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load saved status, dropout reasons, and remarks edits from localStorage on mount/month change
+  // Load saved status, dropout reasons, counselling, and remarks edits from localStorage on mount/month change
   useEffect(() => {
     try {
       const statusKey = `thoothukudi_status_edits_${selectedMonth}`;
@@ -124,6 +125,11 @@ export default function App() {
       const savedReasons = localStorage.getItem(dropoutKey);
       if (savedReasons) setEditedDropoutReasons(JSON.parse(savedReasons));
       else setEditedDropoutReasons({});
+
+      const counsellingKey = `thoothukudi_counselling_${selectedMonth}`;
+      const savedCounselling = localStorage.getItem(counsellingKey);
+      if (savedCounselling) setEditedCounselling(JSON.parse(savedCounselling));
+      else setEditedCounselling({});
 
       const remarksKey = `thoothukudi_remarks_${selectedMonth}`;
       const savedRemarks = localStorage.getItem(remarksKey);
@@ -212,6 +218,20 @@ export default function App() {
     setTimeout(() => setStatusSaveNotice(null), 2500);
   };
 
+  // Handle editing of Counselling Needed (Yes / No) by department officials
+  const handleCounsellingChange = (studentKey: string, newCounselling: string) => {
+    const updated = { ...editedCounselling, [studentKey]: newCounselling };
+    setEditedCounselling(updated);
+    try {
+      const storageKey = `thoothukudi_counselling_${selectedMonth}`;
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Could not save to localStorage', e);
+    }
+    setStatusSaveNotice(`Counselling status updated (${newCounselling})`);
+    setTimeout(() => setStatusSaveNotice(null), 2500);
+  };
+
   // Handle editing of Remarks by department officials
   const handleRemarksChange = (studentKey: string, newRemarks: string) => {
     const updated = { ...editedRemarks, [studentKey]: newRemarks };
@@ -226,23 +246,29 @@ export default function App() {
     setTimeout(() => setStatusSaveNotice(null), 2500);
   };
 
-  // Merge loaded students with department official edits (Status, Dropout Reason, Remarks)
+  // Merge loaded students with department official edits (Status, Dropout Reason, Counselling, Remarks)
   const getMergedStudents = (studentsList: StudentRecord[] = []): StudentRecord[] => {
     return studentsList.map(st => {
       const key = st.emisId || String(st.sNo);
       const customStatus = editedStatuses[key] !== undefined ? editedStatuses[key] : st.status;
       const customDropoutReason = editedDropoutReasons[key] !== undefined ? editedDropoutReasons[key] : st.dropoutReason;
+      const customCounselling = editedCounselling[key] !== undefined 
+        ? editedCounselling[key] 
+        : (st.counsellingRequired || (st.isCounsellingNeeded ? 'Yes' : 'No'));
       const customRemarks = editedRemarks[key] !== undefined ? editedRemarks[key] : st.remarks;
 
       const lower = (customStatus || '').toLowerCase();
       const isReEnrolled = lower.includes('re-enroll') || lower.includes('reenroll') || lower.includes('readmit');
       const isMigrated = lower.includes('migrat');
       const isStatusNotUpdated = lower === 'status not updated' || lower === 'not updated' || !customStatus.trim();
+      const isCounsellingNeeded = (customCounselling || '').toLowerCase().trim() === 'yes';
 
       return {
         ...st,
         status: customStatus,
         dropoutReason: customDropoutReason,
+        counsellingRequired: customCounselling,
+        isCounsellingNeeded,
         remarks: customRemarks,
         isReEnrolled,
         isMigrated,
@@ -479,13 +505,13 @@ export default function App() {
             <button
               onClick={() => fetchData(true)}
               disabled={refreshing}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold shadow-md transition-all active:translate-y-0.5 ${
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold shadow-md transition-all active:translate-y-0.5 ${
                 refreshing
                   ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
                   : 'bg-slate-900 hover:bg-slate-800 text-white border border-slate-700'
               }`}
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-white' : 'text-white'}`} />
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-white' : 'text-white'}`} />
               <span>{refreshing ? 'Syncing...' : 'Refresh'}</span>
             </button>
           </div>
@@ -507,7 +533,7 @@ export default function App() {
                   {selectedMonth}
                 </span>
               </div>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-800 border border-slate-200">
                 Active
               </span>
             </div>
@@ -522,27 +548,27 @@ export default function App() {
                   <button
                     key={slicer}
                     onClick={() => setSelectedSlicer(slicer)}
-                    className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition-all duration-150 ${
+                    className={`w-full text-left px-3.5 py-3 rounded-xl text-sm font-bold flex items-center justify-between transition-all duration-150 ${
                       isSelected
                         ? 'bg-slate-900 text-white shadow-md border-2 border-slate-800'
                         : 'bg-white hover:bg-slate-100 text-slate-800 hover:text-slate-950 border-2 border-slate-200 hover:border-slate-300'
                     }`}
                   >
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex items-center gap-3">
                       <div
-                        className={`w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${
+                        className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
                           isSelected
                             ? 'bg-white/20 text-white'
                             : 'bg-slate-100 text-slate-700 border border-slate-200'
                         }`}
                       >
-                        <IconComponent className="w-3.5 h-3.5" />
+                        <IconComponent className="w-4 h-4" />
                       </div>
                       <span className="tracking-tight">{slicer}</span>
                     </div>
 
                     <ChevronRight
-                      className={`w-3.5 h-3.5 transition-transform duration-150 ${
+                      className={`w-4 h-4 transition-transform duration-150 ${
                         isSelected ? 'text-white translate-x-0.5' : 'text-slate-400 opacity-60'
                       }`}
                     />
@@ -562,42 +588,42 @@ export default function App() {
           {selectedSlicer === 'Overview' && (
             <div className="space-y-6">
               
-              {/* Top Row — 5 Prominent Classic Summary Cards with light fill matching borders */}
+              {/* Top Row — 5 Prominent Classic Summary Cards with light fill matching borders and regular font size */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
                 
                 {/* Box 1: Potential Dropout — Light Slate Fill matching border */}
-                <div className="bg-slate-50 border-2 border-slate-300 rounded-2xl p-4 shadow-sm hover:border-slate-400 transition-all">
+                <div className="bg-slate-50 border-2 border-slate-300 rounded-2xl p-4 sm:p-5 shadow-sm hover:border-slate-400 transition-all">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-black text-slate-800 uppercase tracking-wider">
+                    <span className="text-xs sm:text-sm font-black text-slate-800 uppercase tracking-wider">
                       Potential Dropout
                     </span>
-                    <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center shadow-xs">
-                      <Users className="w-4 h-4" />
+                    <div className="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-xs">
+                      <Users className="w-5 h-5" />
                     </div>
                   </div>
-                  <div className="text-3xl font-black text-slate-900 mt-2.5 tracking-tight">
+                  <div className="text-3xl sm:text-4xl font-black text-slate-900 mt-2.5 tracking-tight">
                     {summary.potentialDropout}
                   </div>
-                  <div className="mt-2 text-[10px] text-slate-600 font-bold pt-2 border-t border-slate-200 flex justify-between">
+                  <div className="mt-2.5 text-xs text-slate-600 font-bold pt-2 border-t border-slate-200 flex justify-between">
                     <span>Identified Students</span>
                     <span className="font-black text-slate-800">100%</span>
                   </div>
                 </div>
 
                 {/* Box 2: Re - Enrolled (Changed from Readmitted) — Light Emerald Fill matching border */}
-                <div className="bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-4 shadow-sm hover:border-emerald-400 transition-all">
+                <div className="bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-4 sm:p-5 shadow-sm hover:border-emerald-400 transition-all">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-black text-emerald-950 uppercase tracking-wider">
+                    <span className="text-xs sm:text-sm font-black text-emerald-950 uppercase tracking-wider">
                       Re - Enrolled
                     </span>
-                    <div className="w-8 h-8 rounded-lg bg-emerald-700 text-white flex items-center justify-center shadow-xs">
-                      <GraduationCap className="w-4 h-4" />
+                    <div className="w-9 h-9 rounded-xl bg-emerald-700 text-white flex items-center justify-center shadow-xs">
+                      <GraduationCap className="w-5 h-5" />
                     </div>
                   </div>
-                  <div className="text-3xl font-black text-emerald-950 mt-2.5 tracking-tight">
+                  <div className="text-3xl sm:text-4xl font-black text-emerald-950 mt-2.5 tracking-tight">
                     {summary.reEnrolled}
                   </div>
-                  <div className="mt-2 text-[10px] text-emerald-800 font-bold pt-2 border-t border-emerald-200 flex justify-between">
+                  <div className="mt-2.5 text-xs text-emerald-800 font-bold pt-2 border-t border-emerald-200 flex justify-between">
                     <span>Re-enrolled in School</span>
                     <span className="font-black text-emerald-950">
                       {summary.potentialDropout > 0 ? ((summary.reEnrolled / summary.potentialDropout) * 100).toFixed(0) : 0}%
@@ -606,19 +632,19 @@ export default function App() {
                 </div>
 
                 {/* Box 3: Migrated — Light Amber Fill matching border */}
-                <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 shadow-sm hover:border-amber-400 transition-all">
+                <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 sm:p-5 shadow-sm hover:border-amber-400 transition-all">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-black text-amber-950 uppercase tracking-wider">
+                    <span className="text-xs sm:text-sm font-black text-amber-950 uppercase tracking-wider">
                       Migrated
                     </span>
-                    <div className="w-8 h-8 rounded-lg bg-amber-700 text-white flex items-center justify-center shadow-xs">
-                      <MapPin className="w-4 h-4" />
+                    <div className="w-9 h-9 rounded-xl bg-amber-700 text-white flex items-center justify-center shadow-xs">
+                      <MapPin className="w-5 h-5" />
                     </div>
                   </div>
-                  <div className="text-3xl font-black text-amber-950 mt-2.5 tracking-tight">
+                  <div className="text-3xl sm:text-4xl font-black text-amber-950 mt-2.5 tracking-tight">
                     {summary.migrated}
                   </div>
-                  <div className="mt-2 text-[10px] text-amber-800 font-bold pt-2 border-t border-amber-200 flex justify-between">
+                  <div className="mt-2.5 text-xs text-amber-800 font-bold pt-2 border-t border-amber-200 flex justify-between">
                     <span>Relocated District/Block</span>
                     <span className="font-black text-amber-950">
                       {summary.potentialDropout > 0 ? ((summary.migrated / summary.potentialDropout) * 100).toFixed(0) : 0}%
@@ -627,19 +653,19 @@ export default function App() {
                 </div>
 
                 {/* Box 4: Repeaters — Light Purple Fill matching border */}
-                <div className="bg-purple-50 border-2 border-purple-300 rounded-2xl p-4 shadow-sm hover:border-purple-400 transition-all">
+                <div className="bg-purple-50 border-2 border-purple-300 rounded-2xl p-4 sm:p-5 shadow-sm hover:border-purple-400 transition-all">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-black text-purple-950 uppercase tracking-wider">
+                    <span className="text-xs sm:text-sm font-black text-purple-950 uppercase tracking-wider">
                       Repeaters
                     </span>
-                    <div className="w-8 h-8 rounded-lg bg-purple-700 text-white flex items-center justify-center shadow-xs">
-                      <RotateCcw className="w-4 h-4" />
+                    <div className="w-9 h-9 rounded-xl bg-purple-700 text-white flex items-center justify-center shadow-xs">
+                      <RotateCcw className="w-5 h-5" />
                     </div>
                   </div>
-                  <div className="text-3xl font-black text-purple-950 mt-2.5 tracking-tight">
+                  <div className="text-3xl sm:text-4xl font-black text-purple-950 mt-2.5 tracking-tight">
                     {summary.repeaters}
                   </div>
-                  <div className="mt-2 text-[10px] text-purple-800 font-bold pt-2 border-t border-purple-200 flex justify-between">
+                  <div className="mt-2.5 text-xs text-purple-800 font-bold pt-2 border-t border-purple-200 flex justify-between">
                     <span>Repeater Students</span>
                     <span className="font-black text-purple-950">
                       {summary.potentialDropout > 0 ? ((summary.repeaters / summary.potentialDropout) * 100).toFixed(0) : 0}%
@@ -648,19 +674,19 @@ export default function App() {
                 </div>
 
                 {/* Box 5: Counselling Needed — Light Rose Fill matching border */}
-                <div className="bg-rose-50 border-2 border-rose-300 rounded-2xl p-4 shadow-sm hover:border-rose-400 transition-all">
+                <div className="bg-rose-50 border-2 border-rose-300 rounded-2xl p-4 sm:p-5 shadow-sm hover:border-rose-400 transition-all">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-black text-rose-950 uppercase tracking-wider">
+                    <span className="text-xs sm:text-sm font-black text-rose-950 uppercase tracking-wider">
                       Counselling Needed
                     </span>
-                    <div className="w-8 h-8 rounded-lg bg-rose-700 text-white flex items-center justify-center shadow-xs">
-                      <HelpCircle className="w-4 h-4" />
+                    <div className="w-9 h-9 rounded-xl bg-rose-700 text-white flex items-center justify-center shadow-xs">
+                      <HelpCircle className="w-5 h-5" />
                     </div>
                   </div>
-                  <div className="text-3xl font-black text-rose-950 mt-2.5 tracking-tight">
+                  <div className="text-3xl sm:text-4xl font-black text-rose-950 mt-2.5 tracking-tight">
                     {summary.counsellingNeeded}
                   </div>
-                  <div className="mt-2 text-[10px] text-rose-800 font-bold pt-2 border-t border-rose-200 flex justify-between">
+                  <div className="mt-2.5 text-xs text-rose-800 font-bold pt-2 border-t border-rose-200 flex justify-between">
                     <span>Requires Counselling</span>
                     <span className="font-black text-rose-950">
                       {summary.potentialDropout > 0 ? ((summary.counsellingNeeded / summary.potentialDropout) * 100).toFixed(0) : 0}%
@@ -841,77 +867,93 @@ export default function App() {
           {/* 2. DIVISION SLICER VIEW (CLEAN DIVISION NAMES ALONE) */}
           {/* ======================================================== */}
           {selectedSlicer === 'Division' && (
-            <div className="space-y-6">
+            <div className="bg-slate-100/70 border-2 border-slate-300 rounded-3xl p-6 shadow-sm space-y-6">
               
-              {/* 3 Division Cards showing division names alone with dark box colours and light text */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              {/* Division Section Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b-2 border-slate-300">
+                <div>
+                  <h2 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2.5">
+                    <Layers className="w-6 h-6 text-slate-800" />
+                    <span>Division Overview — Thoothukudi District</span>
+                  </h2>
+                  <p className="text-sm text-slate-700 font-bold mt-0.5">
+                    Educational Divisions performance & breakdown for {selectedMonth}
+                  </p>
+                </div>
+                <span className="text-sm font-black px-4 py-1.5 rounded-full bg-white text-slate-900 border-2 border-slate-300 shadow-2xs self-start sm:self-auto">
+                  3 Divisions
+                </span>
+              </div>
+
+              {/* 3 Division Cards with semi-light theme background and regular font size */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {computedDivisions.map((div) => {
                   return (
                     <div
                       key={div.name}
-                      className="bg-[#0f172a] border-2 border-slate-700 rounded-2xl p-5 shadow-xl flex flex-col justify-between hover:border-slate-500 transition-all text-slate-100"
+                      className="bg-white border-2 border-slate-300 rounded-2xl p-6 shadow-sm hover:border-slate-400 hover:shadow-md transition-all text-slate-800 flex flex-col justify-between"
                     >
                       <div>
                         {/* Division Name alone & Total Count Badge */}
-                        <div className="flex items-center justify-between border-b border-slate-700/80 pb-3">
-                          <h2 className="text-xl font-black text-white tracking-tight">
+                        <div className="flex items-center justify-between border-b-2 border-slate-200 pb-3.5">
+                          <h2 className="text-2xl font-black text-slate-900 tracking-tight">
                             {div.name}
                           </h2>
-                          <span className="px-3 py-1 rounded-full text-xs font-black text-slate-900 bg-slate-100 shadow-xs">
+                          <span className="px-3.5 py-1.5 rounded-full text-sm font-black text-slate-900 bg-slate-100 border border-slate-300 shadow-2xs">
                             {div.totalStudents} Students
                           </span>
                         </div>
 
-                        {/* Metric Boxes: Potential Dropout, Repeaters, Re-Enrolled (Dark boxes with light text) */}
-                        <div className="mt-4 grid grid-cols-3 gap-2">
-                          <div className="bg-slate-800/90 border border-slate-700 rounded-xl p-2.5 text-center shadow-inner">
-                            <span className="text-[10px] font-black text-slate-300 uppercase block">
+                        {/* Metric Boxes: Potential Dropout, Repeaters, Re-Enrolled with semi-light theme fills */}
+                        <div className="mt-4 grid grid-cols-3 gap-2.5">
+                          <div className="bg-slate-50 border-2 border-slate-300 rounded-xl p-3 text-center shadow-2xs">
+                            <span className="text-xs font-black text-slate-700 uppercase block tracking-wider">
                               Dropouts
                             </span>
-                            <span className="text-lg font-black text-white">
+                            <span className="text-2xl font-black text-slate-900 mt-1 block">
                               {div.totalStudents}
                             </span>
                           </div>
 
-                          <div className="bg-purple-950/80 border border-purple-800/80 rounded-xl p-2.5 text-center shadow-inner">
-                            <span className="text-[10px] font-black text-purple-300 uppercase block">
+                          <div className="bg-purple-50 border-2 border-purple-200 rounded-xl p-3 text-center shadow-2xs">
+                            <span className="text-xs font-black text-purple-950 uppercase block tracking-wider">
                               Repeaters
                             </span>
-                            <span className="text-lg font-black text-purple-100">
+                            <span className="text-2xl font-black text-purple-950 mt-1 block">
                               {div.repeaters}
                             </span>
                           </div>
 
-                          <div className="bg-emerald-950/80 border border-emerald-800/80 rounded-xl p-2.5 text-center shadow-inner">
-                            <span className="text-[10px] font-black text-emerald-300 uppercase block">
+                          <div className="bg-emerald-50 border-2 border-emerald-200 rounded-xl p-3 text-center shadow-2xs">
+                            <span className="text-xs font-black text-emerald-950 uppercase block tracking-wider">
                               Re-Enrolled
                             </span>
-                            <span className="text-lg font-black text-emerald-100">
+                            <span className="text-2xl font-black text-emerald-950 mt-1 block">
                               {div.reEnrolled}
                             </span>
                           </div>
                         </div>
 
-                        {/* Block Breakdown with dark row styling and light text */}
-                        <div className="mt-4 space-y-1.5">
-                          <div className="flex items-center justify-between text-[10px] uppercase font-bold text-slate-300 tracking-wider pb-1 border-b border-slate-700/80">
+                        {/* Block Breakdown with semi-light row styling and regular text */}
+                        <div className="mt-5 space-y-2">
+                          <div className="flex items-center justify-between text-xs uppercase font-black text-slate-700 tracking-wider pb-2 border-b-2 border-slate-200">
                             <span>Block</span>
                             <span>Rep / Re-Enr / Total</span>
                           </div>
-                          <div className="divide-y divide-slate-800/80 max-h-56 overflow-y-auto pr-1">
+                          <div className="divide-y divide-slate-200 max-h-60 overflow-y-auto pr-1">
                             {div.blocks.map((b) => (
-                              <div key={b.name} className="flex items-center justify-between text-xs py-1.5 px-1 hover:bg-slate-800/60 text-slate-200 transition-colors">
-                                <span className="font-bold text-slate-100 text-[11px] truncate max-w-[120px]">
+                              <div key={b.name} className="flex items-center justify-between text-sm py-2 px-1 hover:bg-slate-50 text-slate-800 transition-colors">
+                                <span className="font-bold text-slate-900 text-sm truncate max-w-[140px]">
                                   {b.name}
                                 </span>
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-900/80 text-purple-200 font-bold border border-purple-700/60">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-950 font-bold border border-purple-300">
                                     {b.repeaters}
                                   </span>
-                                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-900/80 text-emerald-200 font-bold border border-emerald-700/60">
+                                  <span className="text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-950 font-bold border border-emerald-300">
                                     {b.reEnrolled}
                                   </span>
-                                  <span className="font-black text-white min-w-6 text-right text-xs">
+                                  <span className="font-black text-slate-900 min-w-7 text-right text-sm">
                                     {b.count}
                                   </span>
                                 </div>
@@ -921,9 +963,9 @@ export default function App() {
                         </div>
                       </div>
 
-                      <div className="mt-4 pt-3 border-t border-slate-700/80 flex items-center justify-between text-[11px] text-slate-300 font-bold">
-                        <span>{div.blocks.length} Blocks</span>
-                        <span className="font-black text-slate-200">{div.name} Division</span>
+                      <div className="mt-5 pt-3.5 border-t-2 border-slate-200 flex items-center justify-between text-xs text-slate-700 font-bold">
+                        <span>{div.blocks.length} Blocks in Division</span>
+                        <span className="font-black text-slate-900">{div.name} Division</span>
                       </div>
                     </div>
                   );
@@ -944,26 +986,26 @@ export default function App() {
                 });
 
                 return (
-                  <div className="bg-slate-50 border-2 border-slate-300 rounded-2xl p-5 shadow-sm space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="bg-white border-2 border-slate-300 rounded-2xl p-6 shadow-sm space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div>
-                        <h3 className="text-base font-black text-slate-900 tracking-tight flex items-center gap-2">
+                        <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
                           <Users className="w-5 h-5 text-slate-800" />
                           <span>Division Student Records ({filteredDivStudents.length})</span>
                         </h3>
-                        <p className="text-xs text-slate-600 font-medium">
+                        <p className="text-sm text-slate-700 font-medium">
                           Records across Kovilpatti, Thoothukudi, and Tiruchendur
                         </p>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-3">
                         {/* Division Filter Buttons */}
-                        <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-300">
+                        <div className="flex items-center gap-1.5 bg-slate-50 p-1.5 rounded-xl border border-slate-300">
                           {['All', 'Kovilpatti', 'Thoothukudi', 'Tiruchendur'].map((df) => (
                             <button
                               key={df}
                               onClick={() => setDivisionFilter(df)}
-                              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                              className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-all ${
                                 divisionFilter === df
                                   ? 'bg-slate-900 text-white shadow-xs'
                                   : 'text-slate-700 hover:text-slate-900'
@@ -976,49 +1018,49 @@ export default function App() {
 
                         {/* Search Input */}
                         <div className="relative">
-                          <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-2.5" />
+                          <Search className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
                           <input
                             type="text"
                             placeholder="Search name, block, EMIS..."
                             value={divisionSearch}
                             onChange={(e) => setDivisionSearch(e.target.value)}
-                            className="text-xs pl-8 pr-3 py-1.5 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-slate-400 w-full sm:w-52"
+                            className="text-sm pl-9 pr-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-slate-400 w-full sm:w-60 font-medium"
                           />
                         </div>
                       </div>
                     </div>
 
                     <div className="overflow-x-auto rounded-xl border-2 border-slate-300 max-h-96 overflow-y-auto bg-white">
-                      <table className="w-full text-left text-xs">
-                        <thead className="bg-slate-100 text-slate-800 font-black border-b-2 border-slate-300 sticky top-0 z-10">
+                      <table className="w-full text-left text-sm">
+                        <thead className="bg-slate-100 text-slate-900 font-black border-b-2 border-slate-300 sticky top-0 z-10">
                           <tr>
-                            <th className="py-2.5 px-3">S.No</th>
-                            <th className="py-2.5 px-3">Student Name</th>
-                            <th className="py-2.5 px-3">EMIS ID</th>
-                            <th className="py-2.5 px-3">Division</th>
-                            <th className="py-2.5 px-3">Block</th>
-                            <th className="py-2.5 px-3">Class</th>
-                            <th className="py-2.5 px-3">School</th>
-                            <th className="py-2.5 px-3">Repeaters</th>
-                            <th className="py-2.5 px-3">Present Status</th>
+                            <th className="py-3 px-3.5">S.No</th>
+                            <th className="py-3 px-3.5">Student Name</th>
+                            <th className="py-3 px-3.5">EMIS ID</th>
+                            <th className="py-3 px-3.5">Division</th>
+                            <th className="py-3 px-3.5">Block</th>
+                            <th className="py-3 px-3.5">Class</th>
+                            <th className="py-3 px-3.5">School</th>
+                            <th className="py-3 px-3.5">Repeaters</th>
+                            <th className="py-3 px-3.5">Present Status</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200 font-medium text-slate-800">
                           {filteredDivStudents.slice(0, 100).map((st, idx) => (
                             <tr key={st.emisId ? `div-st-${st.emisId}-${idx}` : `div-st-${st.sNo}-${idx}`} className="hover:bg-slate-50 transition-colors">
-                              <td className="py-2 px-3 font-bold text-slate-600">{st.sNo}</td>
-                              <td className="py-2 px-3 font-black text-slate-900">{st.studentName}</td>
-                              <td className="py-2 px-3 text-slate-600 text-[11px] font-bold">{st.emisId || '-'}</td>
-                              <td className="py-2 px-3 text-[11px] font-bold text-slate-800">{st.division}</td>
-                              <td className="py-2 px-3 font-bold text-slate-800">{st.block}</td>
-                              <td className="py-2 px-3">
-                                <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-800 font-bold text-[10px] border border-slate-300">
+                              <td className="py-2.5 px-3.5 font-bold text-slate-600">{st.sNo}</td>
+                              <td className="py-2.5 px-3.5 font-black text-slate-900">{st.studentName}</td>
+                              <td className="py-2.5 px-3.5 text-slate-700 font-bold">{st.emisId || '-'}</td>
+                              <td className="py-2.5 px-3.5 font-bold text-slate-800">{st.division}</td>
+                              <td className="py-2.5 px-3.5 font-bold text-slate-800">{st.block}</td>
+                              <td className="py-2.5 px-3.5">
+                                <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-800 font-bold text-xs border border-slate-300">
                                   Std {st.std} {st.sec ? `(${st.sec})` : ''}
                                 </span>
                               </td>
-                              <td className="py-2 px-3 text-slate-700 text-[11px] max-w-xs truncate">{st.school}</td>
-                              <td className="py-2 px-3">
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              <td className="py-2.5 px-3.5 text-slate-700 max-w-xs truncate">{st.school}</td>
+                              <td className="py-2.5 px-3.5">
+                                <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
                                   st.isRepeater
                                     ? 'bg-purple-100 text-purple-900 border border-purple-300'
                                     : 'bg-slate-100 text-slate-700 border border-slate-300'
@@ -1026,8 +1068,8 @@ export default function App() {
                                   {st.repeaterStatus}
                                 </span>
                               </td>
-                              <td className="py-2 px-3">
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              <td className="py-2.5 px-3.5">
+                                <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
                                   st.isReEnrolled
                                     ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
                                     : 'bg-amber-100 text-amber-900 border border-amber-300'
@@ -1065,109 +1107,100 @@ export default function App() {
                   </p>
                 </div>
 
-                {/* Export Options for Line Department Overview Abstract */}
-                <div className="flex flex-wrap items-center gap-2">
+                {/* Export Options for Line Department Overview Abstract (Excel and Word only) */}
+                <div className="flex flex-wrap items-center gap-2.5">
                   <button
                     onClick={() => exportAbstractToExcel(computedDepartments, `Line_Department_Overview_${selectedMonth}`)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs border border-emerald-800"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs border border-emerald-800 transition-all active:scale-95"
                     title="Download Excel format"
                   >
-                    <FileSpreadsheet className="w-3.5 h-3.5" />
+                    <FileSpreadsheet className="w-4 h-4" />
                     <span>Excel (.xlsx)</span>
                   </button>
 
                   <button
                     onClick={() => exportStudentsToWord(allStudents, `Thoothukudi_All_Departments_Students_${selectedMonth}`)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-700 hover:bg-blue-800 text-white shadow-xs border border-blue-800"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-blue-700 hover:bg-blue-800 text-white shadow-xs border border-blue-800 transition-all active:scale-95"
                     title="Download Word format"
                   >
-                    <FileText className="w-3.5 h-3.5" />
+                    <FileText className="w-4 h-4" />
                     <span>Word (.doc)</span>
-                  </button>
-
-                  <button
-                    onClick={() => exportStudentsToDocs(allStudents, `Thoothukudi_All_Departments_Students_${selectedMonth}`)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-700 hover:bg-indigo-800 text-white shadow-xs border border-indigo-800"
-                    title="Download Docs format"
-                  >
-                    <FileText className="w-3.5 h-3.5" />
-                    <span>Docs</span>
                   </button>
                 </div>
               </div>
 
-              {/* 6 Summary Metric Cards across all line departments with light matching fills */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                <div className="bg-slate-100/90 border-2 border-slate-300 rounded-xl p-3 text-center">
-                  <span className="text-[10px] font-black text-slate-700 uppercase block">Total Dropouts</span>
-                  <span className="text-2xl font-black text-slate-900 mt-1 block">
+              {/* 6 Summary Metric Cards across all line departments with regular font size */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
+                <div className="bg-slate-100/90 border-2 border-slate-300 rounded-xl p-3.5 text-center">
+                  <span className="text-xs font-black text-slate-700 uppercase block tracking-wider">Total Dropouts</span>
+                  <span className="text-2xl font-black text-slate-900 mt-1.5 block">
                     {computedDepartments.reduce((acc, d) => acc + d.potentialDropout, 0)}
                   </span>
                 </div>
 
-                <div className="bg-purple-50 border-2 border-purple-300 rounded-xl p-3 text-center">
-                  <span className="text-[10px] font-black text-purple-950 uppercase block">Repeaters</span>
-                  <span className="text-2xl font-black text-purple-950 mt-1 block">
+                <div className="bg-purple-50 border-2 border-purple-300 rounded-xl p-3.5 text-center">
+                  <span className="text-xs font-black text-purple-950 uppercase block tracking-wider">Repeaters</span>
+                  <span className="text-2xl font-black text-purple-950 mt-1.5 block">
                     {computedDepartments.reduce((acc, d) => acc + d.repeaters, 0)}
                   </span>
                 </div>
 
-                <div className="bg-emerald-50 border-2 border-emerald-300 rounded-xl p-3 text-center">
-                  <span className="text-[10px] font-black text-emerald-950 uppercase block">Re-Enrolled</span>
-                  <span className="text-2xl font-black text-emerald-950 mt-1 block">
+                <div className="bg-emerald-50 border-2 border-emerald-300 rounded-xl p-3.5 text-center">
+                  <span className="text-xs font-black text-emerald-950 uppercase block tracking-wider">Re-Enrolled</span>
+                  <span className="text-2xl font-black text-emerald-950 mt-1.5 block">
                     {computedDepartments.reduce((acc, d) => acc + d.reEnrolled, 0)}
                   </span>
                 </div>
 
-                <div className="bg-rose-50 border-2 border-rose-300 rounded-xl p-3 text-center">
-                  <span className="text-[10px] font-black text-rose-950 uppercase block">Counselling Needed</span>
-                  <span className="text-2xl font-black text-rose-950 mt-1 block">
+                <div className="bg-rose-50 border-2 border-rose-300 rounded-xl p-3.5 text-center">
+                  <span className="text-xs font-black text-rose-950 uppercase block tracking-wider">Counselling Needed</span>
+                  <span className="text-2xl font-black text-rose-950 mt-1.5 block">
                     {computedDepartments.reduce((acc, d) => acc + d.counsellingNeeded, 0)}
                   </span>
                 </div>
 
-                <div className="bg-slate-100 border-2 border-slate-300 rounded-xl p-3 text-center">
-                  <span className="text-[10px] font-black text-slate-800 uppercase block">Status Not Updated</span>
-                  <span className="text-2xl font-black text-slate-900 mt-1 block">
+                <div className="bg-slate-100 border-2 border-slate-300 rounded-xl p-3.5 text-center">
+                  <span className="text-xs font-black text-slate-800 uppercase block tracking-wider">Status Not Updated</span>
+                  <span className="text-2xl font-black text-slate-900 mt-1.5 block">
                     {computedDepartments.reduce((acc, d) => acc + d.statusNotUpdated, 0)}
                   </span>
                 </div>
 
-                <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-3 text-center">
-                  <span className="text-[10px] font-black text-amber-950 uppercase block">Migrated</span>
-                  <span className="text-2xl font-black text-amber-950 mt-1 block">
+                <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-3.5 text-center">
+                  <span className="text-xs font-black text-amber-950 uppercase block tracking-wider">Migrated</span>
+                  <span className="text-2xl font-black text-amber-950 mt-1.5 block">
                     {computedDepartments.reduce((acc, d) => acc + d.migrated, 0)}
                   </span>
                 </div>
               </div>
 
               {/* Comprehensive Abstract Table */}
-              <div className="bg-slate-50 border-2 border-slate-300 rounded-2xl p-5 shadow-sm space-y-4">
+              <div className="bg-slate-50 border-2 border-slate-300 rounded-2xl p-5 sm:p-6 shadow-sm space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
-                    <h3 className="text-base font-black text-slate-900 tracking-tight">
+                    <h3 className="text-lg font-black text-slate-900 tracking-tight">
                       Department-Wise Abstract Comparison
                     </h3>
-                    <p className="text-xs text-slate-600 font-medium">
+                    <p className="text-sm text-slate-700 font-medium">
                       Total potential dropouts, repeaters, re-enrolled, counselling needed, status not updated & migrated
                     </p>
                   </div>
 
                   <div className="relative">
-                    <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-2.5" />
+                    <Search className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
                     <input
                       type="text"
                       placeholder="Search department..."
                       value={abstractSearch}
                       onChange={(e) => setAbstractSearch(e.target.value)}
-                      className="text-xs pl-8 pr-3 py-1.5 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-slate-400 w-full sm:w-56"
+                      className="text-sm pl-9 pr-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-slate-400 w-full sm:w-60 font-medium"
                     />
                   </div>
                 </div>
 
                 <div className="overflow-x-auto rounded-xl border-2 border-slate-300 bg-white">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-100 text-slate-800 font-black border-b-2 border-slate-300">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-slate-100 text-slate-900 font-black border-b-2 border-slate-300">
                       <tr>
                         <th className="py-3 px-4">Line Department</th>
                         <th className="py-3 px-4 text-center">Total Potential Dropout</th>
@@ -1188,49 +1221,49 @@ export default function App() {
 
                           return (
                             <tr key={dept.id} className="hover:bg-slate-50 transition-colors">
-                              <td className="py-3 px-4 font-black text-slate-900">
+                              <td className="py-3.5 px-4 font-black text-slate-900">
                                 <div className="flex items-center gap-2.5">
-                                  <div className="w-7 h-7 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-800">
-                                    <IconComponent className="w-3.5 h-3.5" />
+                                  <div className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-800 shadow-2xs">
+                                    <IconComponent className="w-4 h-4" />
                                   </div>
-                                  <span className="text-sm">{dept.name}</span>
+                                  <span className="text-sm font-bold">{dept.name}</span>
                                 </div>
                               </td>
-                              <td className="py-3 px-4 text-center font-black text-slate-900 text-sm">
+                              <td className="py-3.5 px-4 text-center font-black text-slate-900 text-base">
                                 {dept.potentialDropout}
                               </td>
-                              <td className="py-3 px-4 text-center">
-                                <span className="px-2.5 py-0.5 rounded-md bg-purple-50 text-purple-950 font-bold border border-purple-200">
+                              <td className="py-3.5 px-4 text-center">
+                                <span className="px-2.5 py-1 rounded-md bg-purple-50 text-purple-950 font-bold text-xs border border-purple-200">
                                   {dept.repeaters}
                                 </span>
                               </td>
-                              <td className="py-3 px-4 text-center">
-                                <span className="px-2.5 py-0.5 rounded-md bg-emerald-50 text-emerald-950 font-bold border border-emerald-200">
+                              <td className="py-3.5 px-4 text-center">
+                                <span className="px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-950 font-bold text-xs border border-emerald-200">
                                   {dept.reEnrolled}
                                 </span>
                               </td>
-                              <td className="py-3 px-4 text-center">
-                                <span className="px-2.5 py-0.5 rounded-md bg-rose-50 text-rose-950 font-bold border border-rose-200">
+                              <td className="py-3.5 px-4 text-center">
+                                <span className="px-2.5 py-1 rounded-md bg-rose-50 text-rose-950 font-bold text-xs border border-rose-200">
                                   {dept.counsellingNeeded}
                                 </span>
                               </td>
-                              <td className="py-3 px-4 text-center">
-                                <span className="px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-900 font-bold border border-slate-200">
+                              <td className="py-3.5 px-4 text-center">
+                                <span className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-900 font-bold text-xs border border-slate-200">
                                   {dept.statusNotUpdated}
                                 </span>
                               </td>
-                              <td className="py-3 px-4 text-center">
-                                <span className="px-2.5 py-0.5 rounded-md bg-amber-50 text-amber-950 font-bold border border-amber-200">
+                              <td className="py-3.5 px-4 text-center">
+                                <span className="px-2.5 py-1 rounded-md bg-amber-50 text-amber-950 font-bold text-xs border border-amber-200">
                                   {dept.migrated}
                                 </span>
                               </td>
-                              <td className="py-3 px-4 text-right">
+                              <td className="py-3.5 px-4 text-right">
                                 <button
                                   onClick={() => setSelectedSlicer(dept.name as SlicerType)}
-                                  className="inline-flex items-center gap-1 text-xs font-bold text-slate-900 hover:text-black px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 transition-colors bg-white shadow-2xs"
+                                  className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-900 hover:text-black px-3.5 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 transition-colors bg-white shadow-2xs"
                                 >
                                   <span>Open</span>
-                                  <ArrowRight className="w-3 h-3" />
+                                  <ArrowRight className="w-3.5 h-3.5" />
                                 </button>
                               </td>
                             </tr>
@@ -1286,37 +1319,28 @@ export default function App() {
                   </p>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2.5">
                   <button
                     onClick={() => exportStudentsToExcel(revenueStudents, `Revenue_Department_Students_${selectedMonth}`)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs border border-emerald-800"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs border border-emerald-800 transition-all active:scale-95"
                     title="Download Excel format"
                   >
-                    <FileSpreadsheet className="w-3.5 h-3.5" />
+                    <FileSpreadsheet className="w-4 h-4" />
                     <span>Excel (.xlsx)</span>
                   </button>
 
                   <button
                     onClick={() => exportStudentsToWord(revenueStudents, `Revenue_Department_Students_${selectedMonth}`)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-700 hover:bg-blue-800 text-white shadow-xs border border-blue-800"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-blue-700 hover:bg-blue-800 text-white shadow-xs border border-blue-800 transition-all active:scale-95"
                     title="Download Word format"
                   >
-                    <FileText className="w-3.5 h-3.5" />
+                    <FileText className="w-4 h-4" />
                     <span>Word (.doc)</span>
-                  </button>
-
-                  <button
-                    onClick={() => exportStudentsToDocs(revenueStudents, `Revenue_Department_Students_${selectedMonth}`)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-700 hover:bg-indigo-800 text-white shadow-xs border border-indigo-800"
-                    title="Download Docs format"
-                  >
-                    <FileText className="w-3.5 h-3.5" />
-                    <span>Docs</span>
                   </button>
                 </div>
               </div>
 
-              {/* 4 Summary Boxes for Revenue Department with light matching fills */}
+              {/* 4 Summary Boxes for Revenue Department with light matching fills and regular font size */}
               {(() => {
                 const repCount = revenueStudents.filter(s => s.isRepeater).length;
                 const reEnrCount = revenueStudents.filter(s => s.isReEnrolled).length;
@@ -1324,50 +1348,50 @@ export default function App() {
 
                 return (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="bg-slate-50 border-2 border-slate-300 rounded-2xl p-4 shadow-sm">
-                      <span className="text-[11px] font-black text-slate-800 uppercase tracking-wider block">
+                    <div className="bg-slate-50 border-2 border-slate-300 rounded-2xl p-4 sm:p-5 shadow-sm">
+                      <span className="text-xs sm:text-sm font-black text-slate-800 uppercase tracking-wider block">
                         Potential Dropout
                       </span>
-                      <div className="text-3xl font-black text-slate-900 mt-2">
+                      <div className="text-3xl sm:text-4xl font-black text-slate-900 mt-2">
                         {revenueStudents.length}
                       </div>
-                      <div className="text-[11px] text-slate-600 mt-1 font-bold">
+                      <div className="text-xs text-slate-600 mt-1.5 font-bold">
                         Revenue Department Caseload
                       </div>
                     </div>
 
-                    <div className="bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-4 shadow-sm">
-                      <span className="text-[11px] font-black text-emerald-950 uppercase tracking-wider block">
+                    <div className="bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-4 sm:p-5 shadow-sm">
+                      <span className="text-xs sm:text-sm font-black text-emerald-950 uppercase tracking-wider block">
                         Re-Enrolled
                       </span>
-                      <div className="text-3xl font-black text-emerald-950 mt-2">
+                      <div className="text-3xl sm:text-4xl font-black text-emerald-950 mt-2">
                         {reEnrCount}
                       </div>
-                      <div className="text-[11px] text-emerald-800 mt-1 font-bold">
+                      <div className="text-xs text-emerald-800 mt-1.5 font-bold">
                         Re-enrolled in School
                       </div>
                     </div>
 
-                    <div className="bg-purple-50 border-2 border-purple-300 rounded-2xl p-4 shadow-sm">
-                      <span className="text-[11px] font-black text-purple-950 uppercase tracking-wider block">
+                    <div className="bg-purple-50 border-2 border-purple-300 rounded-2xl p-4 sm:p-5 shadow-sm">
+                      <span className="text-xs sm:text-sm font-black text-purple-950 uppercase tracking-wider block">
                         Repeaters
                       </span>
-                      <div className="text-3xl font-black text-purple-950 mt-2">
+                      <div className="text-3xl sm:text-4xl font-black text-purple-950 mt-2">
                         {repCount}
                       </div>
-                      <div className="text-[11px] text-purple-800 mt-1 font-bold">
+                      <div className="text-xs text-purple-800 mt-1.5 font-bold">
                         Repeaters Caseload
                       </div>
                     </div>
 
-                    <div className="bg-rose-50 border-2 border-rose-300 rounded-2xl p-4 shadow-sm">
-                      <span className="text-[11px] font-black text-rose-950 uppercase tracking-wider block">
+                    <div className="bg-rose-50 border-2 border-rose-300 rounded-2xl p-4 sm:p-5 shadow-sm">
+                      <span className="text-xs sm:text-sm font-black text-rose-950 uppercase tracking-wider block">
                         Counselling Needed
                       </span>
-                      <div className="text-3xl font-black text-rose-950 mt-2">
+                      <div className="text-3xl sm:text-4xl font-black text-rose-950 mt-2">
                         {counselCount}
                       </div>
-                      <div className="text-[11px] text-rose-800 mt-1 font-bold">
+                      <div className="text-xs text-rose-800 mt-1.5 font-bold">
                         Guidance Required
                       </div>
                     </div>
@@ -1406,14 +1430,14 @@ export default function App() {
                         }`}
                       >
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-black truncate">{taluk.name}</span>
+                          <span className="text-sm font-black truncate">{taluk.name}</span>
                           <span className={`text-xs font-bold px-2 py-0.5 rounded ${
                             isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-900 border border-slate-300'
                           }`}>
                             {taluk.potentialDropout}
                           </span>
                         </div>
-                        <div className={`mt-2 flex items-center justify-between text-[10px] font-bold ${
+                        <div className={`mt-2 flex items-center justify-between text-xs font-bold ${
                           isSelected ? 'text-slate-300' : 'text-slate-600'
                         }`}>
                           <span>Rep: {taluk.repeaters}</span>
@@ -1481,25 +1505,27 @@ export default function App() {
                       <table className="w-full text-left text-xs whitespace-nowrap">
                         <thead className="bg-slate-100 text-slate-800 font-black border-b-2 border-slate-300 sticky top-0 z-10">
                           <tr>
-                            <th className="py-2.5 px-3">S.No</th>
-                            <th className="py-2.5 px-3">Student Name</th>
-                            <th className="py-2.5 px-3">EMIS ID</th>
-                            <th className="py-2.5 px-3">Taluk</th>
-                            <th className="py-2.5 px-3">Division</th>
-                            <th className="py-2.5 px-3">Block</th>
-                            <th className="py-2.5 px-3">School</th>
-                            <th className="py-2.5 px-3">Class</th>
-                            <th className="py-2.5 px-3">Gender</th>
-                            <th className="py-2.5 px-3">Repeater</th>
-                            <th className="py-2.5 px-3">Counselling</th>
-                            <th className="py-2.5 px-3 min-w-56 bg-sky-100/70 text-sky-950 font-black border-l border-r border-sky-300">
+                            <th className="py-3 px-3.5">S.No</th>
+                            <th className="py-3 px-3.5">Student Name</th>
+                            <th className="py-3 px-3.5">EMIS ID</th>
+                            <th className="py-3 px-3.5">Taluk</th>
+                            <th className="py-3 px-3.5">Division</th>
+                            <th className="py-3 px-3.5">Block</th>
+                            <th className="py-3 px-3.5">School</th>
+                            <th className="py-3 px-3.5">Class</th>
+                            <th className="py-3 px-3.5">Gender</th>
+                            <th className="py-3 px-3.5">Repeater</th>
+                            <th className="py-3 px-3.5 min-w-32 bg-rose-100/70 text-rose-950 font-black border-l border-r border-rose-300">
+                              Counselling (Dropdown)
+                            </th>
+                            <th className="py-3 px-3.5 min-w-56 bg-sky-100/70 text-sky-950 font-black border-l border-r border-sky-300">
                               Dropout Reason (Editable)
                             </th>
-                            <th className="py-2.5 px-3 min-w-44 bg-amber-100/70 text-amber-950 font-black border-l border-r border-amber-300">
+                            <th className="py-3 px-3.5 min-w-48 bg-amber-100/70 text-amber-950 font-black border-l border-r border-amber-300">
                               Present Status (Editable Dropdown)
                             </th>
-                            <th className="py-2.5 px-3">Contact No</th>
-                            <th className="py-2.5 px-3 min-w-56 bg-indigo-100/70 text-indigo-950 font-black border-l border-r border-indigo-300">
+                            <th className="py-3 px-3.5">Contact No</th>
+                            <th className="py-3 px-3.5 min-w-56 bg-indigo-100/70 text-indigo-950 font-black border-l border-r border-indigo-300">
                               Remarks (Editable)
                             </th>
                           </tr>
@@ -1507,21 +1533,22 @@ export default function App() {
                         <tbody className="divide-y divide-slate-200 font-medium text-slate-800">
                           {filteredTalukStudents.map((st, idx) => {
                             const key = st.emisId || String(st.sNo);
+                            const counsellingVal = (st.counsellingRequired === 'Yes' || st.isCounsellingNeeded) ? 'Yes' : 'No';
                             return (
                               <tr key={`rev-${key}-${idx}`} className="hover:bg-teal-50/40 transition-colors">
-                                <td className="py-2 px-3 font-bold text-slate-600">{st.sNo}</td>
-                                <td className="py-2 px-3 font-black text-slate-900">{st.studentName}</td>
-                                <td className="py-2 px-3 text-slate-600 text-[11px] font-bold">{st.emisId || '-'}</td>
-                                <td className="py-2 px-3 font-bold text-teal-900 bg-teal-50/60">{st.taluk}</td>
-                                <td className="py-2 px-3 text-slate-700">{st.division}</td>
-                                <td className="py-2 px-3 font-bold text-slate-800">{st.block}</td>
-                                <td className="py-2 px-3 text-slate-700 max-w-xs truncate">{st.school}</td>
-                                <td className="py-2 px-3 text-slate-800 font-bold">
+                                <td className="py-2.5 px-3.5 font-bold text-slate-600">{st.sNo}</td>
+                                <td className="py-2.5 px-3.5 font-black text-slate-900">{st.studentName}</td>
+                                <td className="py-2.5 px-3.5 text-slate-700 font-bold">{st.emisId || '-'}</td>
+                                <td className="py-2.5 px-3.5 font-bold text-teal-900 bg-teal-50/60">{st.taluk}</td>
+                                <td className="py-2.5 px-3.5 text-slate-700">{st.division}</td>
+                                <td className="py-2.5 px-3.5 font-bold text-slate-800">{st.block}</td>
+                                <td className="py-2.5 px-3.5 text-slate-700 max-w-xs truncate">{st.school}</td>
+                                <td className="py-2.5 px-3.5 text-slate-800 font-bold">
                                   Std {st.std} {st.sec ? `(${st.sec})` : ''}
                                 </td>
-                                <td className="py-2 px-3 text-slate-700">{st.gender}</td>
-                                <td className="py-2 px-3">
-                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                <td className="py-2.5 px-3.5 text-slate-700">{st.gender}</td>
+                                <td className="py-2.5 px-3.5">
+                                  <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
                                     st.isRepeater
                                       ? 'bg-purple-100 text-purple-900 border border-purple-300'
                                       : 'bg-slate-100 text-slate-700 border border-slate-200'
@@ -1529,34 +1556,42 @@ export default function App() {
                                     {st.repeaterStatus}
                                   </span>
                                 </td>
-                                <td className="py-2 px-3">
-                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                    st.isCounsellingNeeded
-                                      ? 'bg-rose-100 text-rose-900 border border-rose-300'
-                                      : 'bg-slate-100 text-slate-700 border border-slate-200'
-                                  }`}>
-                                    {st.counsellingRequired}
-                                  </span>
+
+                                {/* EDITABLE COUNSELLING DROPDOWN FOR OFFICIALS (YES / NO) */}
+                                <td className="py-2 px-3 bg-rose-50/50 border-l border-r border-rose-200">
+                                  <select
+                                    value={counsellingVal}
+                                    onChange={(e) => handleCounsellingChange(key, e.target.value)}
+                                    className={`w-full min-w-[85px] text-sm font-bold py-1.5 px-2.5 rounded-lg border-2 shadow-2xs cursor-pointer ${
+                                      counsellingVal === 'Yes'
+                                        ? 'border-rose-400 bg-rose-50 text-rose-950 focus:ring-2 focus:ring-rose-500'
+                                        : 'border-slate-300 bg-white text-slate-800 focus:ring-2 focus:ring-slate-400'
+                                    }`}
+                                    title="Edit Counselling Needed (Yes/No)"
+                                  >
+                                    <option value="Yes">Yes</option>
+                                    <option value="No">No</option>
+                                  </select>
                                 </td>
 
                                 {/* EDITABLE DROPOUT REASON FOR OFFICIALS */}
-                                <td className="py-1.5 px-3 bg-sky-50/40 border-l border-r border-sky-200">
+                                <td className="py-2 px-3 bg-sky-50/40 border-l border-r border-sky-200">
                                   <input
                                     type="text"
                                     value={st.dropoutReason || ''}
                                     placeholder="Enter dropout reason..."
                                     onChange={(e) => handleDropoutReasonChange(key, e.target.value)}
-                                    className="w-full min-w-[180px] text-xs py-1 px-2.5 rounded-lg border-2 border-sky-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 shadow-2xs font-medium placeholder:text-slate-400 placeholder:italic"
+                                    className="w-full min-w-[200px] text-sm py-1.5 px-3 rounded-lg border-2 border-sky-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 shadow-2xs font-medium placeholder:text-slate-400 placeholder:italic"
                                     title="Edit Dropout Reason"
                                   />
                                 </td>
 
                                 {/* EDITABLE PRESENT STATUS DROPDOWN FOR OFFICIALS */}
-                                <td className="py-1.5 px-3 bg-amber-50/50 border-l border-r border-amber-200">
+                                <td className="py-2 px-3 bg-amber-50/50 border-l border-r border-amber-200">
                                   <select
                                     value={st.status}
                                     onChange={(e) => handleStatusChange(key, e.target.value)}
-                                    className="w-full text-xs font-bold py-1 px-2 rounded-lg border-2 border-amber-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-2xs cursor-pointer"
+                                    className="w-full text-sm font-bold py-1.5 px-2.5 rounded-lg border-2 border-amber-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-2xs cursor-pointer"
                                   >
                                     {PRESENT_STATUS_OPTIONS.map((opt) => (
                                       <option key={opt} value={opt}>
@@ -1570,16 +1605,16 @@ export default function App() {
                                   </select>
                                 </td>
 
-                                <td className="py-2 px-3 text-[11px] text-slate-700 font-bold">{st.contactNo || '-'}</td>
+                                <td className="py-2.5 px-3.5 text-sm text-slate-800 font-bold">{st.contactNo || '-'}</td>
 
                                 {/* EDITABLE REMARKS FOR OFFICIALS */}
-                                <td className="py-1.5 px-3 bg-indigo-50/40 border-l border-r border-indigo-200">
+                                <td className="py-2 px-3 bg-indigo-50/40 border-l border-r border-indigo-200">
                                   <input
                                     type="text"
                                     value={st.remarks || ''}
                                     placeholder="Enter remarks..."
                                     onChange={(e) => handleRemarksChange(key, e.target.value)}
-                                    className="w-full min-w-[180px] text-xs py-1 px-2.5 rounded-lg border-2 border-indigo-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-2xs font-medium placeholder:text-slate-400 placeholder:italic"
+                                    className="w-full min-w-[200px] text-sm py-1.5 px-3 rounded-lg border-2 border-indigo-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-2xs font-medium placeholder:text-slate-400 placeholder:italic"
                                     title="Edit Remarks"
                                   />
                                 </td>
@@ -1633,39 +1668,30 @@ export default function App() {
                   const deptStudents = currentDept?.students || [];
 
                   return (
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2.5">
                       <button
                         onClick={() => exportStudentsToExcel(deptStudents, `${selectedSlicer}_Students_${selectedMonth}`)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs border border-emerald-800"
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs border border-emerald-800 transition-all active:scale-95"
                         title="Download Excel format"
                       >
-                        <FileSpreadsheet className="w-3.5 h-3.5" />
+                        <FileSpreadsheet className="w-4 h-4" />
                         <span>Excel (.xlsx)</span>
                       </button>
 
                       <button
                         onClick={() => exportStudentsToWord(deptStudents, `${selectedSlicer}_Students_${selectedMonth}`)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-700 hover:bg-blue-800 text-white shadow-xs border border-blue-800"
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-blue-700 hover:bg-blue-800 text-white shadow-xs border border-blue-800 transition-all active:scale-95"
                         title="Download Word format"
                       >
-                        <FileText className="w-3.5 h-3.5" />
+                        <FileText className="w-4 h-4" />
                         <span>Word (.doc)</span>
-                      </button>
-
-                      <button
-                        onClick={() => exportStudentsToDocs(deptStudents, `${selectedSlicer}_Students_${selectedMonth}`)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-700 hover:bg-indigo-800 text-white shadow-xs border border-indigo-800"
-                        title="Download Docs format"
-                      >
-                        <FileText className="w-3.5 h-3.5" />
-                        <span>Docs</span>
                       </button>
                     </div>
                   );
                 })()}
               </div>
 
-              {/* 4 Summary Boxes: Potential Dropout, Re-Enrolled, Repeaters, Counselling Needed with light fills */}
+              {/* 4 Summary Boxes: Potential Dropout, Re-Enrolled, Repeaters, Counselling Needed with regular font size */}
               {(() => {
                 const currentDept = computedDepartments.find(d => d.name === selectedSlicer);
                 const deptStudents = currentDept?.students || [];
@@ -1676,53 +1702,53 @@ export default function App() {
                 return (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     {/* Box 1: No. of Potential Dropout in this Department */}
-                    <div className="bg-slate-50 border-2 border-slate-300 rounded-2xl p-4 shadow-sm hover:border-slate-400 transition-all">
-                      <span className="text-[11px] font-black text-slate-800 uppercase tracking-wider block">
+                    <div className="bg-slate-50 border-2 border-slate-300 rounded-2xl p-4 sm:p-5 shadow-sm hover:border-slate-400 transition-all">
+                      <span className="text-xs sm:text-sm font-black text-slate-800 uppercase tracking-wider block">
                         Potential Dropout
                       </span>
-                      <div className="text-3xl font-black text-slate-900 mt-2">
+                      <div className="text-3xl sm:text-4xl font-black text-slate-900 mt-2">
                         {deptStudents.length}
                       </div>
-                      <div className="text-[11px] text-slate-600 mt-1 font-bold">
+                      <div className="text-xs text-slate-600 mt-1.5 font-bold">
                         Students assigned to {selectedSlicer}
                       </div>
                     </div>
 
                     {/* Box 2: Re-Enrolled */}
-                    <div className="bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-4 shadow-sm hover:border-emerald-400 transition-all">
-                      <span className="text-[11px] font-black text-emerald-950 uppercase tracking-wider block">
+                    <div className="bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-4 sm:p-5 shadow-sm hover:border-emerald-400 transition-all">
+                      <span className="text-xs sm:text-sm font-black text-emerald-950 uppercase tracking-wider block">
                         Re-Enrolled
                       </span>
-                      <div className="text-3xl font-black text-emerald-950 mt-2">
+                      <div className="text-3xl sm:text-4xl font-black text-emerald-950 mt-2">
                         {reEnrCount}
                       </div>
-                      <div className="text-[11px] text-emerald-800 mt-1 font-bold">
+                      <div className="text-xs text-emerald-800 mt-1.5 font-bold">
                         Re-enrolled in School
                       </div>
                     </div>
 
                     {/* Box 3: Repeaters */}
-                    <div className="bg-purple-50 border-2 border-purple-300 rounded-2xl p-4 shadow-sm hover:border-purple-400 transition-all">
-                      <span className="text-[11px] font-black text-purple-950 uppercase tracking-wider block">
+                    <div className="bg-purple-50 border-2 border-purple-300 rounded-2xl p-4 sm:p-5 shadow-sm hover:border-purple-400 transition-all">
+                      <span className="text-xs sm:text-sm font-black text-purple-950 uppercase tracking-wider block">
                         Repeaters
                       </span>
-                      <div className="text-3xl font-black text-purple-950 mt-2">
+                      <div className="text-3xl sm:text-4xl font-black text-purple-950 mt-2">
                         {repCount}
                       </div>
-                      <div className="text-[11px] text-purple-800 mt-1 font-bold">
+                      <div className="text-xs text-purple-800 mt-1.5 font-bold">
                         Repeaters Caseload
                       </div>
                     </div>
 
                     {/* Box 4: Counselling Needed */}
-                    <div className="bg-rose-50 border-2 border-rose-300 rounded-2xl p-4 shadow-sm hover:border-rose-400 transition-all">
-                      <span className="text-[11px] font-black text-rose-950 uppercase tracking-wider block">
+                    <div className="bg-rose-50 border-2 border-rose-300 rounded-2xl p-4 sm:p-5 shadow-sm hover:border-rose-400 transition-all">
+                      <span className="text-xs sm:text-sm font-black text-rose-950 uppercase tracking-wider block">
                         Counselling Needed
                       </span>
-                      <div className="text-3xl font-black text-rose-950 mt-2">
+                      <div className="text-3xl sm:text-4xl font-black text-rose-950 mt-2">
                         {counselCount}
                       </div>
-                      <div className="text-[11px] text-rose-800 mt-1 font-bold">
+                      <div className="text-xs text-rose-800 mt-1.5 font-bold">
                         Emotional Support / Guidance
                       </div>
                     </div>
@@ -1730,7 +1756,7 @@ export default function App() {
                 );
               })()}
 
-              {/* Student Directory with ALL Columns and Editable Present Status Dropdown */}
+              {/* Student Directory with ALL Columns, Editable Counselling Dropdown (Yes/No), Dropout Reason, Present Status, and Remarks */}
               {(() => {
                 const currentDept = computedDepartments.find(d => d.name === selectedSlicer);
                 const deptStudents: StudentRecord[] = currentDept?.students || [];
@@ -1744,56 +1770,58 @@ export default function App() {
                 );
 
                 return (
-                  <div className="bg-slate-50 border-2 border-slate-300 rounded-2xl p-5 shadow-sm space-y-4">
+                  <div className="bg-slate-50 border-2 border-slate-300 rounded-2xl p-5 sm:p-6 shadow-sm space-y-4">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div>
-                        <h3 className="text-base font-black text-slate-900 tracking-tight flex items-center gap-2">
+                        <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
                           <Users className="w-5 h-5 text-slate-800" />
                           <span>Assigned Student Records ({filteredStudents.length})</span>
                         </h3>
-                        <p className="text-xs text-slate-600 font-medium">
-                          Department officials can edit and enter Dropout Reason, Present Status, and Remarks for each student below. Changes save automatically.
+                        <p className="text-sm text-slate-600 font-medium">
+                          Department officials can edit Counselling (Yes/No), Dropout Reason, Present Status, and Remarks for each student below. Changes save automatically.
                         </p>
                       </div>
 
                       <div className="relative">
-                        <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-2.5" />
+                        <Search className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
                         <input
                           type="text"
                           placeholder="Search student, block, EMIS..."
                           value={deptSearch}
                           onChange={(e) => setDeptSearch(e.target.value)}
-                          className="text-xs pl-8 pr-3 py-1.5 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-slate-400 w-full sm:w-56"
+                          className="text-sm pl-9 pr-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-slate-400 w-full sm:w-60 font-medium"
                         />
                       </div>
                     </div>
 
-                    {/* Table with ALL Columns and Editable Dropout Reason, Present Status, and Remarks */}
+                    {/* Table with ALL Columns and Editable Counselling Dropdown (Yes/No), Dropout Reason, Present Status, and Remarks */}
                     <div className="overflow-x-auto rounded-xl border-2 border-slate-300 max-h-[32rem] overflow-y-auto bg-white">
-                      <table className="w-full text-left text-xs whitespace-nowrap">
-                        <thead className="bg-slate-100 text-slate-800 font-black border-b-2 border-slate-300 sticky top-0 z-10">
+                      <table className="w-full text-left text-sm whitespace-nowrap">
+                        <thead className="bg-slate-100 text-slate-900 font-black border-b-2 border-slate-300 sticky top-0 z-10">
                           <tr>
-                            <th className="py-2.5 px-3">S.No</th>
-                            <th className="py-2.5 px-3">Student Name</th>
-                            <th className="py-2.5 px-3">EMIS ID</th>
-                            <th className="py-2.5 px-3">Division</th>
-                            <th className="py-2.5 px-3">Taluk</th>
-                            <th className="py-2.5 px-3">Block</th>
-                            <th className="py-2.5 px-3">School</th>
-                            <th className="py-2.5 px-3">Category</th>
-                            <th className="py-2.5 px-3">Gender</th>
-                            <th className="py-2.5 px-3">Class</th>
-                            <th className="py-2.5 px-3">Address</th>
-                            <th className="py-2.5 px-3">Contact No</th>
-                            <th className="py-2.5 px-3">Repeater</th>
-                            <th className="py-2.5 px-3 min-w-56 bg-sky-100/70 text-sky-950 font-black border-l border-r border-sky-300">
+                            <th className="py-3 px-3.5">S.No</th>
+                            <th className="py-3 px-3.5">Student Name</th>
+                            <th className="py-3 px-3.5">EMIS ID</th>
+                            <th className="py-3 px-3.5">Division</th>
+                            <th className="py-3 px-3.5">Taluk</th>
+                            <th className="py-3 px-3.5">Block</th>
+                            <th className="py-3 px-3.5">School</th>
+                            <th className="py-3 px-3.5">Category</th>
+                            <th className="py-3 px-3.5">Gender</th>
+                            <th className="py-3 px-3.5">Class</th>
+                            <th className="py-3 px-3.5">Address</th>
+                            <th className="py-3 px-3.5">Contact No</th>
+                            <th className="py-3 px-3.5">Repeater</th>
+                            <th className="py-3 px-3.5 min-w-32 bg-rose-100/70 text-rose-950 font-black border-l border-r border-rose-300">
+                              Counselling (Dropdown)
+                            </th>
+                            <th className="py-3 px-3.5 min-w-56 bg-sky-100/70 text-sky-950 font-black border-l border-r border-sky-300">
                               Dropout Reason (Editable)
                             </th>
-                            <th className="py-2.5 px-3">Counselling</th>
-                            <th className="py-2.5 px-3 min-w-44 bg-amber-100/70 text-amber-950 font-black border-l border-r border-amber-300">
+                            <th className="py-3 px-3.5 min-w-48 bg-amber-100/70 text-amber-950 font-black border-l border-r border-amber-300">
                               Present Status (Editable Dropdown)
                             </th>
-                            <th className="py-2.5 px-3 min-w-56 bg-indigo-100/70 text-indigo-950 font-black border-l border-r border-indigo-300">
+                            <th className="py-3 px-3.5 min-w-56 bg-indigo-100/70 text-indigo-950 font-black border-l border-r border-indigo-300">
                               Remarks (Editable)
                             </th>
                           </tr>
@@ -1801,24 +1829,25 @@ export default function App() {
                         <tbody className="divide-y divide-slate-200 font-medium text-slate-800">
                           {filteredStudents.map((st, idx) => {
                             const key = st.emisId || String(st.sNo);
+                            const counsellingVal = (st.counsellingRequired === 'Yes' || st.isCounsellingNeeded) ? 'Yes' : 'No';
                             return (
                               <tr key={`st-${key}-${idx}`} className="hover:bg-slate-50 transition-colors">
-                                <td className="py-2 px-3 font-bold text-slate-600">{st.sNo}</td>
-                                <td className="py-2 px-3 font-black text-slate-900">{st.studentName}</td>
-                                <td className="py-2 px-3 text-slate-600 text-[11px] font-bold">{st.emisId || '-'}</td>
-                                <td className="py-2 px-3 text-slate-700">{st.division}</td>
-                                <td className="py-2 px-3 font-bold text-slate-800">{st.taluk}</td>
-                                <td className="py-2 px-3 font-bold text-slate-800">{st.block}</td>
-                                <td className="py-2 px-3 text-slate-700 max-w-xs truncate">{st.school}</td>
-                                <td className="py-2 px-3 text-slate-600 text-[11px]">{st.category}</td>
-                                <td className="py-2 px-3 text-slate-700">{st.gender}</td>
-                                <td className="py-2 px-3 text-slate-800 font-bold">
+                                <td className="py-2.5 px-3.5 font-bold text-slate-600">{st.sNo}</td>
+                                <td className="py-2.5 px-3.5 font-black text-slate-900">{st.studentName}</td>
+                                <td className="py-2.5 px-3.5 text-slate-700 font-bold">{st.emisId || '-'}</td>
+                                <td className="py-2.5 px-3.5 text-slate-700">{st.division}</td>
+                                <td className="py-2.5 px-3.5 font-bold text-slate-800">{st.taluk}</td>
+                                <td className="py-2.5 px-3.5 font-bold text-slate-800">{st.block}</td>
+                                <td className="py-2.5 px-3.5 text-slate-700 max-w-xs truncate">{st.school}</td>
+                                <td className="py-2.5 px-3.5 text-slate-600">{st.category}</td>
+                                <td className="py-2.5 px-3.5 text-slate-700">{st.gender}</td>
+                                <td className="py-2.5 px-3.5 text-slate-800 font-bold">
                                   Std {st.std} {st.sec ? `(${st.sec})` : ''}
                                 </td>
-                                <td className="py-2 px-3 text-slate-600 text-[11px] max-w-xs truncate">{st.address || '-'}</td>
-                                <td className="py-2 px-3 text-[11px] text-slate-700 font-bold">{st.contactNo || '-'}</td>
-                                <td className="py-2 px-3">
-                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                <td className="py-2.5 px-3.5 text-slate-600 max-w-xs truncate">{st.address || '-'}</td>
+                                <td className="py-2.5 px-3.5 text-slate-800 font-bold">{st.contactNo || '-'}</td>
+                                <td className="py-2.5 px-3.5">
+                                  <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
                                     st.isRepeater
                                       ? 'bg-purple-100 text-purple-900 border border-purple-300'
                                       : 'bg-slate-100 text-slate-700 border border-slate-200'
@@ -1827,34 +1856,41 @@ export default function App() {
                                   </span>
                                 </td>
 
+                                {/* EDITABLE COUNSELLING DROPDOWN FOR OFFICIALS (YES / NO) */}
+                                <td className="py-2 px-3 bg-rose-50/50 border-l border-r border-rose-200">
+                                  <select
+                                    value={counsellingVal}
+                                    onChange={(e) => handleCounsellingChange(key, e.target.value)}
+                                    className={`w-full min-w-[85px] text-sm font-bold py-1.5 px-2.5 rounded-lg border-2 shadow-2xs cursor-pointer ${
+                                      counsellingVal === 'Yes'
+                                        ? 'border-rose-400 bg-rose-50 text-rose-950 focus:ring-2 focus:ring-rose-500'
+                                        : 'border-slate-300 bg-white text-slate-800 focus:ring-2 focus:ring-slate-400'
+                                    }`}
+                                    title="Edit Counselling Needed (Yes/No)"
+                                  >
+                                    <option value="Yes">Yes</option>
+                                    <option value="No">No</option>
+                                  </select>
+                                </td>
+
                                 {/* EDITABLE DROPOUT REASON FOR OFFICIALS */}
-                                <td className="py-1.5 px-3 bg-sky-50/40 border-l border-r border-sky-200">
+                                <td className="py-2 px-3 bg-sky-50/40 border-l border-r border-sky-200">
                                   <input
                                     type="text"
                                     value={st.dropoutReason || ''}
                                     placeholder="Enter dropout reason..."
                                     onChange={(e) => handleDropoutReasonChange(key, e.target.value)}
-                                    className="w-full min-w-[180px] text-xs py-1 px-2.5 rounded-lg border-2 border-sky-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 shadow-2xs font-medium placeholder:text-slate-400 placeholder:italic"
+                                    className="w-full min-w-[200px] text-sm py-1.5 px-3 rounded-lg border-2 border-sky-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 shadow-2xs font-medium placeholder:text-slate-400 placeholder:italic"
                                     title="Edit Dropout Reason"
                                   />
                                 </td>
 
-                                <td className="py-2 px-3">
-                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                    st.isCounsellingNeeded
-                                      ? 'bg-rose-100 text-rose-900 border border-rose-300'
-                                      : 'bg-slate-100 text-slate-700 border border-slate-200'
-                                  }`}>
-                                    {st.counsellingRequired}
-                                  </span>
-                                </td>
-
                                 {/* EDITABLE PRESENT STATUS DROPDOWN FOR OFFICIALS */}
-                                <td className="py-1.5 px-3 bg-amber-50/50 border-l border-r border-amber-200">
+                                <td className="py-2 px-3 bg-amber-50/50 border-l border-r border-amber-200">
                                   <select
                                     value={st.status}
                                     onChange={(e) => handleStatusChange(key, e.target.value)}
-                                    className="w-full text-xs font-bold py-1 px-2 rounded-lg border-2 border-amber-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-2xs cursor-pointer"
+                                    className="w-full text-sm font-bold py-1.5 px-2.5 rounded-lg border-2 border-amber-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-2xs cursor-pointer"
                                   >
                                     {PRESENT_STATUS_OPTIONS.map((opt) => (
                                       <option key={opt} value={opt}>
@@ -1868,13 +1904,13 @@ export default function App() {
                                 </td>
 
                                 {/* EDITABLE REMARKS FOR OFFICIALS */}
-                                <td className="py-1.5 px-3 bg-indigo-50/40 border-l border-r border-indigo-200">
+                                <td className="py-2 px-3 bg-indigo-50/40 border-l border-r border-indigo-200">
                                   <input
                                     type="text"
                                     value={st.remarks || ''}
                                     placeholder="Enter department remarks..."
                                     onChange={(e) => handleRemarksChange(key, e.target.value)}
-                                    className="w-full min-w-[180px] text-xs py-1 px-2.5 rounded-lg border-2 border-indigo-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-2xs font-medium placeholder:text-slate-400 placeholder:italic"
+                                    className="w-full min-w-[200px] text-sm py-1.5 px-3 rounded-lg border-2 border-indigo-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-2xs font-medium placeholder:text-slate-400 placeholder:italic"
                                     title="Edit Remarks"
                                   />
                                 </td>
@@ -1895,13 +1931,13 @@ export default function App() {
       </div>
 
       {/* Footer */}
-      <footer className="border-t-2 border-slate-300 bg-white/95 py-4 px-4 text-center text-xs text-slate-700 font-bold mt-auto">
+      <footer className="border-t-2 border-slate-300 bg-white/95 py-4 px-4 text-center text-sm text-slate-700 font-bold mt-auto">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <TamilNaduLogo className="w-6 h-6" size={24} />
             <span>Thoothukudi District - Potential Dropout Dashboard</span>
           </div>
-          <div className="text-[11px] text-slate-600 font-medium">
+          <div className="text-xs sm:text-sm text-slate-600 font-medium">
             Sourced directly from Google Sheets • Last synchronized: {data?.lastFetched ? new Date(data.lastFetched).toLocaleTimeString() : 'Just now'}
           </div>
         </div>

@@ -19,7 +19,7 @@ export function exportStudentsToExcel(students: StudentRecord[], filename: strin
     'Repeater or Not': s.repeaterStatus,
     'Line Department': s.lineDept,
     'Dropout Reason': s.dropoutReason,
-    'Counselling Required': s.counsellingRequired,
+    'Counselling Required': s.counsellingRequired || (s.isCounsellingNeeded ? 'Yes' : 'No'),
     'Present Status': s.status,
     'Remarks / Notes': s.remarks,
   }));
@@ -57,20 +57,21 @@ export function exportAbstractToExcel(abstracts: DepartmentAbstract[], filename:
 export function exportStudentsToWord(students: StudentRecord[], title: string) {
   const tableRows = students.map((s, index) => `
     <tr>
-      <td style="border:1px solid #cbd5e1;padding:5px;font-size:10px;">${s.sNo || index + 1}</td>
-      <td style="border:1px solid #cbd5e1;padding:5px;font-size:10px;">${s.division}</td>
-      <td style="border:1px solid #cbd5e1;padding:5px;font-size:10px;">${s.taluk}</td>
-      <td style="border:1px solid #cbd5e1;padding:5px;font-size:10px;">${s.block}</td>
-      <td style="border:1px solid #cbd5e1;padding:5px;font-size:10px;">${s.school}</td>
-      <td style="border:1px solid #cbd5e1;padding:5px;font-size:10px;">${s.emisId}</td>
-      <td style="border:1px solid #cbd5e1;padding:5px;font-size:10px;font-weight:bold;">${s.studentName}</td>
-      <td style="border:1px solid #cbd5e1;padding:5px;font-size:10px;">${s.gender}</td>
-      <td style="border:1px solid #cbd5e1;padding:5px;font-size:10px;">Std ${s.std} ${s.sec ? `(${s.sec})` : ''}</td>
-      <td style="border:1px solid #cbd5e1;padding:5px;font-size:10px;">${s.repeaterStatus}</td>
-      <td style="border:1px solid #cbd5e1;padding:5px;font-size:10px;">${s.lineDept}</td>
-      <td style="border:1px solid #cbd5e1;padding:5px;font-size:10px;">${s.counsellingRequired}</td>
-      <td style="border:1px solid #cbd5e1;padding:5px;font-size:10px;font-weight:bold;color:#047857;">${s.status}</td>
-      <td style="border:1px solid #cbd5e1;padding:5px;font-size:10px;">${s.remarks || '-'}</td>
+      <td style="border:1px solid #cbd5e1;padding:7px;font-size:12px;font-family:'Times New Roman',serif;">${s.sNo || index + 1}</td>
+      <td style="border:1px solid #cbd5e1;padding:7px;font-size:12px;font-family:'Times New Roman',serif;">${s.division}</td>
+      <td style="border:1px solid #cbd5e1;padding:7px;font-size:12px;font-family:'Times New Roman',serif;">${s.taluk}</td>
+      <td style="border:1px solid #cbd5e1;padding:7px;font-size:12px;font-family:'Times New Roman',serif;">${s.block}</td>
+      <td style="border:1px solid #cbd5e1;padding:7px;font-size:12px;font-family:'Times New Roman',serif;">${s.school}</td>
+      <td style="border:1px solid #cbd5e1;padding:7px;font-size:12px;font-family:'Times New Roman',serif;">${s.emisId || '-'}</td>
+      <td style="border:1px solid #cbd5e1;padding:7px;font-size:12px;font-weight:bold;font-family:'Times New Roman',serif;">${s.studentName}</td>
+      <td style="border:1px solid #cbd5e1;padding:7px;font-size:12px;font-family:'Times New Roman',serif;">${s.gender}</td>
+      <td style="border:1px solid #cbd5e1;padding:7px;font-size:12px;font-family:'Times New Roman',serif;">Std ${s.std} ${s.sec ? `(${s.sec})` : ''}</td>
+      <td style="border:1px solid #cbd5e1;padding:7px;font-size:12px;font-family:'Times New Roman',serif;">${s.repeaterStatus}</td>
+      <td style="border:1px solid #cbd5e1;padding:7px;font-size:12px;font-family:'Times New Roman',serif;">${s.lineDept}</td>
+      <td style="border:1px solid #cbd5e1;padding:7px;font-size:12px;font-family:'Times New Roman',serif;">${s.dropoutReason || '-'}</td>
+      <td style="border:1px solid #cbd5e1;padding:7px;font-size:12px;font-weight:bold;font-family:'Times New Roman',serif;color:${(s.counsellingRequired === 'Yes' || s.isCounsellingNeeded) ? '#be123c' : '#334155'};">${s.counsellingRequired || (s.isCounsellingNeeded ? 'Yes' : 'No')}</td>
+      <td style="border:1px solid #cbd5e1;padding:7px;font-size:12px;font-weight:bold;color:#047857;font-family:'Times New Roman',serif;">${s.status}</td>
+      <td style="border:1px solid #cbd5e1;padding:7px;font-size:12px;font-family:'Times New Roman',serif;">${s.remarks || '-'}</td>
     </tr>
   `).join('');
 
@@ -79,11 +80,11 @@ export function exportStudentsToWord(students: StudentRecord[], title: string) {
     <head><meta charset='utf-8'>
     <title>${title}</title>
     <style>
-      body { font-family: 'Times New Roman', Times, serif; margin: 24px; color: #1e293b; }
-      h2 { color: #1e3a5f; margin-bottom: 2px; font-size: 18px; }
-      h3 { color: #334155; margin-top: 2px; margin-bottom: 8px; font-size: 13px; font-weight: normal; }
-      table { border-collapse: collapse; width: 100%; margin-top: 12px; }
-      th { background-color: #1e3a5f; color: #ffffff; padding: 6px; text-align: left; font-size: 10px; border: 1px solid #1e3a5f; }
+      body { font-family: 'Times New Roman', Times, serif; margin: 24px; color: #1e293b; font-size: 14px; }
+      h2 { color: #1e3a5f; margin-bottom: 4px; font-size: 20px; font-family: 'Times New Roman', Times, serif; }
+      h3 { color: #334155; margin-top: 2px; margin-bottom: 12px; font-size: 14px; font-weight: normal; font-family: 'Times New Roman', Times, serif; }
+      table { border-collapse: collapse; width: 100%; margin-top: 14px; }
+      th { background-color: #1e3a5f; color: #ffffff; padding: 8px 6px; text-align: left; font-size: 12px; font-weight: bold; border: 1px solid #1e3a5f; font-family: 'Times New Roman', Times, serif; }
     </style>
     </head>
     <body>
@@ -103,6 +104,7 @@ export function exportStudentsToWord(students: StudentRecord[], title: string) {
             <th>Class</th>
             <th>Repeater</th>
             <th>Line Dept</th>
+            <th>Dropout Reason</th>
             <th>Counselling</th>
             <th>Present Status</th>
             <th>Remarks</th>
@@ -128,6 +130,6 @@ export function exportStudentsToWord(students: StudentRecord[], title: string) {
 }
 
 export function exportStudentsToDocs(students: StudentRecord[], title: string) {
-  // Generates Word/Docs compatible HTML document format (.doc)
+  // Maintained for backward compatibility
   exportStudentsToWord(students, title);
 }
