@@ -2,7 +2,7 @@ import express from 'express';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { SPREADSHEET_ID, MONTH_TABS, processSheetCSV } from './src/sheetData.js';
+import { SPREADSHEET_ID, MONTH_TABS, processSheetCSV, fetchLiveCredentials, DEFAULT_DEPARTMENT_CREDENTIALS } from './src/sheetData.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,6 +19,23 @@ interface CacheEntry {
 const cacheStore: Record<string, CacheEntry> = {};
 const CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes cache
 
+let cachedCredentials: any = null;
+let credentialsTimestamp = 0;
+
+async function getOrFetchCredentials() {
+  if (cachedCredentials && Date.now() - credentialsTimestamp < CACHE_TTL_MS) {
+    return cachedCredentials;
+  }
+  try {
+    const creds = await fetchLiveCredentials();
+    cachedCredentials = creds;
+    credentialsTimestamp = Date.now();
+    return creds;
+  } catch (err) {
+    return cachedCredentials || DEFAULT_DEPARTMENT_CREDENTIALS;
+  }
+}
+
 async function fetchSpreadsheetData(month = 'Sep 2026', forceRefresh = false) {
   // Normalize month name to sheet tab name
   const normalizedMonth = month === 'Sep 26' ? 'Sep 2026' : month === 'Oct 26' ? 'Oct 2026' : month === 'Nov 26' ? 'Nov 2026' : month;
@@ -30,17 +47,21 @@ async function fetchSpreadsheetData(month = 'Sep 2026', forceRefresh = false) {
   }
 
   try {
-    const res = await fetch(
-      `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&gid=${targetGid}`,
-      { headers: { 'User-Agent': 'Thoothukudi-Dropout-Dashboard/2.0' } }
-    );
+    const [sheetRes, creds] = await Promise.all([
+      fetch(
+        `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&gid=${targetGid}`,
+        { headers: { 'User-Agent': 'Thoothukudi-Dropout-Dashboard/2.0' } }
+      ),
+      getOrFetchCredentials(),
+    ]);
 
-    if (!res.ok) {
-      throw new Error(`Failed to fetch Google Sheet data for sheet "${normalizedMonth}" (Status ${res.status})`);
+    if (!sheetRes.ok) {
+      throw new Error(`Failed to fetch Google Sheet data for sheet "${normalizedMonth}" (Status ${sheetRes.status})`);
     }
 
-    const csvText = await res.text();
+    const csvText = await sheetRes.text();
     const payload = processSheetCSV(csvText, normalizedMonth);
+    payload.credentials = creds;
 
     cacheStore[cacheKey] = {
       data: payload,
@@ -73,6 +94,16 @@ app.post('/api/refresh', async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 });
+
+app.get('/api/credentials', async (_req, res) => {
+  try {
+    const creds = await getOrFetchCredentials();
+    res.json({ credentials: creds });
+  } catch (e: any) {
+    res.json({ credentials: DEFAULT_DEPARTMENT_CREDENTIALS });
+  }
+});
+
 
 async function startServer() {
   const isProd = process.env.NODE_ENV === 'production';

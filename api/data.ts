@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { SPREADSHEET_ID, MONTH_TABS, processSheetCSV } from '../src/sheetData.js';
+import { SPREADSHEET_ID, MONTH_TABS, processSheetCSV, fetchLiveCredentials, DEFAULT_DEPARTMENT_CREDENTIALS } from '../src/sheetData.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers
@@ -30,8 +30,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       throw new Error(`Google Sheet returned HTTP ${sheetRes.status} for "${normalizedMonth}"`);
     }
 
-    const csvText = await sheetRes.text();
+    const [csvText, creds] = await Promise.all([
+      sheetRes.text(),
+      fetchLiveCredentials().catch(() => DEFAULT_DEPARTMENT_CREDENTIALS)
+    ]);
     const payload = processSheetCSV(csvText, normalizedMonth);
+    payload.credentials = creds;
 
     // Cache on Vercel Edge for 60 seconds, stale while revalidate 300 seconds
     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');

@@ -32,11 +32,26 @@ import {
   Calendar, 
   HelpCircle, 
   Check, 
-  ArrowRight 
+  ArrowRight,
+  Lock,
+  Unlock,
+  ShieldCheck,
+  LogOut,
+  KeyRound
 } from 'lucide-react';
-import { SPREADSHEET_ID, MONTH_TABS, processSheetCSV, StudentRecord, DepartmentAbstract } from './sheetData';
+import { 
+  SPREADSHEET_ID, 
+  MONTH_TABS, 
+  processSheetCSV, 
+  StudentRecord, 
+  DepartmentAbstract,
+  DepartmentCredential,
+  DEFAULT_DEPARTMENT_CREDENTIALS,
+  fetchLiveCredentials
+} from './sheetData';
 import { Background3D } from './components/Background3D';
 import { TamilNaduLogo } from './components/TamilNaduLogo';
+import { DepartmentLoginForm } from './components/DepartmentLoginForm';
 import { exportStudentsToExcel, exportStudentsToWord, exportStudentsToDocs, exportAbstractToExcel } from './exportUtils';
 
 // Slicers: Overview (formerly Common Dashboard), Division, Line Department Overview (before Health Dept), and 8 line departments
@@ -108,10 +123,78 @@ export default function App() {
   const [editedRemarks, setEditedRemarks] = useState<Record<string, string>>({});
   const [statusSaveNotice, setStatusSaveNotice] = useState<string | null>(null);
 
+  // Department Credentials (taken live from Google Sheet 'User and Password' tab with fallback)
+  const [deptCredentials, setDeptCredentials] = useState<Record<string, DepartmentCredential>>(DEFAULT_DEPARTMENT_CREDENTIALS);
+
+  // Authenticated department sessions (persisted in localStorage)
+  const [authenticatedDepts, setAuthenticatedDepts] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem('thoothukudi_authenticated_depts');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  // Selected class boxes in Class-Wise Potential Dropout to show Boys & Girls breakdown
+  const [selectedClassBoxes, setSelectedClassBoxes] = useState<Record<string, boolean>>({});
+
+  const handleToggleClassBox = (className: string) => {
+    setSelectedClassBoxes(prev => ({
+      ...prev,
+      [className]: !prev[className]
+    }));
+  };
+
+  const handleToggleAllClassBoxes = (allClassNames: string[]) => {
+    const allSelected = allClassNames.length > 0 && allClassNames.every(name => selectedClassBoxes[name]);
+    const next: Record<string, boolean> = {};
+    allClassNames.forEach(name => {
+      next[name] = !allSelected;
+    });
+    setSelectedClassBoxes(next);
+  };
+
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Fetch live credentials from Google Sheet "User and Password" tab on mount
+  useEffect(() => {
+    fetchLiveCredentials().then((creds) => {
+      if (creds && Object.keys(creds).length > 0) {
+        setDeptCredentials(creds);
+      }
+    }).catch((err) => {
+      console.warn('Error fetching live credentials from sheet:', err);
+    });
+  }, []);
+
+  // Department Login and Logout Handlers
+  const handleDepartmentLoginSuccess = (deptKey: string, userId: string) => {
+    const updated = { ...authenticatedDepts, [deptKey]: true };
+    setAuthenticatedDepts(updated);
+    try {
+      localStorage.setItem('thoothukudi_authenticated_depts', JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Could not save auth state to localStorage', e);
+    }
+    setStatusSaveNotice(`Authenticated as ${userId} for ${deptKey}`);
+    setTimeout(() => setStatusSaveNotice(null), 3000);
+  };
+
+  const handleDepartmentLogout = (deptKey: string) => {
+    const updated = { ...authenticatedDepts, [deptKey]: false };
+    setAuthenticatedDepts(updated);
+    try {
+      localStorage.setItem('thoothukudi_authenticated_depts', JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Could not save auth state to localStorage', e);
+    }
+    setStatusSaveNotice(`Logged out of ${deptKey}`);
+    setTimeout(() => setStatusSaveNotice(null), 2500);
+  };
 
   // Load saved status, dropout reasons, counselling, and remarks edits from localStorage on mount/month change
   useEffect(() => {
@@ -174,6 +257,10 @@ export default function App() {
         }
         const csvText = await sheetRes.text();
         fetchedData = processSheetCSV(csvText, monthToFetch);
+      }
+
+      if (fetchedData.credentials) {
+        setDeptCredentials(fetchedData.credentials);
       }
 
       setData(fetchedData);
@@ -302,6 +389,35 @@ export default function App() {
     lineDepartment: (data?.charts?.lineDepartment || data?.lineDepartmentData || []) as Array<{ name: string; count: number; fullName?: string }>,
     classWise: (data?.charts?.classWise || data?.classData || []) as Array<{ name: string; value: number; count?: number; sortOrder?: number }>,
   };
+
+  // Computed class breakdown with total, boys and girls count for each class
+  const computedClassStats = (charts.classWise || []).map((entry: any) => {
+    const className = entry.name;
+    const stdNum = className.replace('Class ', '').trim();
+    const classStudents = allStudents.filter(s => {
+      const sStd = (s.std || '').trim();
+      return sStd === stdNum || `Class ${sStd}` === className || sStd.toLowerCase() === className.toLowerCase();
+    });
+
+    let boys = 0;
+    let girls = 0;
+    classStudents.forEach(s => {
+      const g = (s.gender || '').toLowerCase().trim();
+      if (g === 'male' || g === 'boy' || g === 'm' || g.startsWith('m')) {
+        boys++;
+      } else if (g === 'female' || g === 'girl' || g === 'f' || g.startsWith('f')) {
+        girls++;
+      }
+    });
+
+    return {
+      name: className,
+      total: entry.value ?? classStudents.length,
+      boys,
+      girls,
+      sortOrder: entry.sortOrder || 99,
+    };
+  }).sort((a: any, b: any) => a.sortOrder - b.sortOrder);
 
   // Recompute departments and all line departments abstract with merged statuses
   const deptList = [
@@ -543,20 +659,22 @@ export default function App() {
                 const isSelected = selectedSlicer === slicer;
                 const meta = DEPT_META[slicer] || DEPT_META['Overview'];
                 const IconComponent = meta.icon;
+                const isLineDept = slicer !== 'Overview' && slicer !== 'Division' && slicer !== 'Line Department Overview';
+                const isAuthed = !!authenticatedDepts[slicer];
 
                 return (
                   <button
                     key={slicer}
                     onClick={() => setSelectedSlicer(slicer)}
-                    className={`w-full text-left px-3.5 py-3 rounded-xl text-sm font-bold flex items-center justify-between transition-all duration-150 ${
+                    className={`w-full text-left px-3.5 py-3 rounded-xl text-sm font-bold flex items-center justify-between transition-all duration-150 cursor-pointer ${
                       isSelected
                         ? 'bg-slate-900 text-white shadow-md border-2 border-slate-800'
                         : 'bg-white hover:bg-slate-100 text-slate-800 hover:text-slate-950 border-2 border-slate-200 hover:border-slate-300'
                     }`}
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
                       <div
-                        className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
+                        className={`w-7 h-7 rounded-lg shrink-0 flex items-center justify-center transition-colors ${
                           isSelected
                             ? 'bg-white/20 text-white'
                             : 'bg-slate-100 text-slate-700 border border-slate-200'
@@ -564,14 +682,42 @@ export default function App() {
                       >
                         <IconComponent className="w-4 h-4" />
                       </div>
-                      <span className="tracking-tight">{slicer}</span>
+                      <span className="tracking-tight truncate">{slicer}</span>
                     </div>
 
-                    <ChevronRight
-                      className={`w-4 h-4 transition-transform duration-150 ${
-                        isSelected ? 'text-white translate-x-0.5' : 'text-slate-400 opacity-60'
-                      }`}
-                    />
+                    <div className="flex items-center gap-1.5 shrink-0 ml-1">
+                      {isLineDept && (
+                        isAuthed ? (
+                          <span
+                            title="Session Authenticated"
+                            className={`text-[10px] font-black px-1.5 py-0.5 rounded flex items-center gap-1 ${
+                              isSelected
+                                ? 'bg-emerald-400/20 text-emerald-300 border border-emerald-400/30'
+                                : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            }`}
+                          >
+                            <Unlock className="w-2.5 h-2.5" />
+                            <span>Active</span>
+                          </span>
+                        ) : (
+                          <span
+                            title="Password Protected"
+                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 ${
+                              isSelected
+                                ? 'bg-white/10 text-slate-300 border border-white/20'
+                                : 'bg-slate-100 text-slate-500 border border-slate-200'
+                            }`}
+                          >
+                            <Lock className="w-2.5 h-2.5" />
+                          </span>
+                        )
+                      )}
+                      <ChevronRight
+                        className={`w-4 h-4 transition-transform duration-150 ${
+                          isSelected ? 'text-white translate-x-0.5' : 'text-slate-400 opacity-60'
+                        }`}
+                      />
+                    </div>
                   </button>
                 );
               })}
@@ -858,6 +1004,107 @@ export default function App() {
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
+
+                {/* Interactive Class Boxes: Selecting a box shows total boys and girls */}
+                <div className="mt-6 pt-5 border-t-2 border-slate-200 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                    <div>
+                      <h4 className="text-sm sm:text-base font-black text-slate-900 tracking-tight flex items-center gap-2">
+                        <span>Class Summary Boxes</span>
+                        <span className="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded-full">
+                          Select any class box to reveal Boys &amp; Girls
+                        </span>
+                      </h4>
+                      <p className="text-xs text-slate-600 font-medium mt-0.5">
+                        Total number of boys and girls are displayed directly inside each selected class box
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleAllClassBoxes(computedClassStats.map(c => c.name))}
+                        className="text-xs font-black px-3.5 py-1.5 rounded-lg bg-white hover:bg-slate-100 text-slate-800 border-2 border-slate-300 shadow-2xs transition-colors cursor-pointer"
+                      >
+                        {computedClassStats.length > 0 && computedClassStats.every(c => selectedClassBoxes[c.name])
+                          ? 'Collapse All Boxes'
+                          : 'Show Boys & Girls in All Boxes'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                    {computedClassStats.map((cls) => {
+                      const isSelected = !!selectedClassBoxes[cls.name];
+                      return (
+                        <button
+                          key={cls.name}
+                          type="button"
+                          onClick={() => handleToggleClassBox(cls.name)}
+                          className={`text-left p-3.5 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
+                            isSelected
+                              ? 'bg-indigo-50/90 border-indigo-500 shadow-md ring-2 ring-indigo-200 scale-[1.02]'
+                              : 'bg-white hover:bg-slate-50 border-slate-300 hover:border-slate-400 shadow-2xs'
+                          }`}
+                          title={`Click to ${isSelected ? 'hide' : 'show'} boys and girls count for ${cls.name}`}
+                        >
+                          <div>
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                                {cls.name}
+                              </span>
+                              <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${
+                                isSelected 
+                                  ? 'bg-indigo-600 text-white' 
+                                  : 'bg-slate-100 text-slate-700 border border-slate-200'
+                              }`}>
+                                {isSelected ? 'Selected' : 'Select'}
+                              </span>
+                            </div>
+
+                            <div className="mt-2 flex items-baseline gap-1.5">
+                              <span className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                                {cls.total}
+                              </span>
+                              <span className="text-xs font-bold text-slate-600">
+                                Dropouts
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* When selected: show total number of boys and girls in the box */}
+                          {isSelected ? (
+                            <div className="mt-3 pt-2.5 border-t border-indigo-200 space-y-2">
+                              <div className="flex items-center justify-between bg-blue-50 border border-blue-200 px-2 py-1 rounded-md">
+                                <span className="text-xs font-black text-blue-950 flex items-center gap-1.5">
+                                  <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0"></span>
+                                  Boys
+                                </span>
+                                <span className="text-xs font-black text-blue-950 font-mono">
+                                  {cls.boys}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between bg-pink-50 border border-pink-200 px-2 py-1 rounded-md">
+                                <span className="text-xs font-black text-pink-950 flex items-center gap-1.5">
+                                  <span className="w-2 h-2 rounded-full bg-pink-600 shrink-0"></span>
+                                  Girls
+                                </span>
+                                <span className="text-xs font-black text-pink-950 font-mono">
+                                  {cls.girls}
+                                </span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-indigo-700 font-bold">
+                              <span>+ Boys &amp; Girls</span>
+                              <span className="text-[10px] text-slate-400">Tap box</span>
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
 
             </div>
@@ -869,107 +1116,216 @@ export default function App() {
           {selectedSlicer === 'Division' && (
             <div className="bg-slate-100/70 border-2 border-slate-300 rounded-3xl p-6 shadow-sm space-y-6">
               
-              {/* Division Section Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b-2 border-slate-300">
+              {/* Division Section Header with Dropdown in Division page alone */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b-2 border-slate-300">
                 <div>
                   <h2 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2.5">
                     <Layers className="w-6 h-6 text-slate-800" />
                     <span>Division Overview — Thoothukudi District</span>
                   </h2>
-                  <p className="text-sm text-slate-700 font-bold mt-0.5">
-                    Educational Divisions performance & breakdown for {selectedMonth}
+                  <p className="text-sm text-slate-700 font-bold mt-1">
+                    Educational Divisions performance &amp; block breakdown for {selectedMonth}
                   </p>
                 </div>
-                <span className="text-sm font-black px-4 py-1.5 rounded-full bg-white text-slate-900 border-2 border-slate-300 shadow-2xs self-start sm:self-auto">
-                  3 Divisions
-                </span>
+
+                {/* Division Dropdown (in division page alone as requested) */}
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-2 bg-white px-4 py-2.5 rounded-xl border-2 border-slate-300 shadow-xs hover:border-slate-400 transition-colors">
+                    <Filter className="w-4 h-4 text-slate-800 shrink-0" />
+                    <label htmlFor="division-page-filter" className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                      Division:
+                    </label>
+                    <select
+                      id="division-page-filter"
+                      value={divisionFilter}
+                      onChange={(e) => setDivisionFilter(e.target.value)}
+                      className="text-sm sm:text-base font-black text-slate-900 bg-transparent focus:outline-none cursor-pointer pr-1"
+                      title="Filter Division in Division Page"
+                    >
+                      <option value="All" className="font-bold text-slate-900 bg-white">All Divisions (One by One)</option>
+                      <option value="Kovilpatti" className="font-bold text-slate-900 bg-white">Kovilpatti Division</option>
+                      <option value="Thoothukudi" className="font-bold text-slate-900 bg-white">Thoothukudi Division</option>
+                      <option value="Tiruchendur" className="font-bold text-slate-900 bg-white">Tiruchendur Division</option>
+                    </select>
+                  </div>
+                  <span className="text-sm font-black px-4 py-2.5 rounded-xl bg-white text-slate-900 border-2 border-slate-300 shadow-2xs">
+                    {divisionFilter === 'All' ? '3 Divisions' : `${divisionFilter} Division`}
+                  </span>
+                </div>
               </div>
 
-              {/* 3 Division Cards with semi-light theme background and regular font size */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {computedDivisions.map((div) => {
-                  return (
-                    <div
-                      key={div.name}
-                      className="bg-white border-2 border-slate-300 rounded-2xl p-6 shadow-sm hover:border-slate-400 hover:shadow-md transition-all text-slate-800 flex flex-col justify-between"
-                    >
-                      <div>
-                        {/* Division Name alone & Total Count Badge */}
-                        <div className="flex items-center justify-between border-b-2 border-slate-200 pb-3.5">
-                          <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-                            {div.name}
-                          </h2>
-                          <span className="px-3.5 py-1.5 rounded-full text-sm font-black text-slate-900 bg-slate-100 border border-slate-300 shadow-2xs">
-                            {div.totalStudents} Students
-                          </span>
+              {/* Single Column Grid: Divisions shown one by one below with abundant horizontal space */}
+              <div className="flex flex-col gap-8">
+                {computedDivisions
+                  .filter(div => divisionFilter === 'All' || div.name.toLowerCase() === divisionFilter.toLowerCase())
+                  .map((div) => {
+                    return (
+                      <div
+                        key={div.name}
+                        className="bg-white border-2 border-slate-300 rounded-3xl p-6 sm:p-8 shadow-sm hover:border-slate-400 transition-all text-slate-800 space-y-6"
+                      >
+                        {/* Division Header Row */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b-2 border-slate-200">
+                          <div className="flex items-center gap-3.5">
+                            <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-bold shadow-md shrink-0">
+                              <Building2 className="w-6 h-6 text-white" />
+                            </div>
+                            <div>
+                              <h3 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                                {div.name} Division
+                              </h3>
+                              <p className="text-sm text-slate-600 font-bold mt-0.5">
+                                Jurisdiction Blocks: {div.blocks.map(b => b.name).join(', ')}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2.5">
+                            <span className="px-4 py-2 rounded-xl text-sm sm:text-base font-black text-slate-900 bg-slate-100 border border-slate-300 shadow-2xs">
+                              {div.totalStudents} Potential Dropouts
+                            </span>
+                            <span className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold text-slate-700 bg-white border border-slate-300 shadow-2xs">
+                              {div.blocks.length} Blocks
+                            </span>
+                          </div>
                         </div>
 
-                        {/* Metric Boxes: Potential Dropout, Repeaters, Re-Enrolled with semi-light theme fills */}
-                        <div className="mt-4 grid grid-cols-3 gap-2.5">
-                          <div className="bg-slate-50 border-2 border-slate-300 rounded-xl p-3 text-center shadow-2xs">
+                        {/* 4 Spacious Summary Boxes across the full single-column width (no overlapping words) */}
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                          <div className="bg-slate-50 border-2 border-slate-300 rounded-2xl p-4 sm:p-5 shadow-2xs text-center">
                             <span className="text-xs font-black text-slate-700 uppercase block tracking-wider">
-                              Dropouts
+                              Potential Dropouts
                             </span>
-                            <span className="text-2xl font-black text-slate-900 mt-1 block">
+                            <span className="text-3xl sm:text-4xl font-black text-slate-900 mt-2 block tracking-tight">
                               {div.totalStudents}
                             </span>
+                            <span className="text-xs text-slate-600 font-bold mt-1 block">
+                              Total Identified
+                            </span>
                           </div>
 
-                          <div className="bg-purple-50 border-2 border-purple-200 rounded-xl p-3 text-center shadow-2xs">
+                          <div className="bg-purple-50 border-2 border-purple-300 rounded-2xl p-4 sm:p-5 shadow-2xs text-center">
                             <span className="text-xs font-black text-purple-950 uppercase block tracking-wider">
-                              Repeaters
+                              Repeaters (Col N)
                             </span>
-                            <span className="text-2xl font-black text-purple-950 mt-1 block">
+                            <span className="text-3xl sm:text-4xl font-black text-purple-950 mt-2 block tracking-tight">
                               {div.repeaters}
                             </span>
+                            <span className="text-xs text-purple-800 font-bold mt-1 block">
+                              {div.totalStudents > 0 ? ((div.repeaters / div.totalStudents) * 100).toFixed(0) : 0}% of Division
+                            </span>
                           </div>
 
-                          <div className="bg-emerald-50 border-2 border-emerald-200 rounded-xl p-3 text-center shadow-2xs">
+                          <div className="bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-4 sm:p-5 shadow-2xs text-center">
                             <span className="text-xs font-black text-emerald-950 uppercase block tracking-wider">
-                              Re-Enrolled
+                              Re-Enrolled (Col R)
                             </span>
-                            <span className="text-2xl font-black text-emerald-950 mt-1 block">
+                            <span className="text-3xl sm:text-4xl font-black text-emerald-950 mt-2 block tracking-tight">
                               {div.reEnrolled}
                             </span>
+                            <span className="text-xs text-emerald-800 font-bold mt-1 block">
+                              {div.totalStudents > 0 ? ((div.reEnrolled / div.totalStudents) * 100).toFixed(0) : 0}% Re-admitted
+                            </span>
+                          </div>
+
+                          <div className="bg-rose-50 border-2 border-rose-300 rounded-2xl p-4 sm:p-5 shadow-2xs text-center">
+                            <span className="text-xs font-black text-rose-950 uppercase block tracking-wider">
+                              Counselling Needed (Col Q)
+                            </span>
+                            <span className="text-3xl sm:text-4xl font-black text-rose-950 mt-2 block tracking-tight">
+                              {div.counsellingNeeded}
+                            </span>
+                            <span className="text-xs text-rose-800 font-bold mt-1 block">
+                              {div.totalStudents > 0 ? ((div.counsellingNeeded / div.totalStudents) * 100).toFixed(0) : 0}% Need Support
+                            </span>
                           </div>
                         </div>
 
-                        {/* Block Breakdown with semi-light row styling and regular text */}
-                        <div className="mt-5 space-y-2">
-                          <div className="flex items-center justify-between text-xs uppercase font-black text-slate-700 tracking-wider pb-2 border-b-2 border-slate-200">
-                            <span>Block</span>
-                            <span>Rep / Re-Enr / Total</span>
+                        {/* Full Width Block Breakdown Table (No cramming, no truncation, plenty of space) */}
+                        <div className="space-y-3 pt-2">
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-base font-black text-slate-900 tracking-tight">
+                              Educational Block-Wise Breakdown — {div.name} Division
+                            </h4>
+                            <span className="text-xs font-bold text-slate-600">
+                              Data from Sheet Columns B, N, Q, R
+                            </span>
                           </div>
-                          <div className="divide-y divide-slate-200 max-h-60 overflow-y-auto pr-1">
-                            {div.blocks.map((b) => (
-                              <div key={b.name} className="flex items-center justify-between text-sm py-2 px-1 hover:bg-slate-50 text-slate-800 transition-colors">
-                                <span className="font-bold text-slate-900 text-sm truncate max-w-[140px]">
-                                  {b.name}
-                                </span>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-950 font-bold border border-purple-300">
-                                    {b.repeaters}
-                                  </span>
-                                  <span className="text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-950 font-bold border border-emerald-300">
-                                    {b.reEnrolled}
-                                  </span>
-                                  <span className="font-black text-slate-900 min-w-7 text-right text-sm">
-                                    {b.count}
-                                  </span>
-                                </div>
-                              </div>
-                            ))}
+
+                          <div className="overflow-x-auto rounded-2xl border-2 border-slate-300 bg-white">
+                            <table className="w-full text-left text-sm">
+                              <thead className="bg-slate-100 text-slate-900 font-black border-b-2 border-slate-300">
+                                <tr>
+                                  <th className="py-3.5 px-4 sm:px-6">Educational Block</th>
+                                  <th className="py-3.5 px-4 text-center">Potential Dropouts</th>
+                                  <th className="py-3.5 px-4 text-center">Repeaters (Col N)</th>
+                                  <th className="py-3.5 px-4 text-center">Re-Enrolled (Col R)</th>
+                                  <th className="py-3.5 px-4 text-center">Counselling Needed (Col Q)</th>
+                                  <th className="py-3.5 px-4 text-center">Division Share</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-200 font-medium text-slate-800">
+                                {div.blocks.map((b) => {
+                                  const pct = div.totalStudents > 0 ? ((b.count / div.totalStudents) * 100).toFixed(1) : '0';
+                                  return (
+                                    <tr key={b.name} className="hover:bg-slate-50/80 transition-colors">
+                                      <td className="py-3.5 px-4 sm:px-6 font-black text-slate-900 text-base">
+                                        {b.name}
+                                      </td>
+                                      <td className="py-3.5 px-4 text-center font-black text-slate-900 text-base">
+                                        {b.count}
+                                      </td>
+                                      <td className="py-3.5 px-4 text-center">
+                                        <span className="px-3 py-1 rounded-md bg-purple-100 text-purple-950 font-black text-xs border border-purple-300">
+                                          {b.repeaters}
+                                        </span>
+                                      </td>
+                                      <td className="py-3.5 px-4 text-center">
+                                        <span className="px-3 py-1 rounded-md bg-emerald-100 text-emerald-950 font-black text-xs border border-emerald-300">
+                                          {b.reEnrolled}
+                                        </span>
+                                      </td>
+                                      <td className="py-3.5 px-4 text-center">
+                                        <span className="px-3 py-1 rounded-md bg-rose-100 text-rose-950 font-black text-xs border border-rose-300">
+                                          {b.counsellingNeeded}
+                                        </span>
+                                      </td>
+                                      <td className="py-3.5 px-4 text-center font-bold text-slate-700">
+                                        {pct}%
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                              <tfoot className="bg-slate-100 font-black text-slate-900 border-t-2 border-slate-300">
+                                <tr>
+                                  <td className="py-3 px-4 sm:px-6 text-sm">
+                                    Total ({div.name} Division)
+                                  </td>
+                                  <td className="py-3 px-4 text-center font-black text-base">
+                                    {div.totalStudents}
+                                  </td>
+                                  <td className="py-3 px-4 text-center font-black text-base text-purple-950">
+                                    {div.repeaters}
+                                  </td>
+                                  <td className="py-3 px-4 text-center font-black text-base text-emerald-950">
+                                    {div.reEnrolled}
+                                  </td>
+                                  <td className="py-3 px-4 text-center font-black text-base text-rose-950">
+                                    {div.counsellingNeeded}
+                                  </td>
+                                  <td className="py-3 px-4 text-center font-black text-slate-900">
+                                    100%
+                                  </td>
+                                </tr>
+                              </tfoot>
+                            </table>
                           </div>
                         </div>
-                      </div>
 
-                      <div className="mt-5 pt-3.5 border-t-2 border-slate-200 flex items-center justify-between text-xs text-slate-700 font-bold">
-                        <span>{div.blocks.length} Blocks in Division</span>
-                        <span className="font-black text-slate-900">{div.name} Division</span>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
               </div>
 
               {/* Division Student Directory */}
@@ -1305,8 +1661,42 @@ export default function App() {
           {/* 4. REVENUE DEPARTMENT (TALUK-WISE SOURCED FROM COL C) */}
           {/* ======================================================== */}
           {selectedSlicer === 'Revenue Department' && (
+            !authenticatedDepts['Revenue Department'] ? (
+              <DepartmentLoginForm
+                departmentName="Revenue Department"
+                credentials={deptCredentials['Revenue Department'] || DEFAULT_DEPARTMENT_CREDENTIALS['Revenue Department']}
+                departmentMeta={DEPT_META['Revenue Department']}
+                onLoginSuccess={(userId) => handleDepartmentLoginSuccess('Revenue Department', userId)}
+                onCancel={() => setSelectedSlicer('Line Department Overview')}
+              />
+            ) : (
             <div className="space-y-6">
               
+              {/* Authorized Department Session Banner */}
+              <div className="bg-teal-50 border-2 border-teal-300 rounded-2xl p-3 sm:px-5 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-teal-800 text-white flex items-center justify-center font-bold shadow-xs">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-black text-teal-950 uppercase tracking-wider block">
+                      Authorized Department Session
+                    </span>
+                    <span className="text-xs sm:text-sm font-bold text-teal-900">
+                      Logged in as: <span className="font-mono font-black">{deptCredentials['Revenue Department']?.userId || 'revenue_dept'}</span> • Revenue Department
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleDepartmentLogout('Revenue Department')}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black bg-white hover:bg-rose-50 text-rose-700 hover:text-rose-800 border border-rose-300 shadow-2xs transition-colors cursor-pointer"
+                  title="Lock Revenue Department and logout"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Lock / Logout</span>
+                </button>
+              </div>
+
               {/* Header and Download Controls */}
               <div className="bg-teal-50/60 border-2 border-teal-300 rounded-2xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
@@ -1629,6 +2019,7 @@ export default function App() {
               })()}
 
             </div>
+            )
           )}
 
           {/* ======================================================== */}
@@ -1638,8 +2029,42 @@ export default function App() {
            selectedSlicer !== 'Division' && 
            selectedSlicer !== 'Line Department Overview' && 
            selectedSlicer !== 'Revenue Department' && (
+            !authenticatedDepts[selectedSlicer] ? (
+              <DepartmentLoginForm
+                departmentName={selectedSlicer}
+                credentials={deptCredentials[selectedSlicer] || DEFAULT_DEPARTMENT_CREDENTIALS[selectedSlicer]}
+                departmentMeta={DEPT_META[selectedSlicer]}
+                onLoginSuccess={(userId) => handleDepartmentLoginSuccess(selectedSlicer, userId)}
+                onCancel={() => setSelectedSlicer('Line Department Overview')}
+              />
+            ) : (
             <div className="space-y-6">
               
+              {/* Authorized Department Session Banner */}
+              <div className="bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-3 sm:px-5 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-800 text-white flex items-center justify-center font-bold shadow-xs">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-black text-emerald-950 uppercase tracking-wider block">
+                      Authorized Department Session
+                    </span>
+                    <span className="text-xs sm:text-sm font-bold text-emerald-900">
+                      Logged in as: <span className="font-mono font-black">{deptCredentials[selectedSlicer]?.userId || 'official'}</span> • {selectedSlicer}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleDepartmentLogout(selectedSlicer)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black bg-white hover:bg-rose-50 text-rose-700 hover:text-rose-800 border border-rose-300 shadow-2xs transition-colors cursor-pointer"
+                  title={`Lock ${selectedSlicer} and logout`}
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Lock / Logout</span>
+                </button>
+              </div>
+
               {/* Header without long description, with quick Export Options */}
               <div className="bg-slate-50 border-2 border-slate-300 rounded-2xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-3.5">
@@ -1925,6 +2350,7 @@ export default function App() {
               })()}
 
             </div>
+            )
           )}
 
         </main>

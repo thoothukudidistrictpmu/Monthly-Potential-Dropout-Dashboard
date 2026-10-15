@@ -51,6 +51,75 @@ export const BLOCK_TO_TALUK_MAP: Record<string, string> = {
   'Srivaikundam': 'Srivaikundam',
 };
 
+// Credentials from Google Sheet 'User and Password' tab
+export interface DepartmentCredential {
+  departmentName: string;
+  userId: string;
+  password: string;
+}
+
+export const DEFAULT_DEPARTMENT_CREDENTIALS: Record<string, DepartmentCredential> = {
+  'Health Department': { departmentName: 'Health Department', userId: 'health_dept', password: 'Heal@123' },
+  'Labour Department': { departmentName: 'Labour Department', userId: 'labour_dept', password: 'Labo@123' },
+  'DCPO': { departmentName: 'District Child Protection', userId: 'childprotection_dept', password: 'Chil@123' },
+  'Social Welfare': { departmentName: 'Social Welfare Department', userId: 'socialwelfare_dept', password: 'Soci@123' },
+  'Fisheries Department': { departmentName: 'Fisheries Department', userId: 'fisheries_dept', password: 'Fish@123' },
+  'Revenue Department': { departmentName: 'Revenue Department', userId: 'revenue_dept', password: 'Reve@123' },
+  'DDRO': { departmentName: 'DDRO', userId: 'ddro_dept', password: 'Ddro@123' },
+  'DSE': { departmentName: 'DSE', userId: 'dse_dept', password: 'Dsep@123' },
+};
+
+export function matchDepartmentToSlicer(rawName: string): string | null {
+  const clean = rawName.toLowerCase().trim();
+  if (clean.includes('health') || clean.includes('medical')) return 'Health Department';
+  if (clean.includes('labour') || clean.includes('labor') || clean.includes('employ')) return 'Labour Department';
+  if (clean.includes('child protection') || clean.includes('dcpo') || clean.includes('dcpu')) return 'DCPO';
+  if (clean.includes('social welfare') || clean.includes('dsw')) return 'Social Welfare';
+  if (clean.includes('fisher') || clean.includes('boat')) return 'Fisheries Department';
+  if (clean.includes('revenue') || clean.includes('taluk')) return 'Revenue Department';
+  if (clean.includes('ddro') || clean.includes('differently') || clean.includes('disabled') || clean.includes('cwsn')) return 'DDRO';
+  if (clean.includes('dse') || clean.includes('school education') || clean.includes('education')) return 'DSE';
+  return null;
+}
+
+export function parseCredentialsCSV(csvText: string): Record<string, DepartmentCredential> {
+  const rows = parseCSV(csvText);
+  const result: Record<string, DepartmentCredential> = { ...DEFAULT_DEPARTMENT_CREDENTIALS };
+  if (!rows || rows.length < 2) return result;
+
+  // Header row is index 0 ("Department Name", "User Id", "Password")
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row || row.length < 3) continue;
+    const deptName = (row[0] || '').trim();
+    const userId = (row[1] || '').trim();
+    const password = (row[2] || '').trim();
+    if (!deptName || !userId || !password) continue;
+
+    const matchedSlicer = matchDepartmentToSlicer(deptName);
+    if (matchedSlicer) {
+      result[matchedSlicer] = { departmentName: deptName, userId, password };
+    }
+  }
+  return result;
+}
+
+export async function fetchLiveCredentials(): Promise<Record<string, DepartmentCredential>> {
+  try {
+    const directUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent('User and Password')}`;
+    const res = await fetch(directUrl);
+    if (!res.ok) {
+      return DEFAULT_DEPARTMENT_CREDENTIALS;
+    }
+    const csv = await res.text();
+    return parseCredentialsCSV(csv);
+  } catch (err) {
+    console.warn('Could not fetch live credentials, using default config:', err);
+    return DEFAULT_DEPARTMENT_CREDENTIALS;
+  }
+}
+
+
 // Helper to safely parse CSV with quoted cells containing commas/newlines
 export function parseCSV(text: string): string[][] {
   const rows: string[][] = [];
@@ -159,11 +228,11 @@ export interface DashboardPayload {
   charts: {
     blockWise: Array<{ name: string; count: number }>;
     lineDepartment: Array<{ name: string; count: number; fullName: string }>;
-    classWise: Array<{ name: string; value: number; count: number; sortOrder: number }>;
+    classWise: Array<{ name: string; value: number; count: number; boys: number; girls: number; total: number; sortOrder: number }>;
   };
   blockData: Array<{ name: string; count: number }>;
   lineDepartmentData: Array<{ name: string; count: number; fullName: string }>;
-  classData: Array<{ name: string; value: number; count: number; sortOrder: number }>;
+  classData: Array<{ name: string; value: number; count: number; boys: number; girls: number; total: number; sortOrder: number }>;
   students: StudentRecord[];
   departments: Array<{
     id: string;
@@ -196,6 +265,7 @@ export interface DashboardPayload {
   }>;
   studentsCount: number;
   lastRefreshedAt?: string;
+  credentials?: Record<string, DepartmentCredential>;
 }
 
 export function processSheetCSV(csvText: string, month: string): DashboardPayload {
@@ -283,7 +353,7 @@ export function processSheetCSV(csvText: string, month: string): DashboardPayloa
 
   const students: StudentRecord[] = [];
   const blockCounts: Record<string, number> = {};
-  const classCounts: Record<string, number> = {};
+  const classCounts: Record<string, { total: number; boys: number; girls: number }> = {};
   const deptList = [
     'Health Department',
     'Labour Department',
@@ -322,7 +392,19 @@ export function processSheetCSV(csvText: string, month: string): DashboardPayloa
     const rawStd = (r[stdIdx] || '').trim();
     const stdNum = parseInt(rawStd, 10);
     const stdKey = stdNum ? `Class ${stdNum}` : rawStd ? `Class ${rawStd}` : 'Other';
-    classCounts[stdKey] = (classCounts[stdKey] || 0) + 1;
+    
+    // Gender check for class-wise boys vs girls breakdown
+    const genderRaw = (r[genderIdx] || '').trim().toLowerCase();
+    const isGirl = genderRaw === 'female' || genderRaw === 'girl' || genderRaw === 'f';
+    if (!classCounts[stdKey]) {
+      classCounts[stdKey] = { total: 0, boys: 0, girls: 0 };
+    }
+    classCounts[stdKey].total++;
+    if (isGirl) {
+      classCounts[stdKey].girls++;
+    } else {
+      classCounts[stdKey].boys++;
+    }
 
     // Repeater or Not (Col N / repeaterIdx)
     const repeaterVal = (r[repeaterIdx] || '').trim();
@@ -492,12 +574,15 @@ export function processSheetCSV(csvText: string, month: string): DashboardPayloa
     { name: 'DSE', count: deptCounts['DSE'], fullName: 'Directorate of School Education' },
   ];
 
-  // Convert class counts to array for bar chart (ordered Std 1 to 12)
+  // Convert class counts to array for bar chart (ordered Std 1 to 12) with Boys and Girls differentiation
   const classData = Object.entries(classCounts)
-    .map(([name, value]) => ({
+    .map(([name, item]) => ({
       name,
-      value,
-      count: value,
+      value: item.total,
+      count: item.total,
+      total: item.total,
+      boys: item.boys,
+      girls: item.girls,
       sortOrder: parseInt(name.replace('Class ', ''), 10) || 99,
     }))
     .sort((a, b) => a.sortOrder - b.sortOrder);
