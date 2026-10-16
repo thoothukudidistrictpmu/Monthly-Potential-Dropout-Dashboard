@@ -500,15 +500,25 @@ export default function App() {
     students: tStudents,
   })).sort((a, b) => b.potentialDropout - a.potentialDropout);
 
-  // Custom Chart Tooltip
+  // Custom Chart Tooltip (displays Total, Boys, and Girls count for class-wise bars)
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
+      const itemName = label || payload[0]?.name || '';
+      const matchedClass = computedClassStats.find(c => c.name === itemName);
+
       return (
-        <div className="bg-slate-900 text-white px-3 py-2 rounded-xl border border-slate-700 shadow-xl text-xs">
-          <div className="font-semibold text-slate-200">{label || payload[0].name}</div>
-          <div className="font-bold text-teal-300 text-sm mt-0.5">
-            {payload[0].value} Students
+        <div className="bg-slate-900 text-white px-3.5 py-2.5 rounded-xl border border-slate-700 shadow-xl text-xs space-y-1">
+          <div className="font-semibold text-slate-200">{itemName}</div>
+          <div className="font-bold text-teal-300 text-sm">
+            {payload[0].value} Potential Dropouts
           </div>
+          {matchedClass && (
+            <div className="pt-1.5 border-t border-slate-700 flex items-center gap-3 text-xs font-bold">
+              <span className="text-blue-300">Boys: {matchedClass.boys}</span>
+              <span className="text-slate-500">•</span>
+              <span className="text-pink-300">Girls: {matchedClass.girls}</span>
+            </div>
+          )}
         </div>
       );
     }
@@ -1005,31 +1015,25 @@ export default function App() {
                   </ResponsiveContainer>
                 </div>
 
-                {/* Interactive Class Boxes: Selecting a box shows total boys and girls */}
+                {/* Class Summary Boxes: Displays Total, Boys count, and Girls count directly in the box for all classes */}
                 <div className="mt-6 pt-5 border-t-2 border-slate-200 space-y-3">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                     <div>
                       <h4 className="text-sm sm:text-base font-black text-slate-900 tracking-tight flex items-center gap-2">
-                        <span>Class Summary Boxes</span>
-                        <span className="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded-full">
-                          Select any class box to reveal Boys &amp; Girls
+                        <span>Class Breakdown Summary</span>
+                        <span className="text-xs font-bold text-slate-700 bg-slate-100 border border-slate-300 px-2.5 py-0.5 rounded-full">
+                          All 12 Classes
                         </span>
                       </h4>
                       <p className="text-xs text-slate-600 font-medium mt-0.5">
-                        Total number of boys and girls are displayed directly inside each selected class box
+                        Total dropouts, boys count, and girls count displayed directly in the box for each class
                       </p>
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleToggleAllClassBoxes(computedClassStats.map(c => c.name))}
-                        className="text-xs font-black px-3.5 py-1.5 rounded-lg bg-white hover:bg-slate-100 text-slate-800 border-2 border-slate-300 shadow-2xs transition-colors cursor-pointer"
-                      >
-                        {computedClassStats.length > 0 && computedClassStats.every(c => selectedClassBoxes[c.name])
-                          ? 'Collapse All Boxes'
-                          : 'Show Boys & Girls in All Boxes'}
-                      </button>
+                      <span className="text-xs font-bold text-slate-700 bg-slate-100 border border-slate-300 px-3 py-1.5 rounded-lg shadow-2xs">
+                        {computedClassStats.reduce((acc, c) => acc + c.total, 0)} Total Dropouts
+                      </span>
                     </div>
                   </div>
 
@@ -1037,28 +1041,23 @@ export default function App() {
                     {computedClassStats.map((cls) => {
                       const isSelected = !!selectedClassBoxes[cls.name];
                       return (
-                        <button
+                        <div
                           key={cls.name}
-                          type="button"
                           onClick={() => handleToggleClassBox(cls.name)}
-                          className={`text-left p-3.5 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
+                          className={`p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
                             isSelected
-                              ? 'bg-indigo-50/90 border-indigo-500 shadow-md ring-2 ring-indigo-200 scale-[1.02]'
+                              ? 'bg-indigo-50/90 border-indigo-600 shadow-md ring-2 ring-indigo-300'
                               : 'bg-white hover:bg-slate-50 border-slate-300 hover:border-slate-400 shadow-2xs'
                           }`}
-                          title={`Click to ${isSelected ? 'hide' : 'show'} boys and girls count for ${cls.name}`}
+                          title={`Click to highlight ${cls.name}`}
                         >
                           <div>
                             <div className="flex items-center justify-between gap-1">
                               <span className="text-xs font-black text-slate-900 uppercase tracking-wider">
                                 {cls.name}
                               </span>
-                              <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${
-                                isSelected 
-                                  ? 'bg-indigo-600 text-white' 
-                                  : 'bg-slate-100 text-slate-700 border border-slate-200'
-                              }`}>
-                                {isSelected ? 'Selected' : 'Select'}
+                              <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                                Std {cls.name.replace('Class ', '')}
                               </span>
                             </div>
 
@@ -1072,35 +1071,18 @@ export default function App() {
                             </div>
                           </div>
 
-                          {/* When selected: show total number of boys and girls in the box */}
-                          {isSelected ? (
-                            <div className="mt-3 pt-2.5 border-t border-indigo-200 space-y-2">
-                              <div className="flex items-center justify-between bg-blue-50 border border-blue-200 px-2 py-1 rounded-md">
-                                <span className="text-xs font-black text-blue-950 flex items-center gap-1.5">
-                                  <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0"></span>
-                                  Boys
-                                </span>
-                                <span className="text-xs font-black text-blue-950 font-mono">
-                                  {cls.boys}
-                                </span>
-                              </div>
-                              <div className="flex items-center justify-between bg-pink-50 border border-pink-200 px-2 py-1 rounded-md">
-                                <span className="text-xs font-black text-pink-950 flex items-center gap-1.5">
-                                  <span className="w-2 h-2 rounded-full bg-pink-600 shrink-0"></span>
-                                  Girls
-                                </span>
-                                <span className="text-xs font-black text-pink-950 font-mono">
-                                  {cls.girls}
-                                </span>
-                              </div>
+                          {/* Boys count and Girls count directly in the box (not shown separately or hidden) */}
+                          <div className="mt-3 pt-2.5 border-t border-slate-200 grid grid-cols-2 gap-1.5 text-center">
+                            <div className="bg-blue-50 border border-blue-200 px-2 py-1 rounded-lg">
+                              <div className="text-[10px] font-black text-blue-900 uppercase">Boys</div>
+                              <div className="text-sm font-black text-blue-950 font-mono">{cls.boys}</div>
                             </div>
-                          ) : (
-                            <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-indigo-700 font-bold">
-                              <span>+ Boys &amp; Girls</span>
-                              <span className="text-[10px] text-slate-400">Tap box</span>
+                            <div className="bg-pink-50 border border-pink-200 px-2 py-1 rounded-lg">
+                              <div className="text-[10px] font-black text-pink-900 uppercase">Girls</div>
+                              <div className="text-sm font-black text-pink-950 font-mono">{cls.girls}</div>
                             </div>
-                          )}
-                        </button>
+                          </div>
+                        </div>
                       );
                     })}
                   </div>
@@ -1252,16 +1234,16 @@ export default function App() {
                             </span>
                           </div>
 
-                          <div className="overflow-x-auto rounded-2xl border-2 border-slate-300 bg-white">
-                            <table className="w-full text-left text-sm">
+                          <div className="overflow-x-auto rounded-2xl border-2 border-slate-300 bg-white shadow-2xs">
+                            <table className="w-full text-left text-sm min-w-[720px]">
                               <thead className="bg-slate-100 text-slate-900 font-black border-b-2 border-slate-300">
                                 <tr>
-                                  <th className="py-3.5 px-4 sm:px-6">Educational Block</th>
-                                  <th className="py-3.5 px-4 text-center">Potential Dropouts</th>
-                                  <th className="py-3.5 px-4 text-center">Repeaters (Col N)</th>
-                                  <th className="py-3.5 px-4 text-center">Re-Enrolled (Col R)</th>
-                                  <th className="py-3.5 px-4 text-center">Counselling Needed (Col Q)</th>
-                                  <th className="py-3.5 px-4 text-center">Division Share</th>
+                                  <th className="py-3.5 px-4 sm:px-6 whitespace-nowrap">Educational Block</th>
+                                  <th className="py-3.5 px-4 text-center whitespace-nowrap">Potential Dropouts</th>
+                                  <th className="py-3.5 px-4 text-center whitespace-nowrap">Repeaters (Col N)</th>
+                                  <th className="py-3.5 px-4 text-center whitespace-nowrap">Re-Enrolled (Col R)</th>
+                                  <th className="py-3.5 px-4 text-center whitespace-nowrap">Counselling Needed (Col Q)</th>
+                                  <th className="py-3.5 px-4 text-center whitespace-nowrap">Division Share</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-slate-200 font-medium text-slate-800">
@@ -1269,28 +1251,28 @@ export default function App() {
                                   const pct = div.totalStudents > 0 ? ((b.count / div.totalStudents) * 100).toFixed(1) : '0';
                                   return (
                                     <tr key={b.name} className="hover:bg-slate-50/80 transition-colors">
-                                      <td className="py-3.5 px-4 sm:px-6 font-black text-slate-900 text-base">
+                                      <td className="py-3.5 px-4 sm:px-6 font-black text-slate-900 text-base whitespace-nowrap">
                                         {b.name}
                                       </td>
-                                      <td className="py-3.5 px-4 text-center font-black text-slate-900 text-base">
+                                      <td className="py-3.5 px-4 text-center font-black text-slate-900 text-base whitespace-nowrap">
                                         {b.count}
                                       </td>
-                                      <td className="py-3.5 px-4 text-center">
+                                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
                                         <span className="px-3 py-1 rounded-md bg-purple-100 text-purple-950 font-black text-xs border border-purple-300">
                                           {b.repeaters}
                                         </span>
                                       </td>
-                                      <td className="py-3.5 px-4 text-center">
+                                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
                                         <span className="px-3 py-1 rounded-md bg-emerald-100 text-emerald-950 font-black text-xs border border-emerald-300">
                                           {b.reEnrolled}
                                         </span>
                                       </td>
-                                      <td className="py-3.5 px-4 text-center">
+                                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
                                         <span className="px-3 py-1 rounded-md bg-rose-100 text-rose-950 font-black text-xs border border-rose-300">
                                           {b.counsellingNeeded}
                                         </span>
                                       </td>
-                                      <td className="py-3.5 px-4 text-center font-bold text-slate-700">
+                                      <td className="py-3.5 px-4 text-center font-bold text-slate-700 whitespace-nowrap">
                                         {pct}%
                                       </td>
                                     </tr>
@@ -1299,22 +1281,22 @@ export default function App() {
                               </tbody>
                               <tfoot className="bg-slate-100 font-black text-slate-900 border-t-2 border-slate-300">
                                 <tr>
-                                  <td className="py-3 px-4 sm:px-6 text-sm">
+                                  <td className="py-3 px-4 sm:px-6 text-sm whitespace-nowrap">
                                     Total ({div.name} Division)
                                   </td>
-                                  <td className="py-3 px-4 text-center font-black text-base">
+                                  <td className="py-3 px-4 text-center font-black text-base whitespace-nowrap">
                                     {div.totalStudents}
                                   </td>
-                                  <td className="py-3 px-4 text-center font-black text-base text-purple-950">
+                                  <td className="py-3 px-4 text-center font-black text-base text-purple-950 whitespace-nowrap">
                                     {div.repeaters}
                                   </td>
-                                  <td className="py-3 px-4 text-center font-black text-base text-emerald-950">
+                                  <td className="py-3 px-4 text-center font-black text-base text-emerald-950 whitespace-nowrap">
                                     {div.reEnrolled}
                                   </td>
-                                  <td className="py-3 px-4 text-center font-black text-base text-rose-950">
+                                  <td className="py-3 px-4 text-center font-black text-base text-rose-950 whitespace-nowrap">
                                     {div.counsellingNeeded}
                                   </td>
-                                  <td className="py-3 px-4 text-center font-black text-slate-900">
+                                  <td className="py-3 px-4 text-center font-black text-slate-900 whitespace-nowrap">
                                     100%
                                   </td>
                                 </tr>
