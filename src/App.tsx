@@ -32,17 +32,26 @@ import {
   Calendar, 
   HelpCircle, 
   Check, 
-  ArrowRight
+  ArrowRight,
+  Lock,
+  Unlock,
+  ShieldCheck,
+  LogOut,
+  KeyRound
 } from 'lucide-react';
 import { 
   SPREADSHEET_ID, 
   MONTH_TABS, 
   processSheetCSV, 
   StudentRecord, 
-  DepartmentAbstract
+  DepartmentAbstract,
+  DepartmentCredential,
+  DEFAULT_DEPARTMENT_CREDENTIALS,
+  fetchLiveCredentials
 } from './sheetData';
 import { Background3D } from './components/Background3D';
 import { TamilNaduLogo } from './components/TamilNaduLogo';
+import { DepartmentLoginForm } from './components/DepartmentLoginForm';
 import { exportStudentsToExcel, exportStudentsToWord, exportStudentsToDocs, exportAbstractToExcel } from './exportUtils';
 
 // Slicers: Overview, Division, Line Department Overview, Counselling, and 8 line departments
@@ -119,10 +128,60 @@ export default function App() {
   const [editedRemarks, setEditedRemarks] = useState<Record<string, string>>({});
   const [statusSaveNotice, setStatusSaveNotice] = useState<string | null>(null);
 
+  // Department Credentials (taken live from Google Sheet 'User and Password' tab with fallback)
+  const [deptCredentials, setDeptCredentials] = useState<Record<string, DepartmentCredential>>(DEFAULT_DEPARTMENT_CREDENTIALS);
+
+  // Authenticated department sessions (persisted in localStorage)
+  const [authenticatedDepts, setAuthenticatedDepts] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem('thoothukudi_authenticated_depts');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Fetch live credentials from Google Sheet "User and Password" tab on mount
+  useEffect(() => {
+    fetchLiveCredentials().then((creds) => {
+      if (creds && Object.keys(creds).length > 0) {
+        setDeptCredentials(creds);
+      }
+    }).catch((err) => {
+      console.warn('Error fetching live credentials from sheet:', err);
+    });
+  }, []);
+
+  // Department Login and Logout Handlers
+  const handleDepartmentLoginSuccess = (deptKey: string, userId: string) => {
+    const updated = { ...authenticatedDepts, [deptKey]: true };
+    setAuthenticatedDepts(updated);
+    try {
+      localStorage.setItem('thoothukudi_authenticated_depts', JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Could not save auth state to localStorage', e);
+    }
+    setStatusSaveNotice(`Authenticated as ${userId} for ${deptKey}`);
+    setTimeout(() => setStatusSaveNotice(null), 3000);
+  };
+
+  const handleDepartmentLogout = (deptKey: string) => {
+    const updated = { ...authenticatedDepts, [deptKey]: false };
+    setAuthenticatedDepts(updated);
+    try {
+      localStorage.setItem('thoothukudi_authenticated_depts', JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Could not save auth state to localStorage', e);
+    }
+    setStatusSaveNotice(`Logged out of ${deptKey}`);
+    setTimeout(() => setStatusSaveNotice(null), 2500);
+  };
 
   // Load saved status, dropout reasons, counselling, and remarks edits from localStorage on mount/month change
   useEffect(() => {
@@ -185,6 +244,10 @@ export default function App() {
         }
         const csvText = await sheetRes.text();
         fetchedData = processSheetCSV(csvText, monthToFetch);
+      }
+
+      if (fetchedData.credentials) {
+        setDeptCredentials(fetchedData.credentials);
       }
 
       setData(fetchedData);
@@ -637,6 +700,8 @@ export default function App() {
                 const isSelected = selectedSlicer === slicer;
                 const meta = DEPT_META[slicer] || DEPT_META['Overview'];
                 const IconComponent = meta.icon;
+                const isLineDept = slicer !== 'Overview' && slicer !== 'Division' && slicer !== 'Line Department Overview' && slicer !== 'Counselling';
+                const isAuthed = !!authenticatedDepts[slicer];
 
                 return (
                   <button
@@ -661,11 +726,39 @@ export default function App() {
                       <span className="tracking-tight truncate">{slicer}</span>
                     </div>
 
-                    <ChevronRight
-                      className={`w-4 h-4 shrink-0 transition-transform duration-150 ${
-                        isSelected ? 'text-white translate-x-0.5' : 'text-slate-400 opacity-60'
-                      }`}
-                    />
+                    <div className="flex items-center gap-1.5 shrink-0 ml-1">
+                      {isLineDept && (
+                        isAuthed ? (
+                          <span
+                            title="Session Authenticated"
+                            className={`text-[10px] font-black px-1.5 py-0.5 rounded flex items-center gap-1 ${
+                              isSelected
+                                ? 'bg-emerald-400/20 text-emerald-300 border border-emerald-400/30'
+                                : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            }`}
+                          >
+                            <Unlock className="w-2.5 h-2.5" />
+                            <span>Active</span>
+                          </span>
+                        ) : (
+                          <span
+                            title="Password Protected"
+                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 ${
+                              isSelected
+                                ? 'bg-white/10 text-slate-300 border border-white/20'
+                                : 'bg-slate-100 text-slate-500 border border-slate-200'
+                            }`}
+                          >
+                            <Lock className="w-2.5 h-2.5" />
+                          </span>
+                        )
+                      )}
+                      <ChevronRight
+                        className={`w-4 h-4 transition-transform duration-150 ${
+                          isSelected ? 'text-white translate-x-0.5' : 'text-slate-400 opacity-60'
+                        }`}
+                      />
+                    </div>
                   </button>
                 );
               })}
@@ -2058,7 +2151,41 @@ export default function App() {
           {/* 4. REVENUE DEPARTMENT (TALUK-WISE SOURCED FROM COL C) */}
           {/* ======================================================== */}
           {selectedSlicer === 'Revenue Department' && (
+            !authenticatedDepts['Revenue Department'] ? (
+              <DepartmentLoginForm
+                departmentName="Revenue Department"
+                credentials={deptCredentials['Revenue Department'] || DEFAULT_DEPARTMENT_CREDENTIALS['Revenue Department']}
+                departmentMeta={DEPT_META['Revenue Department']}
+                onLoginSuccess={(userId) => handleDepartmentLoginSuccess('Revenue Department', userId)}
+                onCancel={() => setSelectedSlicer('Line Department Overview')}
+              />
+            ) : (
             <div className="space-y-6">
+              
+              {/* Authorized Department Session Banner */}
+              <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl p-3 sm:px-5 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-[#1e3a5f] text-white flex items-center justify-center font-bold shadow-xs">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-black text-slate-900 uppercase tracking-wider block">
+                      Authorized Department Session
+                    </span>
+                    <span className="text-xs sm:text-sm font-bold text-slate-800">
+                      Logged in as: <span className="font-mono font-black">{deptCredentials['Revenue Department']?.userId || 'revenue_dept'}</span> • Revenue Department
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleDepartmentLogout('Revenue Department')}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black bg-white hover:bg-rose-50 text-rose-700 hover:text-rose-800 border border-rose-300 shadow-2xs transition-colors cursor-pointer"
+                  title="Lock Revenue Department and logout"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Lock / Logout</span>
+                </button>
+              </div>
 
               {/* Header and Download Controls */}
               <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -2396,6 +2523,7 @@ export default function App() {
               })()}
 
             </div>
+            )
           )}
 
           {/* ======================================================== */}
@@ -2404,9 +2532,42 @@ export default function App() {
           {selectedSlicer !== 'Overview' && 
            selectedSlicer !== 'Division' && 
            selectedSlicer !== 'Line Department Overview' && 
-           selectedSlicer !== 'Revenue Department' && 
-           selectedSlicer !== 'Counselling' && (
+           selectedSlicer !== 'Revenue Department' && (
+            !authenticatedDepts[selectedSlicer] ? (
+              <DepartmentLoginForm
+                departmentName={selectedSlicer}
+                credentials={deptCredentials[selectedSlicer] || DEFAULT_DEPARTMENT_CREDENTIALS[selectedSlicer]}
+                departmentMeta={DEPT_META[selectedSlicer]}
+                onLoginSuccess={(userId) => handleDepartmentLoginSuccess(selectedSlicer, userId)}
+                onCancel={() => setSelectedSlicer('Line Department Overview')}
+              />
+            ) : (
             <div className="space-y-6">
+              
+              {/* Authorized Department Session Banner */}
+              <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl p-3 sm:px-5 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-[#1e3a5f] text-white flex items-center justify-center font-bold shadow-xs">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-black text-slate-900 uppercase tracking-wider block">
+                      Authorized Department Session
+                    </span>
+                    <span className="text-xs sm:text-sm font-bold text-slate-800">
+                      Logged in as: <span className="font-mono font-black">{deptCredentials[selectedSlicer]?.userId || 'official'}</span> • {selectedSlicer}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleDepartmentLogout(selectedSlicer)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black bg-white hover:bg-rose-50 text-rose-700 hover:text-rose-800 border border-rose-300 shadow-2xs transition-colors cursor-pointer"
+                  title={`Lock ${selectedSlicer} and logout`}
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Lock / Logout</span>
+                </button>
+              </div>
 
               {/* Department Header Banner */}
               <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -2705,6 +2866,7 @@ export default function App() {
               })()}
 
             </div>
+            )
           )}
 
         </main>
