@@ -75,20 +75,20 @@ export const DepartmentLoginForm: React.FC<DepartmentLoginFormProps> = ({
 
   return (
     <div className="max-w-xl mx-auto w-full py-6 px-2 sm:px-4">
-      <div className="bg-white/95 backdrop-blur-md border-2 border-slate-300 rounded-3xl shadow-xl overflow-hidden transition-all">
+      <div className="bg-slate-100 border-2 border-slate-300 rounded-3xl shadow-xl overflow-hidden transition-all">
         
         {/* Top Header Banner with Tamil Nadu Emblem */}
-        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-6 sm:p-7 relative">
+        <div className="bg-[#1e3a5f] text-white p-6 sm:p-7 relative">
           <div className="flex items-center gap-4">
             <TamilNaduLogo className="w-14 h-14 shrink-0 shadow-lg" size={56} />
             <div className="flex-1">
-              <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-300 block">
+              <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-200 block">
                 District Administration, Thoothukudi
               </span>
               <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-snug">
                 {departmentName}
               </h2>
-              <p className="text-xs text-slate-300 font-medium mt-0.5">
+              <p className="text-xs text-slate-200 font-medium mt-0.5">
                 Line Department Official Authentication Portal
               </p>
             </div>
