@@ -32,29 +32,20 @@ import {
   Calendar, 
   HelpCircle, 
   Check, 
-  ArrowRight,
-  Lock,
-  Unlock,
-  ShieldCheck,
-  LogOut,
-  KeyRound
+  ArrowRight
 } from 'lucide-react';
 import { 
   SPREADSHEET_ID, 
   MONTH_TABS, 
   processSheetCSV, 
   StudentRecord, 
-  DepartmentAbstract,
-  DepartmentCredential,
-  DEFAULT_DEPARTMENT_CREDENTIALS,
-  fetchLiveCredentials
+  DepartmentAbstract
 } from './sheetData';
 import { Background3D } from './components/Background3D';
 import { TamilNaduLogo } from './components/TamilNaduLogo';
-import { DepartmentLoginForm } from './components/DepartmentLoginForm';
 import { exportStudentsToExcel, exportStudentsToWord, exportStudentsToDocs, exportAbstractToExcel } from './exportUtils';
 
-// Slicers: Overview (formerly Common Dashboard), Division, Line Department Overview, Counselling, and 8 line departments
+// Slicers: Overview, Division, Line Department Overview, Counselling, and 8 line departments
 const SLICERS = [
   'Overview',
   'Division',
@@ -74,18 +65,18 @@ type SlicerType = typeof SLICERS[number];
 
 // Classic styling configuration for departments & overview
 const DEPT_META: Record<string, { icon: React.ElementType; color: string; badge: string; bg: string }> = {
-  'Overview': { icon: Layers, color: '#1e3a5f', badge: 'bg-blue-50 text-blue-900 border border-blue-300', bg: 'from-slate-800 to-slate-900' },
-  'Division': { icon: Building2, color: '#0f766e', badge: 'bg-teal-50 text-teal-900 border border-teal-300', bg: 'from-teal-800 to-slate-900' },
-  'Line Department Overview': { icon: Layers, color: '#1e3a8a', badge: 'bg-blue-50 text-blue-900 border border-blue-300', bg: 'from-blue-900 to-indigo-950' },
-  'Counselling': { icon: HeartPulse, color: '#2563eb', badge: 'bg-blue-50 text-blue-900 border border-blue-300', bg: 'from-blue-900 to-indigo-950' },
-  'Health Department': { icon: HeartPulse, color: '#047857', badge: 'bg-emerald-50 text-emerald-900 border border-emerald-300', bg: 'from-emerald-800 to-teal-950' },
-  'Labour Department': { icon: Briefcase, color: '#b45309', badge: 'bg-amber-50 text-amber-900 border border-amber-300', bg: 'from-amber-800 to-yellow-950' },
-  'DCPO': { icon: ShieldAlert, color: '#4338ca', badge: 'bg-indigo-50 text-indigo-900 border border-indigo-300', bg: 'from-indigo-900 to-slate-900' },
-  'Social Welfare': { icon: UserCheck, color: '#9d174d', badge: 'bg-pink-50 text-pink-900 border border-pink-300', bg: 'from-pink-900 to-rose-950' },
-  'Fisheries Department': { icon: Anchor, color: '#0369a1', badge: 'bg-sky-50 text-sky-900 border border-sky-300', bg: 'from-sky-900 to-cyan-950' },
-  'Revenue Department': { icon: Landmark, color: '#0f766e', badge: 'bg-teal-50 text-teal-900 border border-teal-300', bg: 'from-teal-900 to-slate-950' },
-  'DDRO': { icon: Accessibility, color: '#6d28d9', badge: 'bg-purple-50 text-purple-900 border border-purple-300', bg: 'from-purple-900 to-violet-950' },
-  'DSE': { icon: BookOpen, color: '#1d4ed8', badge: 'bg-blue-50 text-blue-900 border border-blue-300', bg: 'from-blue-900 to-slate-900' },
+  'Overview': { icon: Layers, color: '#1e3a5f', badge: 'bg-slate-100 text-slate-800 border border-slate-300', bg: 'from-slate-800 to-slate-900' },
+  'Division': { icon: Building2, color: '#0f766e', badge: 'bg-teal-50 text-teal-800 border border-teal-200', bg: 'from-teal-800 to-slate-900' },
+  'Line Department Overview': { icon: Layers, color: '#1e3a8a', badge: 'bg-blue-50 text-blue-800 border border-blue-200', bg: 'from-blue-900 to-indigo-950' },
+  'Counselling': { icon: HelpCircle, color: '#e11d48', badge: 'bg-rose-50 text-rose-800 border border-rose-300', bg: 'from-rose-800 to-rose-950' },
+  'Health Department': { icon: HeartPulse, color: '#047857', badge: 'bg-emerald-50 text-emerald-800 border border-emerald-200', bg: 'from-emerald-800 to-teal-950' },
+  'Labour Department': { icon: Briefcase, color: '#b45309', badge: 'bg-amber-50 text-amber-800 border border-amber-200', bg: 'from-amber-800 to-yellow-950' },
+  'DCPO': { icon: ShieldAlert, color: '#4338ca', badge: 'bg-indigo-50 text-indigo-800 border border-indigo-200', bg: 'from-indigo-900 to-slate-900' },
+  'Social Welfare': { icon: UserCheck, color: '#9d174d', badge: 'bg-pink-50 text-pink-800 border border-pink-200', bg: 'from-pink-900 to-rose-950' },
+  'Fisheries Department': { icon: Anchor, color: '#0369a1', badge: 'bg-sky-50 text-sky-800 border border-sky-200', bg: 'from-sky-900 to-cyan-950' },
+  'Revenue Department': { icon: Landmark, color: '#0f766e', badge: 'bg-teal-50 text-teal-800 border border-teal-200', bg: 'from-teal-900 to-slate-950' },
+  'DDRO': { icon: Accessibility, color: '#6d28d9', badge: 'bg-purple-50 text-purple-800 border border-purple-200', bg: 'from-purple-900 to-violet-950' },
+  'DSE': { icon: BookOpen, color: '#1d4ed8', badge: 'bg-blue-50 text-blue-800 border border-blue-200', bg: 'from-blue-900 to-slate-900' },
 };
 
 // Classic administrative chart palette
@@ -119,7 +110,7 @@ export default function App() {
   const [abstractSearch, setAbstractSearch] = useState<string>('');
   const [counsellingSearch, setCounsellingSearch] = useState<string>('');
   const [counsellingDeptFilter, setCounsellingDeptFilter] = useState<string>('All');
-  const [counsellingGenderFilter, setCounsellingGenderFilter] = useState<string>('All');
+  const [counsellingDivFilter, setCounsellingDivFilter] = useState<string>('All');
   
   // Department-edited status, dropout reason, counselling, and remarks state (keyed by student EMIS or sNo)
   const [editedStatuses, setEditedStatuses] = useState<Record<string, string>>({});
@@ -128,78 +119,10 @@ export default function App() {
   const [editedRemarks, setEditedRemarks] = useState<Record<string, string>>({});
   const [statusSaveNotice, setStatusSaveNotice] = useState<string | null>(null);
 
-  // Department Credentials (taken live from Google Sheet 'User and Password' tab with fallback)
-  const [deptCredentials, setDeptCredentials] = useState<Record<string, DepartmentCredential>>(DEFAULT_DEPARTMENT_CREDENTIALS);
-
-  // Authenticated department sessions (persisted in localStorage)
-  const [authenticatedDepts, setAuthenticatedDepts] = useState<Record<string, boolean>>(() => {
-    try {
-      const saved = localStorage.getItem('thoothukudi_authenticated_depts');
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
-  });
-
-  // Selected class boxes in Class-Wise Potential Dropout to show Boys & Girls breakdown
-  const [selectedClassBoxes, setSelectedClassBoxes] = useState<Record<string, boolean>>({});
-
-  const handleToggleClassBox = (className: string) => {
-    setSelectedClassBoxes(prev => ({
-      ...prev,
-      [className]: !prev[className]
-    }));
-  };
-
-  const handleToggleAllClassBoxes = (allClassNames: string[]) => {
-    const allSelected = allClassNames.length > 0 && allClassNames.every(name => selectedClassBoxes[name]);
-    const next: Record<string, boolean> = {};
-    allClassNames.forEach(name => {
-      next[name] = !allSelected;
-    });
-    setSelectedClassBoxes(next);
-  };
-
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Fetch live credentials from Google Sheet "User and Password" tab on mount
-  useEffect(() => {
-    fetchLiveCredentials().then((creds) => {
-      if (creds && Object.keys(creds).length > 0) {
-        setDeptCredentials(creds);
-      }
-    }).catch((err) => {
-      console.warn('Error fetching live credentials from sheet:', err);
-    });
-  }, []);
-
-  // Department Login and Logout Handlers
-  const handleDepartmentLoginSuccess = (deptKey: string, userId: string) => {
-    const updated = { ...authenticatedDepts, [deptKey]: true };
-    setAuthenticatedDepts(updated);
-    try {
-      localStorage.setItem('thoothukudi_authenticated_depts', JSON.stringify(updated));
-    } catch (e) {
-      console.warn('Could not save auth state to localStorage', e);
-    }
-    setStatusSaveNotice(`Authenticated as ${userId} for ${deptKey}`);
-    setTimeout(() => setStatusSaveNotice(null), 3000);
-  };
-
-  const handleDepartmentLogout = (deptKey: string) => {
-    const updated = { ...authenticatedDepts, [deptKey]: false };
-    setAuthenticatedDepts(updated);
-    try {
-      localStorage.setItem('thoothukudi_authenticated_depts', JSON.stringify(updated));
-    } catch (e) {
-      console.warn('Could not save auth state to localStorage', e);
-    }
-    setStatusSaveNotice(`Logged out of ${deptKey}`);
-    setTimeout(() => setStatusSaveNotice(null), 2500);
-  };
 
   // Load saved status, dropout reasons, counselling, and remarks edits from localStorage on mount/month change
   useEffect(() => {
@@ -262,10 +185,6 @@ export default function App() {
         }
         const csvText = await sheetRes.text();
         fetchedData = processSheetCSV(csvText, monthToFetch);
-      }
-
-      if (fetchedData.credentials) {
-        setDeptCredentials(fetchedData.credentials);
       }
 
       setData(fetchedData);
@@ -415,12 +334,22 @@ export default function App() {
       }
     });
 
+    const finalBoys = (boys === 0 && girls === 0 && (entry.boys !== undefined || entry.girls !== undefined))
+      ? (entry.boys || 0)
+      : boys;
+    const finalGirls = (boys === 0 && girls === 0 && (entry.boys !== undefined || entry.girls !== undefined))
+      ? (entry.girls || 0)
+      : girls;
+
+    const total = entry.value ?? (entry.total ?? classStudents.length);
+
     return {
       name: className,
-      total: entry.value ?? classStudents.length,
-      boys,
-      girls,
-      sortOrder: entry.sortOrder || 99,
+      value: total,
+      total,
+      boys: finalBoys,
+      girls: finalGirls,
+      sortOrder: entry.sortOrder || (parseInt(stdNum, 10) || 99),
     };
   }).sort((a: any, b: any) => a.sortOrder - b.sortOrder);
 
@@ -505,23 +434,57 @@ export default function App() {
     students: tStudents,
   })).sort((a, b) => b.potentialDropout - a.potentialDropout);
 
-  // Custom Chart Tooltip (displays Total, Boys, and Girls count for class-wise bars)
+  // Custom Chart Tooltip (displays Total, Boys count, and Girls count directly in the hover box for class-wise bars)
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
-      const itemName = label || payload[0]?.name || '';
-      const matchedClass = computedClassStats.find(c => c.name === itemName);
+      const p = payload[0];
+      const dataObj = p.payload || {};
+      const itemName = dataObj.name || label || p.name || '';
+      const matchedClass = computedClassStats.find(c => 
+        c.name.toLowerCase() === itemName.toLowerCase() || 
+        c.name.replace('Class ', '').trim() === itemName.replace('Class ', '').trim()
+      );
+
+      const isClassChart = !!matchedClass;
+      const totalCount = p.value ?? dataObj.total ?? dataObj.count ?? (matchedClass ? matchedClass.total : 0);
+      const boysCount = matchedClass ? matchedClass.boys : (dataObj.boys ?? 0);
+      const girlsCount = matchedClass ? matchedClass.girls : (dataObj.girls ?? 0);
 
       return (
-        <div className="bg-slate-900 text-white px-3.5 py-2.5 rounded-xl border border-slate-700 shadow-xl text-xs space-y-1">
-          <div className="font-semibold text-slate-200">{itemName}</div>
-          <div className="font-bold text-teal-300 text-sm">
-            {payload[0].value} Potential Dropouts
+        <div className="bg-slate-900 text-white px-4 py-3 rounded-2xl border-2 border-slate-700 shadow-2xl text-xs space-y-2 min-w-[200px] z-50">
+          <div className="flex items-center justify-between border-b border-slate-700/80 pb-1.5 gap-2">
+            <span className="font-black text-slate-100 text-sm tracking-tight">{itemName}</span>
+            {isClassChart && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                Std {itemName.replace('Class ', '')}
+              </span>
+            )}
           </div>
-          {matchedClass && (
-            <div className="pt-1.5 border-t border-slate-700 flex items-center gap-3 text-xs font-bold">
-              <span className="text-blue-300">Boys: {matchedClass.boys}</span>
-              <span className="text-slate-500">•</span>
-              <span className="text-pink-300">Girls: {matchedClass.girls}</span>
+
+          <div className="flex items-baseline justify-between pt-0.5">
+            <span className="text-slate-300 font-semibold text-xs">Potential Dropouts:</span>
+            <span className="font-black text-emerald-400 text-base font-mono">{totalCount}</span>
+          </div>
+
+          {isClassChart && (
+            <div className="pt-2 border-t border-slate-700/80 space-y-1.5">
+              <div className="grid grid-cols-2 gap-2 text-center">
+                <div className="bg-blue-950/70 border border-blue-500/40 rounded-xl py-1.5 px-2">
+                  <div className="text-[10px] font-black uppercase text-blue-300 tracking-wider">Boys Count</div>
+                  <div className="text-base font-black text-blue-100 font-mono mt-0.5">{boysCount}</div>
+                </div>
+                <div className="bg-pink-950/70 border border-pink-500/40 rounded-xl py-1.5 px-2">
+                  <div className="text-[10px] font-black uppercase text-pink-300 tracking-wider">Girls Count</div>
+                  <div className="text-base font-black text-pink-100 font-mono mt-0.5">{girlsCount}</div>
+                </div>
+              </div>
+              {totalCount > 0 && (
+                <div className="text-[10px] text-slate-400 font-semibold text-center flex items-center justify-center gap-2 pt-0.5">
+                  <span>{((boysCount / totalCount) * 100).toFixed(0)}% Boys</span>
+                  <span>•</span>
+                  <span>{((girlsCount / totalCount) * 100).toFixed(0)}% Girls</span>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -588,18 +551,18 @@ export default function App() {
         </div>
       )}
 
-      {/* Executive Classic Header */}
-      <header className="bg-white/95 backdrop-blur-md border-b-2 border-slate-300 sticky top-0 z-30 shadow-xs">
+      {/* Executive Classic Header with Unified #1e3a5f Background */}
+      <header className="bg-[#1e3a5f] text-white border-b-2 border-slate-900 sticky top-0 z-30 shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-4">
           
           {/* Dashboard Title with Official Tamil Nadu Logo */}
           <div className="flex items-center gap-3.5">
-            <TamilNaduLogo className="w-12 h-12 sm:w-14 sm:h-14 shadow-md" size={56} />
+            <TamilNaduLogo className="w-12 h-12 sm:w-14 sm:h-14 shadow-md bg-white rounded-full p-1 border-2 border-white/40" size={56} />
             <div>
-              <h1 className="text-lg sm:text-2xl font-black text-slate-900 tracking-tight leading-tight">
+              <h1 className="text-lg sm:text-2xl font-black text-white tracking-tight leading-tight">
                 Thoothukudi District - Potential Dropout Dashboard
               </h1>
-              <p className="text-sm sm:text-base text-slate-700 font-bold">
+              <p className="text-sm text-slate-200 font-bold mt-0.5">
                 District Administration, Thoothukudi
               </p>
             </div>
@@ -608,9 +571,9 @@ export default function App() {
           {/* Right Header Controls: Month Filter (BIG SIZE as requested) + Refresh */}
           <div className="flex flex-wrap items-center gap-3">
             {/* BIG SIZE Month Filter */}
-            <div className="flex items-center gap-2 bg-slate-50 px-4 py-2 rounded-xl border-2 border-slate-300 shadow-xs hover:border-slate-400 transition-colors">
-              <Calendar className="w-5 h-5 text-slate-800 shrink-0" />
-              <label htmlFor="month-select" className="text-xs font-black text-slate-800 uppercase tracking-wider">
+            <div className="flex items-center gap-2 bg-white/10 hover:bg-white/15 px-4 py-2 rounded-xl border-2 border-white/30 shadow-xs transition-colors">
+              <Calendar className="w-5 h-5 text-white shrink-0" />
+              <label htmlFor="month-select" className="text-xs font-black text-slate-200 uppercase tracking-wider">
                 Month:
               </label>
               <select
@@ -621,7 +584,7 @@ export default function App() {
                   setSelectedMonth(newMonth);
                   fetchData(false, newMonth);
                 }}
-                className="text-base sm:text-lg font-black text-slate-900 bg-transparent focus:outline-none cursor-pointer pr-1"
+                className="text-base sm:text-lg font-black text-white bg-transparent focus:outline-none cursor-pointer pr-1"
                 title="Select month sheet tab"
               >
                 {(data?.availableMonths || ['Sep 2026', 'Oct 2026', 'Nov 2026']).map((m: string) => (
@@ -636,10 +599,10 @@ export default function App() {
             <button
               onClick={() => fetchData(true)}
               disabled={refreshing}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold shadow-md transition-all active:translate-y-0.5 ${
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold shadow-md transition-all active:translate-y-0.5 cursor-pointer ${
                 refreshing
-                  ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                  : 'bg-slate-900 hover:bg-slate-800 text-white border border-slate-700'
+                  ? 'bg-white/10 text-slate-300 cursor-not-allowed border border-white/20'
+                  : 'bg-white/20 hover:bg-white/30 text-white border border-white/30'
               }`}
             >
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-white' : 'text-white'}`} />
@@ -655,16 +618,16 @@ export default function App() {
         
         {/* Left Sidebar — Month name in big font replacing the word 'department slicers' */}
         <aside className="w-full md:w-64 shrink-0">
-          <div className="bg-slate-50/90 border-2 border-slate-300 rounded-2xl p-3.5 shadow-sm sticky top-20">
+          <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl p-3.5 shadow-sm sticky top-20">
             {/* Top of sidebar: Month Name in Big Font (Replacing 'department slicers') */}
-            <div className="px-3 py-2.5 mb-3 border-b-2 border-slate-300 bg-white rounded-xl shadow-2xs flex items-center justify-between">
+            <div className="px-3.5 py-2.5 mb-3 bg-[#1e3a5f] text-white rounded-xl shadow-xs flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-slate-800 shrink-0" />
-                <span className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
+                <Calendar className="w-5 h-5 text-white shrink-0" />
+                <span className="text-base sm:text-lg font-black text-white tracking-tight">
                   {selectedMonth}
                 </span>
               </div>
-              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-800 border border-slate-200">
+              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-white/20 text-white border border-white/30">
                 Active
               </span>
             </div>
@@ -674,8 +637,6 @@ export default function App() {
                 const isSelected = selectedSlicer === slicer;
                 const meta = DEPT_META[slicer] || DEPT_META['Overview'];
                 const IconComponent = meta.icon;
-                const isLineDept = slicer !== 'Overview' && slicer !== 'Division' && slicer !== 'Line Department Overview' && slicer !== 'Counselling';
-                const isAuthed = !!authenticatedDepts[slicer];
 
                 return (
                   <button
@@ -683,8 +644,8 @@ export default function App() {
                     onClick={() => setSelectedSlicer(slicer)}
                     className={`w-full text-left px-3.5 py-3 rounded-xl text-sm font-bold flex items-center justify-between transition-all duration-150 cursor-pointer ${
                       isSelected
-                        ? 'bg-slate-900 text-white shadow-md border-2 border-slate-800'
-                        : 'bg-white hover:bg-slate-100 text-slate-800 hover:text-slate-950 border-2 border-slate-200 hover:border-slate-300'
+                        ? 'bg-[#1e3a5f] text-white shadow-md border-2 border-[#162c48]'
+                        : 'bg-white hover:bg-slate-200/80 text-slate-800 hover:text-slate-950 border-2 border-slate-200 hover:border-slate-300'
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
@@ -700,39 +661,11 @@ export default function App() {
                       <span className="tracking-tight truncate">{slicer}</span>
                     </div>
 
-                    <div className="flex items-center gap-1.5 shrink-0 ml-1">
-                      {isLineDept && (
-                        isAuthed ? (
-                          <span
-                            title="Session Authenticated"
-                            className={`text-[10px] font-black px-1.5 py-0.5 rounded flex items-center gap-1 ${
-                              isSelected
-                                ? 'bg-emerald-400/20 text-emerald-300 border border-emerald-400/30'
-                                : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            }`}
-                          >
-                            <Unlock className="w-2.5 h-2.5" />
-                            <span>Active</span>
-                          </span>
-                        ) : (
-                          <span
-                            title="Password Protected"
-                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 ${
-                              isSelected
-                                ? 'bg-white/10 text-slate-300 border border-white/20'
-                                : 'bg-slate-100 text-slate-500 border border-slate-200'
-                            }`}
-                          >
-                            <Lock className="w-2.5 h-2.5" />
-                          </span>
-                        )
-                      )}
-                      <ChevronRight
-                        className={`w-4 h-4 transition-transform duration-150 ${
-                          isSelected ? 'text-white translate-x-0.5' : 'text-slate-400 opacity-60'
-                        }`}
-                      />
-                    </div>
+                    <ChevronRight
+                      className={`w-4 h-4 shrink-0 transition-transform duration-150 ${
+                        isSelected ? 'text-white translate-x-0.5' : 'text-slate-400 opacity-60'
+                      }`}
+                    />
                   </button>
                 );
               })}
@@ -749,275 +682,318 @@ export default function App() {
           {selectedSlicer === 'Overview' && (
             <div className="space-y-6">
               
-              {/* Top Row — 5 Prominent Uniform Summary Cards with Colorful Professional Border and Matching Styling */}
+              {/* Top Row — 5 Colourful & Professional Uniform Summary Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 
                 {/* Box 1: Potential Dropout */}
-                <div className="bg-gradient-to-b from-blue-50/70 via-white to-white border-2 border-blue-600 rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-wider">
+                <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
+                  <div className="bg-[#1e3a5f] text-white px-4 py-2.5 flex items-center justify-between">
+                    <span className="text-sm font-black tracking-wider uppercase text-white">
                       Potential Dropout
                     </span>
-                    <div className="w-10 h-10 rounded-xl bg-blue-700 text-white flex items-center justify-center shadow-xs">
-                      <Users className="w-5 h-5" />
+                    <div className="w-8 h-8 rounded-lg bg-white/15 text-white flex items-center justify-center">
+                      <Users className="w-4 h-4" />
                     </div>
                   </div>
-                  <div className="text-3xl sm:text-4xl font-black text-blue-950 mt-2.5 tracking-tight font-mono">
-                    {summary.potentialDropout}
-                  </div>
-                  <div className="mt-2.5 text-xs sm:text-sm text-slate-700 font-bold pt-2.5 border-t-2 border-blue-100 flex justify-between">
-                    <span>Identified Students</span>
-                    <span className="font-black text-blue-950">100%</span>
+                  <div className="p-4 sm:p-5 flex flex-col justify-between flex-1">
+                    <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
+                      {summary.potentialDropout}
+                    </div>
+                    <div className="mt-3 text-sm text-slate-700 font-bold pt-2.5 border-t border-slate-300 flex justify-between items-center">
+                      <span>Identified Students</span>
+                      <span className="font-black text-slate-900">100%</span>
+                    </div>
                   </div>
                 </div>
 
                 {/* Box 2: Re - Enrolled */}
-                <div className="bg-gradient-to-b from-blue-50/70 via-white to-white border-2 border-blue-600 rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-wider">
+                <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
+                  <div className="bg-[#1e3a5f] text-white px-4 py-2.5 flex items-center justify-between">
+                    <span className="text-sm font-black tracking-wider uppercase text-white">
                       Re - Enrolled
                     </span>
-                    <div className="w-10 h-10 rounded-xl bg-blue-700 text-white flex items-center justify-center shadow-xs">
-                      <GraduationCap className="w-5 h-5" />
+                    <div className="w-8 h-8 rounded-lg bg-white/15 text-white flex items-center justify-center">
+                      <GraduationCap className="w-4 h-4" />
                     </div>
                   </div>
-                  <div className="text-3xl sm:text-4xl font-black text-blue-950 mt-2.5 tracking-tight font-mono">
-                    {summary.reEnrolled}
-                  </div>
-                  <div className="mt-2.5 text-xs sm:text-sm text-slate-700 font-bold pt-2.5 border-t-2 border-blue-100 flex justify-between">
-                    <span>Re-enrolled in School</span>
-                    <span className="font-black text-blue-950">
-                      {summary.potentialDropout > 0 ? ((summary.reEnrolled / summary.potentialDropout) * 100).toFixed(0) : 0}%
-                    </span>
+                  <div className="p-4 sm:p-5 flex flex-col justify-between flex-1">
+                    <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
+                      {summary.reEnrolled}
+                    </div>
+                    <div className="mt-3 text-sm text-slate-700 font-bold pt-2.5 border-t border-slate-300 flex justify-between items-center">
+                      <span>Rejoined School</span>
+                      <span className="font-black text-slate-900">
+                        {summary.potentialDropout > 0 ? ((summary.reEnrolled / summary.potentialDropout) * 100).toFixed(0) : 0}%
+                      </span>
+                    </div>
                   </div>
                 </div>
 
                 {/* Box 3: Migrated */}
-                <div className="bg-gradient-to-b from-blue-50/70 via-white to-white border-2 border-blue-600 rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-wider">
+                <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
+                  <div className="bg-[#1e3a5f] text-white px-4 py-2.5 flex items-center justify-between">
+                    <span className="text-sm font-black tracking-wider uppercase text-white">
                       Migrated
                     </span>
-                    <div className="w-10 h-10 rounded-xl bg-blue-700 text-white flex items-center justify-center shadow-xs">
-                      <MapPin className="w-5 h-5" />
+                    <div className="w-8 h-8 rounded-lg bg-white/15 text-white flex items-center justify-center">
+                      <MapPin className="w-4 h-4" />
                     </div>
                   </div>
-                  <div className="text-3xl sm:text-4xl font-black text-blue-950 mt-2.5 tracking-tight font-mono">
-                    {summary.migrated}
-                  </div>
-                  <div className="mt-2.5 text-xs sm:text-sm text-slate-700 font-bold pt-2.5 border-t-2 border-blue-100 flex justify-between">
-                    <span>Relocated District/Block</span>
-                    <span className="font-black text-blue-950">
-                      {summary.potentialDropout > 0 ? ((summary.migrated / summary.potentialDropout) * 100).toFixed(0) : 0}%
-                    </span>
+                  <div className="p-4 sm:p-5 flex flex-col justify-between flex-1">
+                    <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
+                      {summary.migrated}
+                    </div>
+                    <div className="mt-3 text-sm text-slate-700 font-bold pt-2.5 border-t border-slate-300 flex justify-between items-center">
+                      <span>Relocated District</span>
+                      <span className="font-black text-slate-900">
+                        {summary.potentialDropout > 0 ? ((summary.migrated / summary.potentialDropout) * 100).toFixed(0) : 0}%
+                      </span>
+                    </div>
                   </div>
                 </div>
 
                 {/* Box 4: Repeaters */}
-                <div className="bg-gradient-to-b from-blue-50/70 via-white to-white border-2 border-blue-600 rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-wider">
+                <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
+                  <div className="bg-[#1e3a5f] text-white px-4 py-2.5 flex items-center justify-between">
+                    <span className="text-sm font-black tracking-wider uppercase text-white">
                       Repeaters
                     </span>
-                    <div className="w-10 h-10 rounded-xl bg-blue-700 text-white flex items-center justify-center shadow-xs">
-                      <RotateCcw className="w-5 h-5" />
+                    <div className="w-8 h-8 rounded-lg bg-white/15 text-white flex items-center justify-center">
+                      <RotateCcw className="w-4 h-4" />
                     </div>
                   </div>
-                  <div className="text-3xl sm:text-4xl font-black text-blue-950 mt-2.5 tracking-tight font-mono">
-                    {summary.repeaters}
-                  </div>
-                  <div className="mt-2.5 text-xs sm:text-sm text-slate-700 font-bold pt-2.5 border-t-2 border-blue-100 flex justify-between">
-                    <span>Repeater Students</span>
-                    <span className="font-black text-blue-950">
-                      {summary.potentialDropout > 0 ? ((summary.repeaters / summary.potentialDropout) * 100).toFixed(0) : 0}%
-                    </span>
+                  <div className="p-4 sm:p-5 flex flex-col justify-between flex-1">
+                    <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
+                      {summary.repeaters}
+                    </div>
+                    <div className="mt-3 text-sm text-slate-700 font-bold pt-2.5 border-t border-slate-300 flex justify-between items-center">
+                      <span>Repeater Students</span>
+                      <span className="font-black text-slate-900">
+                        {summary.potentialDropout > 0 ? ((summary.repeaters / summary.potentialDropout) * 100).toFixed(0) : 0}%
+                      </span>
+                    </div>
                   </div>
                 </div>
 
                 {/* Box 5: Counselling Needed */}
-                <div className="bg-gradient-to-b from-blue-50/70 via-white to-white border-2 border-blue-600 rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-wider">
+                <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
+                  <div className="bg-[#1e3a5f] text-white px-4 py-2.5 flex items-center justify-between">
+                    <span className="text-sm font-black tracking-wider uppercase text-white">
                       Counselling Needed
                     </span>
-                    <div className="w-10 h-10 rounded-xl bg-blue-700 text-white flex items-center justify-center shadow-xs">
-                      <HelpCircle className="w-5 h-5" />
+                    <div className="w-8 h-8 rounded-lg bg-white/15 text-white flex items-center justify-center">
+                      <HelpCircle className="w-4 h-4" />
                     </div>
                   </div>
-                  <div className="text-3xl sm:text-4xl font-black text-blue-950 mt-2.5 tracking-tight font-mono">
-                    {summary.counsellingNeeded}
-                  </div>
-                  <div className="mt-2.5 text-xs sm:text-sm text-slate-700 font-bold pt-2.5 border-t-2 border-blue-100 flex justify-between">
-                    <span>Requires Counselling</span>
-                    <span className="font-black text-blue-950">
-                      {summary.potentialDropout > 0 ? ((summary.counsellingNeeded / summary.potentialDropout) * 100).toFixed(0) : 0}%
-                    </span>
+                  <div className="p-4 sm:p-5 flex flex-col justify-between flex-1">
+                    <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
+                      {summary.counsellingNeeded}
+                    </div>
+                    <div className="mt-3 text-sm text-slate-700 font-bold pt-2.5 border-t border-slate-300 flex justify-between items-center">
+                      <span>Requires Counselling</span>
+                      <span className="font-black text-slate-900">
+                        {summary.potentialDropout > 0 ? ((summary.counsellingNeeded / summary.potentialDropout) * 100).toFixed(0) : 0}%
+                      </span>
+                    </div>
                   </div>
                 </div>
 
               </div>
 
-              {/* Middle Section — Two Bar Charts with Uniform Colorful Professional Styling */}
+              {/* Middle Section — Two Bar Charts with colorful headings and uniform light grey boxes */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 
                 {/* Bar Chart 1: Block-Wise Potential Dropout */}
-                <div className="bg-white border-2 border-blue-600 rounded-2xl p-5 sm:p-6 shadow-sm hover:shadow-md transition-all">
-                  <div className="flex items-center justify-between mb-1">
+                <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm overflow-hidden">
+                  <div className="bg-[#1e3a5f] text-white px-5 py-3.5 flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-3.5 h-3.5 rounded-full bg-blue-700"></div>
-                      <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                      <Building2 className="w-5 h-5 text-slate-200" />
+                      <h3 className="text-base sm:text-lg font-black text-white tracking-tight">
                         Block-Wise Potential Dropout
                       </h3>
                     </div>
-                    <span className="text-xs sm:text-sm font-bold px-3 py-1 rounded-full bg-blue-50 text-blue-900 border border-blue-200 shadow-2xs">
+                    <span className="text-xs sm:text-sm font-bold px-3 py-1 rounded-full bg-white/20 text-white border border-white/30">
                       13 Educational Blocks
                     </span>
                   </div>
-                  <p className="text-sm sm:text-base text-slate-700 mb-3 font-bold">
-                    Monthly dropout distribution across Thoothukudi District blocks
-                  </p>
-                  
-                  <div className="h-64 sm:h-72 mt-2">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={charts.blockWise}
-                        margin={{ top: 20, right: 10, left: -20, bottom: 45 }}
-                      >
-                        <XAxis
-                          dataKey="name"
-                          stroke="#64748b"
-                          tick={{ fill: '#1e293b', fontSize: 12, fontWeight: 700 }}
-                          interval={0}
-                          angle={-30}
-                          textAnchor="end"
-                          height={50}
-                          tickLine={false}
-                        />
-                        <YAxis
-                          stroke="#64748b"
-                          tick={{ fill: '#334155', fontSize: 12, fontWeight: 600 }}
-                          tickLine={false}
-                          allowDecimals={false}
-                        />
-                        <Tooltip content={<CustomTooltip />} cursor={{ fill: '#eff6ff' }} />
-                        <Bar
-                          dataKey="count"
-                          fill="#1d4ed8"
-                          radius={[4, 4, 0, 0]}
-                          label={{ position: 'top', fill: '#1e3a5f', fontSize: 12, fontWeight: 700 }}
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
+                  <div className="p-5">
+                    <p className="text-sm text-slate-700 mb-3 font-medium">
+                      Monthly dropout distribution across Thoothukudi District blocks
+                    </p>
+                    
+                    <div className="h-64 sm:h-72 mt-2">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={charts.blockWise}
+                          margin={{ top: 20, right: 10, left: -20, bottom: 45 }}
+                        >
+                          <XAxis
+                            dataKey="name"
+                            stroke="#64748b"
+                            tick={{ fill: '#1e293b', fontSize: 11, fontWeight: 700 }}
+                            interval={0}
+                            angle={-30}
+                            textAnchor="end"
+                            height={50}
+                            tickLine={false}
+                          />
+                          <YAxis
+                            stroke="#64748b"
+                            tick={{ fill: '#475569', fontSize: 10 }}
+                            tickLine={false}
+                            allowDecimals={false}
+                          />
+                          <Tooltip content={<CustomTooltip />} cursor={{ fill: '#cbd5e1' }} />
+                          <Bar
+                            dataKey="count"
+                            fill="#1e3a5f"
+                            radius={[4, 4, 0, 0]}
+                            label={{ position: 'top', fill: '#1e3a5f', fontSize: 11, fontWeight: 700 }}
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
                 </div>
 
                 {/* Bar Chart 2: Line Department Allocation */}
-                <div className="bg-white border-2 border-blue-600 rounded-2xl p-5 sm:p-6 shadow-sm hover:shadow-md transition-all">
-                  <div className="flex items-center justify-between mb-1">
+                <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm overflow-hidden">
+                  <div className="bg-[#1e3a5f] text-white px-5 py-3.5 flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-3.5 h-3.5 rounded-full bg-blue-700"></div>
-                      <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                        Line Department-Wise Allocation
+                      <Layers className="w-5 h-5 text-slate-200" />
+                      <h3 className="text-base sm:text-lg font-black text-white tracking-tight">
+                        Line Department-Wise Dropout Allocation
                       </h3>
                     </div>
-                    <span className="text-xs sm:text-sm font-bold px-3 py-1 rounded-full bg-blue-50 text-blue-900 border border-blue-200 shadow-2xs">
+                    <span className="text-xs sm:text-sm font-bold px-3 py-1 rounded-full bg-white/20 text-white border border-white/30">
                       8 Line Departments
                     </span>
                   </div>
-                  <p className="text-sm sm:text-base text-slate-700 mb-3 font-bold">
-                    Department-wise student intervention counts
-                  </p>
-                  
-                  <div className="h-64 sm:h-72 mt-2">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={charts.lineDepartment}
-                        margin={{ top: 20, right: 10, left: -20, bottom: 45 }}
-                      >
-                        <XAxis
-                          dataKey="name"
-                          stroke="#64748b"
-                          tick={{ fill: '#1e293b', fontSize: 12, fontWeight: 700 }}
-                          interval={0}
-                          angle={-30}
-                          textAnchor="end"
-                          height={50}
-                          tickLine={false}
-                        />
-                        <YAxis
-                          stroke="#64748b"
-                          tick={{ fill: '#334155', fontSize: 12, fontWeight: 600 }}
-                          tickLine={false}
-                          allowDecimals={false}
-                        />
-                        <Tooltip content={<CustomTooltip />} cursor={{ fill: '#eff6ff' }} />
-                        <Bar
-                          dataKey="count"
-                          fill="#0f766e"
-                          radius={[4, 4, 0, 0]}
-                          label={{ position: 'top', fill: '#0f766e', fontSize: 12, fontWeight: 700 }}
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
+                  <div className="p-5">
+                    <p className="text-sm text-slate-700 mb-3 font-medium">
+                      Department-wise student intervention counts
+                    </p>
+                    
+                    <div className="h-64 sm:h-72 mt-2">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={charts.lineDepartment}
+                          margin={{ top: 20, right: 10, left: -20, bottom: 45 }}
+                        >
+                          <XAxis
+                            dataKey="name"
+                            stroke="#64748b"
+                            tick={{ fill: '#1e293b', fontSize: 11, fontWeight: 700 }}
+                            interval={0}
+                            angle={-30}
+                            textAnchor="end"
+                            height={50}
+                            tickLine={false}
+                          />
+                          <YAxis
+                            stroke="#64748b"
+                            tick={{ fill: '#475569', fontSize: 10 }}
+                            tickLine={false}
+                            allowDecimals={false}
+                          />
+                          <Tooltip content={<CustomTooltip />} cursor={{ fill: '#cbd5e1' }} />
+                          <Bar
+                            dataKey="count"
+                            fill="#1e3a5f"
+                            radius={[4, 4, 0, 0]}
+                            label={{ position: 'top', fill: '#1e3a5f', fontSize: 11, fontWeight: 700 }}
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
                 </div>
 
               </div>
 
               {/* Bottom Section — Class-Wise Potential Dropout */}
-              <div className="bg-white border-2 border-blue-600 rounded-2xl p-5 sm:p-6 shadow-sm hover:shadow-md transition-all">
-                <div className="flex items-center justify-between mb-1">
+              <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm overflow-hidden">
+                <div className="bg-[#1e3a5f] text-white px-5 py-3.5 flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-3.5 h-3.5 rounded-full bg-blue-700"></div>
-                    <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                    <GraduationCap className="w-5 h-5 text-slate-200" />
+                    <h3 className="text-base sm:text-lg font-black text-white tracking-tight">
                       Class-Wise Potential Dropout
                     </h3>
                   </div>
-                  <span className="text-xs sm:text-sm font-bold px-3 py-1 rounded-full bg-blue-50 text-blue-900 border border-blue-200 shadow-2xs">
-                    Class 1 through Class 12
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs sm:text-sm font-bold px-3 py-1 rounded-full bg-white/20 text-white border border-white/30">
+                      Class 1 through Class 12
+                    </span>
+                    <span className="text-xs sm:text-sm font-black px-3 py-1 rounded-full bg-white/20 text-white border border-white/30">
+                      Total: {computedClassStats.reduce((acc, c) => acc + c.total, 0)}
+                    </span>
+                  </div>
                 </div>
-                <p className="text-sm sm:text-base text-slate-700 mb-3 font-bold">
-                  Distribution of potential dropout students across classes
-                </p>
+                
+                <div className="p-5">
+                  <p className="text-sm text-slate-700 mb-3 font-medium">
+                    Distribution of potential dropout students across classes. Hover or tap any bar to view the info box containing Boys count and Girls count.
+                  </p>
 
-                <div className="h-64 sm:h-72 mt-2">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={charts.classWise}
-                      margin={{ top: 20, right: 10, left: -20, bottom: 25 }}
-                    >
-                      <XAxis
-                        dataKey="name"
-                        stroke="#64748b"
-                        tick={{ fill: '#1e293b', fontSize: 12, fontWeight: 700 }}
-                        interval={0}
-                        angle={-20}
-                        textAnchor="end"
-                        height={40}
-                        tickLine={false}
-                      />
-                      <YAxis
-                        stroke="#64748b"
-                        tick={{ fill: '#334155', fontSize: 12, fontWeight: 600 }}
-                        tickLine={false}
-                        allowDecimals={false}
-                      />
-                      <Tooltip content={<CustomTooltip />} cursor={{ fill: '#eff6ff' }} />
-                      <Bar
-                        dataKey="value"
-                        radius={[4, 4, 0, 0]}
-                        label={{ position: 'top', fill: '#1e3a5f', fontSize: 12, fontWeight: 700 }}
+                  <div className="h-64 sm:h-72 mt-2">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={computedClassStats}
+                        margin={{ top: 20, right: 10, left: -20, bottom: 25 }}
                       >
-                        {(charts.classWise || []).map((_entry: any, index: number) => (
-                          <Cell
-                            key={`cell-${index}`}
-                            fill={CLASSIC_CHART_COLORS[index % CLASSIC_CHART_COLORS.length]}
-                          />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+                        <XAxis
+                          dataKey="name"
+                          stroke="#64748b"
+                          tick={{ fill: '#1e293b', fontSize: 11, fontWeight: 700 }}
+                          interval={0}
+                          angle={-20}
+                          textAnchor="end"
+                          height={40}
+                          tickLine={false}
+                        />
+                        <YAxis
+                          stroke="#64748b"
+                          tick={{ fill: '#475569', fontSize: 10 }}
+                          tickLine={false}
+                          allowDecimals={false}
+                        />
+                        <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(30, 58, 95, 0.12)' }} />
+                        <Bar
+                          dataKey="value"
+                          radius={[4, 4, 0, 0]}
+                          label={{ position: 'top', fill: '#1e3a5f', fontSize: 11, fontWeight: 700 }}
+                        >
+                          {computedClassStats.map((_entry: any, index: number) => (
+                            <Cell
+                              key={`cell-${index}`}
+                              fill={CLASSIC_CHART_COLORS[index % CLASSIC_CHART_COLORS.length]}
+                            />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* Subtitle / Legend note explaining Boys & Girls are inside the hover box */}
+                  <div className="mt-4 pt-3 border-t-2 border-slate-300 flex flex-wrap items-center justify-between gap-2.5 text-xs">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span className="flex items-center gap-1.5 font-bold text-slate-800">
+                        <span className="w-3 h-3 rounded-sm bg-blue-600 inline-block shadow-2xs"></span>
+                        Boys Count
+                      </span>
+                      <span className="flex items-center gap-1.5 font-bold text-slate-800">
+                        <span className="w-3 h-3 rounded-sm bg-pink-500 inline-block shadow-2xs"></span>
+                        Girls Count
+                      </span>
+                      <span className="text-slate-600 font-medium italic">
+                        (Displayed in the info box for each class bar)
+                      </span>
+                    </div>
+
+                    <span className="font-bold text-slate-800 bg-slate-200/80 px-3 py-1 rounded-lg border border-slate-300 shadow-2xs">
+                      {computedClassStats.length} Classes Tracked
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -1028,24 +1004,24 @@ export default function App() {
           {/* 2. DIVISION SLICER VIEW (CLEAN DIVISION NAMES ALONE) */}
           {/* ======================================================== */}
           {selectedSlicer === 'Division' && (
-            <div className="bg-white border-2 border-blue-600 rounded-2xl p-6 shadow-sm space-y-6">
+            <div className="bg-slate-100 border-2 border-slate-300 rounded-3xl p-6 shadow-sm space-y-6">
               
               {/* Division Section Header with Dropdown in Division page alone */}
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b-2 border-blue-100">
+              <div className="bg-[#1e3a5f] text-white p-5 sm:p-6 rounded-2xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2.5">
-                    <Layers className="w-6 h-6 text-blue-700" />
+                  <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2.5">
+                    <Layers className="w-6 h-6 text-slate-200" />
                     <span>Division Overview — Thoothukudi District</span>
                   </h2>
-                  <p className="text-sm sm:text-base text-slate-700 font-bold mt-1">
+                  <p className="text-xs sm:text-sm text-slate-200 font-medium mt-1">
                     Educational Divisions performance &amp; block breakdown for {selectedMonth}
                   </p>
                 </div>
 
                 {/* Division Dropdown (in division page alone as requested) */}
                 <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex items-center gap-2 bg-slate-50 px-4 py-2.5 rounded-xl border-2 border-blue-400 shadow-xs hover:border-blue-500 transition-colors">
-                    <Filter className="w-4 h-4 text-blue-700 shrink-0" />
+                  <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-slate-300 shadow-xs">
+                    <Filter className="w-4 h-4 text-slate-800 shrink-0" />
                     <label htmlFor="division-page-filter" className="text-xs font-black text-slate-800 uppercase tracking-wider">
                       Division:
                     </label>
@@ -1062,7 +1038,7 @@ export default function App() {
                       <option value="Tiruchendur" className="font-bold text-slate-900 bg-white">Tiruchendur Division</option>
                     </select>
                   </div>
-                  <span className="text-sm font-black px-4 py-2.5 rounded-xl bg-blue-50 text-blue-900 border-2 border-blue-400 shadow-2xs">
+                  <span className="text-xs sm:text-sm font-black px-4 py-2.5 rounded-xl bg-white/20 text-white border border-white/30 shadow-2xs">
                     {divisionFilter === 'All' ? '3 Divisions' : `${divisionFilter} Division`}
                   </span>
                 </div>
@@ -1076,164 +1052,174 @@ export default function App() {
                     return (
                       <div
                         key={div.name}
-                        className="bg-white border-2 border-blue-600 rounded-2xl p-6 sm:p-8 shadow-sm hover:shadow-md transition-all text-slate-800 space-y-6"
+                        className="bg-slate-100 border-2 border-slate-300 rounded-3xl shadow-sm overflow-hidden text-slate-800 space-y-6"
                       >
                         {/* Division Header Row */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b-2 border-blue-100">
+                        <div className="bg-[#1e3a5f] text-white px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                           <div className="flex items-center gap-3.5">
-                            <div className="w-12 h-12 rounded-2xl bg-blue-700 text-white flex items-center justify-center font-bold shadow-md shrink-0">
+                            <div className="w-12 h-12 rounded-2xl bg-white/15 text-white flex items-center justify-center font-bold shadow-md shrink-0">
                               <Building2 className="w-6 h-6 text-white" />
                             </div>
                             <div>
-                              <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                              <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
                                 {div.name} Division
                               </h3>
-                              <p className="text-sm sm:text-base text-slate-700 font-bold mt-0.5">
+                              <p className="text-xs sm:text-sm text-slate-200 font-medium mt-0.5">
                                 Jurisdiction Blocks: {div.blocks.map(b => b.name).join(', ')}
                               </p>
                             </div>
                           </div>
 
                           <div className="flex items-center gap-2.5">
-                            <span className="px-4 py-2 rounded-xl text-sm sm:text-base font-black text-blue-900 bg-blue-50 border border-blue-300 shadow-2xs">
+                            <span className="px-4 py-2 rounded-xl text-xs sm:text-sm font-black text-white bg-white/20 border border-white/30 shadow-2xs">
                               {div.totalStudents} Potential Dropouts
                             </span>
-                            <span className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold text-slate-700 bg-white border border-blue-300 shadow-2xs">
+                            <span className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold text-white bg-white/15 border border-white/25 shadow-2xs">
                               {div.blocks.length} Blocks
                             </span>
                           </div>
                         </div>
 
-                        {/* 4 Spacious Summary Boxes across the full single-column width */}
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                          <div className="bg-gradient-to-b from-blue-50/70 via-white to-white border-2 border-blue-600 rounded-2xl p-4 sm:p-5 shadow-sm text-center">
-                            <span className="text-sm font-black text-slate-900 uppercase block tracking-wider">
-                              Potential Dropouts
-                            </span>
-                            <span className="text-3xl sm:text-4xl font-black text-blue-950 mt-2 block tracking-tight font-mono">
-                              {div.totalStudents}
-                            </span>
-                            <span className="text-xs sm:text-sm text-slate-700 font-bold mt-1 block">
-                              Total Identified
-                            </span>
+                        <div className="p-6 space-y-6">
+                          {/* 4 Uniform Colourful & Professional Summary Boxes */}
+                          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div className="bg-slate-200/80 border-2 border-slate-300 rounded-2xl overflow-hidden shadow-2xs text-center flex flex-col justify-between">
+                              <div className="bg-[#1e3a5f] text-white px-3 py-2 text-xs font-black uppercase tracking-wider">
+                                Potential Dropouts
+                              </div>
+                              <div className="p-4">
+                                <span className="text-3xl sm:text-4xl font-black text-slate-900 block tracking-tight font-mono">
+                                  {div.totalStudents}
+                                </span>
+                                <span className="text-xs sm:text-sm text-slate-700 font-bold mt-1.5 block">
+                                  Total Identified
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="bg-slate-200/80 border-2 border-slate-300 rounded-2xl overflow-hidden shadow-2xs text-center flex flex-col justify-between">
+                              <div className="bg-[#1e3a5f] text-white px-3 py-2 text-xs font-black uppercase tracking-wider">
+                                Repeaters
+                              </div>
+                              <div className="p-4">
+                                <span className="text-3xl sm:text-4xl font-black text-slate-900 block tracking-tight font-mono">
+                                  {div.repeaters}
+                                </span>
+                                <span className="text-xs sm:text-sm text-slate-700 font-bold mt-1.5 block">
+                                  {div.totalStudents > 0 ? ((div.repeaters / div.totalStudents) * 100).toFixed(0) : 0}% of Division
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="bg-slate-200/80 border-2 border-slate-300 rounded-2xl overflow-hidden shadow-2xs text-center flex flex-col justify-between">
+                              <div className="bg-[#1e3a5f] text-white px-3 py-2 text-xs font-black uppercase tracking-wider">
+                                Re-Enrolled
+                              </div>
+                              <div className="p-4">
+                                <span className="text-3xl sm:text-4xl font-black text-slate-900 block tracking-tight font-mono">
+                                  {div.reEnrolled}
+                                </span>
+                                <span className="text-xs sm:text-sm text-slate-700 font-bold mt-1.5 block">
+                                  {div.totalStudents > 0 ? ((div.reEnrolled / div.totalStudents) * 100).toFixed(0) : 0}% Re-admitted
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="bg-slate-200/80 border-2 border-slate-300 rounded-2xl overflow-hidden shadow-2xs text-center flex flex-col justify-between">
+                              <div className="bg-[#1e3a5f] text-white px-3 py-2 text-xs font-black uppercase tracking-wider">
+                                Counselling Needed
+                              </div>
+                              <div className="p-4">
+                                <span className="text-3xl sm:text-4xl font-black text-slate-900 block tracking-tight font-mono">
+                                  {div.counsellingNeeded}
+                                </span>
+                                <span className="text-xs sm:text-sm text-slate-700 font-bold mt-1.5 block">
+                                  {div.totalStudents > 0 ? ((div.counsellingNeeded / div.totalStudents) * 100).toFixed(0) : 0}% Need Support
+                                </span>
+                              </div>
+                            </div>
                           </div>
 
-                          <div className="bg-gradient-to-b from-blue-50/70 via-white to-white border-2 border-blue-600 rounded-2xl p-4 sm:p-5 shadow-sm text-center">
-                            <span className="text-sm font-black text-slate-900 uppercase block tracking-wider">
-                              Repeaters (Col N)
-                            </span>
-                            <span className="text-3xl sm:text-4xl font-black text-blue-950 mt-2 block tracking-tight font-mono">
-                              {div.repeaters}
-                            </span>
-                            <span className="text-xs sm:text-sm text-slate-700 font-bold mt-1 block">
-                              {div.totalStudents > 0 ? ((div.repeaters / div.totalStudents) * 100).toFixed(0) : 0}% of Division
-                            </span>
-                          </div>
+                          {/* Full Width Block Breakdown Table (No cramming, no truncation, plenty of space) */}
+                          <div className="space-y-3 pt-2">
+                            <div className="flex items-center justify-between">
+                              <h4 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
+                                Educational Block-Wise Breakdown — {div.name} Division
+                              </h4>
+                              <span className="text-xs sm:text-sm font-bold text-slate-700">
+                                Official Verified Educational Records
+                              </span>
+                            </div>
 
-                          <div className="bg-gradient-to-b from-blue-50/70 via-white to-white border-2 border-blue-600 rounded-2xl p-4 sm:p-5 shadow-sm text-center">
-                            <span className="text-sm font-black text-slate-900 uppercase block tracking-wider">
-                              Re-Enrolled (Col R)
-                            </span>
-                            <span className="text-3xl sm:text-4xl font-black text-blue-950 mt-2 block tracking-tight font-mono">
-                              {div.reEnrolled}
-                            </span>
-                            <span className="text-xs sm:text-sm text-slate-700 font-bold mt-1 block">
-                              {div.totalStudents > 0 ? ((div.reEnrolled / div.totalStudents) * 100).toFixed(0) : 0}% Re-admitted
-                            </span>
-                          </div>
-
-                          <div className="bg-gradient-to-b from-blue-50/70 via-white to-white border-2 border-blue-600 rounded-2xl p-4 sm:p-5 shadow-sm text-center">
-                            <span className="text-sm font-black text-slate-900 uppercase block tracking-wider">
-                              Counselling Needed (Col Q)
-                            </span>
-                            <span className="text-3xl sm:text-4xl font-black text-blue-950 mt-2 block tracking-tight font-mono">
-                              {div.counsellingNeeded}
-                            </span>
-                            <span className="text-xs sm:text-sm text-slate-700 font-bold mt-1 block">
-                              {div.totalStudents > 0 ? ((div.counsellingNeeded / div.totalStudents) * 100).toFixed(0) : 0}% Need Support
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Full Width Block Breakdown Table */}
-                        <div className="space-y-3 pt-2">
-                          <div className="flex items-center justify-between">
-                            <h4 className="text-lg font-black text-slate-900 tracking-tight">
-                              Educational Block-Wise Breakdown — {div.name} Division
-                            </h4>
-                            <span className="text-xs sm:text-sm font-bold text-slate-700">
-                              Data from Sheet Columns B, N, Q, R
-                            </span>
-                          </div>
-
-                          <div className="overflow-x-auto rounded-xl border-2 border-blue-600 bg-white shadow-2xs">
-                            <table className="w-full text-left text-sm min-w-[720px]">
-                              <thead className="bg-blue-600 text-white font-black">
-                                <tr>
-                                  <th className="py-3.5 px-4 sm:px-6 whitespace-nowrap">Educational Block</th>
-                                  <th className="py-3.5 px-4 text-center whitespace-nowrap">Potential Dropouts</th>
-                                  <th className="py-3.5 px-4 text-center whitespace-nowrap">Repeaters (Col N)</th>
-                                  <th className="py-3.5 px-4 text-center whitespace-nowrap">Re-Enrolled (Col R)</th>
-                                  <th className="py-3.5 px-4 text-center whitespace-nowrap">Counselling Needed (Col Q)</th>
-                                  <th className="py-3.5 px-4 text-center whitespace-nowrap">Division Share</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-slate-200 font-medium text-slate-800">
-                                {div.blocks.map((b) => {
-                                  const pct = div.totalStudents > 0 ? ((b.count / div.totalStudents) * 100).toFixed(1) : '0';
-                                  return (
-                                    <tr key={b.name} className="hover:bg-slate-50/80 transition-colors">
-                                      <td className="py-3.5 px-4 sm:px-6 font-black text-slate-900 text-base whitespace-nowrap">
-                                        {b.name}
-                                      </td>
-                                      <td className="py-3.5 px-4 text-center font-black text-slate-900 text-base whitespace-nowrap">
-                                        {b.count}
-                                      </td>
-                                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                                        <span className="px-3 py-1 rounded-md bg-purple-100 text-purple-950 font-black text-xs border border-purple-300">
-                                          {b.repeaters}
-                                        </span>
-                                      </td>
-                                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                                        <span className="px-3 py-1 rounded-md bg-emerald-100 text-emerald-950 font-black text-xs border border-emerald-300">
-                                          {b.reEnrolled}
-                                        </span>
-                                      </td>
-                                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                                        <span className="px-3 py-1 rounded-md bg-rose-100 text-rose-950 font-black text-xs border border-rose-300">
-                                          {b.counsellingNeeded}
-                                        </span>
-                                      </td>
-                                      <td className="py-3.5 px-4 text-center font-bold text-slate-700 whitespace-nowrap">
-                                        {pct}%
-                                      </td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                              <tfoot className="bg-slate-100 font-black text-slate-900 border-t-2 border-slate-300">
-                                <tr>
-                                  <td className="py-3 px-4 sm:px-6 text-sm whitespace-nowrap">
-                                    Total ({div.name} Division)
-                                  </td>
-                                  <td className="py-3 px-4 text-center font-black text-base whitespace-nowrap">
-                                    {div.totalStudents}
-                                  </td>
-                                  <td className="py-3 px-4 text-center font-black text-base text-purple-950 whitespace-nowrap">
-                                    {div.repeaters}
-                                  </td>
-                                  <td className="py-3 px-4 text-center font-black text-base text-emerald-950 whitespace-nowrap">
-                                    {div.reEnrolled}
-                                  </td>
-                                  <td className="py-3 px-4 text-center font-black text-base text-rose-950 whitespace-nowrap">
-                                    {div.counsellingNeeded}
-                                  </td>
-                                  <td className="py-3 px-4 text-center font-black text-slate-900 whitespace-nowrap">
-                                    100%
-                                  </td>
-                                </tr>
-                              </tfoot>
-                            </table>
+                            <div className="overflow-x-auto rounded-2xl border-2 border-slate-300 bg-white shadow-2xs">
+                              <table className="w-full text-left text-sm min-w-[720px]">
+                                <thead className="bg-[#1e3a5f] text-white font-black border-b-2 border-slate-400">
+                                  <tr>
+                                    <th className="py-3.5 px-4 sm:px-6 whitespace-nowrap">Educational Block</th>
+                                    <th className="py-3.5 px-4 text-center whitespace-nowrap">Potential Dropouts</th>
+                                    <th className="py-3.5 px-4 text-center whitespace-nowrap">Repeaters</th>
+                                    <th className="py-3.5 px-4 text-center whitespace-nowrap">Re-Enrolled</th>
+                                    <th className="py-3.5 px-4 text-center whitespace-nowrap">Counselling Needed</th>
+                                    <th className="py-3.5 px-4 text-center whitespace-nowrap">Division Share</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-200 font-medium text-slate-800">
+                                  {div.blocks.map((b) => {
+                                    const pct = div.totalStudents > 0 ? ((b.count / div.totalStudents) * 100).toFixed(1) : '0';
+                                    return (
+                                      <tr key={b.name} className="hover:bg-slate-100/80 transition-colors">
+                                        <td className="py-3.5 px-4 sm:px-6 font-black text-slate-900 text-base whitespace-nowrap">
+                                          {b.name}
+                                        </td>
+                                        <td className="py-3.5 px-4 text-center font-black text-slate-900 text-base whitespace-nowrap">
+                                          {b.count}
+                                        </td>
+                                        <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                                          <span className="px-3 py-1 rounded-md bg-purple-100 text-purple-950 font-black text-xs border border-purple-300">
+                                            {b.repeaters}
+                                          </span>
+                                        </td>
+                                        <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                                          <span className="px-3 py-1 rounded-md bg-emerald-100 text-emerald-950 font-black text-xs border border-emerald-300">
+                                            {b.reEnrolled}
+                                          </span>
+                                        </td>
+                                        <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                                          <span className="px-3 py-1 rounded-md bg-rose-100 text-rose-950 font-black text-xs border border-rose-300">
+                                            {b.counsellingNeeded}
+                                          </span>
+                                        </td>
+                                        <td className="py-3.5 px-4 text-center font-bold text-slate-700 whitespace-nowrap">
+                                          {pct}%
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                                <tfoot className="bg-slate-200 font-black text-slate-900 border-t-2 border-slate-300">
+                                  <tr>
+                                    <td className="py-3 px-4 sm:px-6 text-sm whitespace-nowrap">
+                                      Total ({div.name} Division)
+                                    </td>
+                                    <td className="py-3 px-4 text-center font-black text-base whitespace-nowrap">
+                                      {div.totalStudents}
+                                    </td>
+                                    <td className="py-3 px-4 text-center font-black text-base text-purple-950 whitespace-nowrap">
+                                      {div.repeaters}
+                                    </td>
+                                    <td className="py-3 px-4 text-center font-black text-base text-emerald-950 whitespace-nowrap">
+                                      {div.reEnrolled}
+                                    </td>
+                                    <td className="py-3 px-4 text-center font-black text-base text-rose-950 whitespace-nowrap">
+                                      {div.counsellingNeeded}
+                                    </td>
+                                    <td className="py-3 px-4 text-center font-black text-slate-900 whitespace-nowrap">
+                                      100%
+                                    </td>
+                                  </tr>
+                                </tfoot>
+                              </table>
+                            </div>
                           </div>
                         </div>
 
@@ -1256,29 +1242,29 @@ export default function App() {
                 });
 
                 return (
-                  <div className="bg-white border-2 border-slate-300 rounded-2xl p-6 shadow-sm space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm overflow-hidden space-y-4">
+                    <div className="bg-[#1e3a5f] text-white px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div>
-                        <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
-                          <Users className="w-5 h-5 text-slate-800" />
+                        <h3 className="text-lg font-black text-white tracking-tight flex items-center gap-2">
+                          <Users className="w-5 h-5 text-slate-200" />
                           <span>Division Student Records ({filteredDivStudents.length})</span>
                         </h3>
-                        <p className="text-sm text-slate-700 font-medium">
+                        <p className="text-xs sm:text-sm text-slate-200 font-medium">
                           Records across Kovilpatti, Thoothukudi, and Tiruchendur
                         </p>
                       </div>
 
                       <div className="flex flex-wrap items-center gap-3">
                         {/* Division Filter Buttons */}
-                        <div className="flex items-center gap-1.5 bg-slate-50 p-1.5 rounded-xl border border-slate-300">
+                        <div className="flex items-center gap-1.5 bg-white/10 p-1.5 rounded-xl border border-white/20">
                           {['All', 'Kovilpatti', 'Thoothukudi', 'Tiruchendur'].map((df) => (
                             <button
                               key={df}
                               onClick={() => setDivisionFilter(df)}
-                              className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-all ${
+                              className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all ${
                                 divisionFilter === df
-                                  ? 'bg-slate-900 text-white shadow-xs'
-                                  : 'text-slate-700 hover:text-slate-900'
+                                  ? 'bg-white text-slate-900 shadow-xs'
+                                  : 'text-white/80 hover:text-white'
                               }`}
                             >
                               {df}
@@ -1294,9 +1280,64 @@ export default function App() {
                             placeholder="Search name, block, EMIS..."
                             value={divisionSearch}
                             onChange={(e) => setDivisionSearch(e.target.value)}
-                            className="text-sm pl-9 pr-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-slate-400 w-full sm:w-60 font-medium"
+                            className="text-sm pl-9 pr-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400 w-full sm:w-60 font-medium"
                           />
                         </div>
+                      </div>
+                    </div>
+
+                    <div className="p-5">
+                      <div className="overflow-x-auto rounded-xl border-2 border-slate-300 max-h-96 overflow-y-auto bg-white">
+                        <table className="w-full text-left text-sm">
+                          <thead className="bg-[#1e3a5f] text-white font-black border-b-2 border-slate-400 sticky top-0 z-10">
+                            <tr>
+                              <th className="py-3 px-3.5">S.No</th>
+                              <th className="py-3 px-3.5">Student Name</th>
+                              <th className="py-3 px-3.5">EMIS ID</th>
+                              <th className="py-3 px-3.5">Division</th>
+                              <th className="py-3 px-3.5">Block</th>
+                              <th className="py-3 px-3.5">Class</th>
+                              <th className="py-3 px-3.5">School</th>
+                              <th className="py-3 px-3.5">Repeaters</th>
+                              <th className="py-3 px-3.5">Present Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-200 font-medium text-slate-800">
+                            {filteredDivStudents.slice(0, 100).map((st, idx) => (
+                              <tr key={st.emisId ? `div-st-${st.emisId}-${idx}` : `div-st-${st.sNo}-${idx}`} className="hover:bg-slate-100 transition-colors">
+                                <td className="py-2.5 px-3.5 font-bold text-slate-600">{st.sNo}</td>
+                                <td className="py-2.5 px-3.5 font-black text-slate-900">{st.studentName}</td>
+                                <td className="py-2.5 px-3.5 text-slate-700 font-bold">{st.emisId || '-'}</td>
+                                <td className="py-2.5 px-3.5 font-bold text-slate-800">{st.division}</td>
+                                <td className="py-2.5 px-3.5 font-bold text-slate-800">{st.block}</td>
+                                <td className="py-2.5 px-3.5">
+                                  <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-800 font-bold text-xs border border-slate-300">
+                                    Std {st.std} {st.sec ? `(${st.sec})` : ''}
+                                  </span>
+                                </td>
+                                <td className="py-2.5 px-3.5 text-slate-700 max-w-xs truncate">{st.school}</td>
+                                <td className="py-2.5 px-3.5">
+                                  <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                                    st.isRepeater
+                                      ? 'bg-purple-100 text-purple-900 border border-purple-300'
+                                      : 'bg-slate-100 text-slate-700 border border-slate-300'
+                                  }`}>
+                                    {st.repeaterStatus}
+                                  </span>
+                                </td>
+                                <td className="py-2.5 px-3.5">
+                                  <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                                    st.isReEnrolled
+                                      ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                                      : 'bg-amber-100 text-amber-900 border border-amber-300'
+                                  }`}>
+                                    {st.status}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
                     </div>
 
@@ -1366,93 +1407,119 @@ export default function App() {
             <div className="space-y-6">
               
               {/* Header and Download Controls */}
-              <div className="bg-white border-2 border-blue-600 rounded-2xl p-5 sm:p-6 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-                    <Layers className="w-6 h-6 text-blue-700" />
-                    <span>Line Department Overview</span>
-                  </h2>
-                  <p className="text-sm sm:text-base text-slate-700 font-bold mt-0.5">
-                    Consolidated cross-department abstract for {selectedMonth} across Thoothukudi District
-                  </p>
-                </div>
+              <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="bg-[#1e3a5f] text-white p-5 sm:p-6 flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
+                      <Layers className="w-6 h-6 text-slate-200" />
+                      <span>Line Department Overview</span>
+                    </h2>
+                    <p className="text-xs sm:text-sm text-slate-200 mt-0.5 font-medium">
+                      Consolidated cross-department abstract for {selectedMonth} across Thoothukudi District
+                    </p>
+                  </div>
 
-                {/* Export Options for Line Department Overview Abstract (Excel and Word only) */}
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <button
-                    onClick={() => exportAbstractToExcel(computedDepartments, `Line_Department_Overview_${selectedMonth}`)}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs border border-emerald-800 transition-all active:scale-95 cursor-pointer"
-                    title="Download Excel format"
-                  >
-                    <FileSpreadsheet className="w-4 h-4" />
-                    <span>Excel (.xlsx)</span>
-                  </button>
+                  {/* Export Options for Line Department Overview Abstract (Excel and Word only) */}
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <button
+                      onClick={() => exportAbstractToExcel(computedDepartments, `Line_Department_Overview_${selectedMonth}`)}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-white/20 hover:bg-white/30 text-white shadow-xs border border-white/30 transition-all active:scale-95 cursor-pointer"
+                      title="Download Excel format"
+                    >
+                      <FileSpreadsheet className="w-4 h-4" />
+                      <span>Excel (.xlsx)</span>
+                    </button>
 
-                  <button
-                    onClick={() => exportStudentsToWord(allStudents, `Thoothukudi_All_Departments_Students_${selectedMonth}`)}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-blue-700 hover:bg-blue-800 text-white shadow-xs border border-blue-800 transition-all active:scale-95 cursor-pointer"
-                    title="Download Word format"
-                  >
-                    <FileText className="w-4 h-4" />
-                    <span>Word (.doc)</span>
-                  </button>
+                    <button
+                      onClick={() => exportStudentsToWord(allStudents, `Thoothukudi_All_Departments_Students_${selectedMonth}`)}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-white/20 hover:bg-white/30 text-white shadow-xs border border-white/30 transition-all active:scale-95 cursor-pointer"
+                      title="Download Word format"
+                    >
+                      <FileText className="w-4 h-4" />
+                      <span>Word (.doc)</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              {/* 6 Summary Metric Cards across all line departments with uniform colorful professional styling */}
+              {/* 6 Colourful & Professional Summary Cards across all line departments */}
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
-                <div className="bg-gradient-to-b from-blue-50/70 via-white to-white border-2 border-blue-600 rounded-2xl p-4 text-center shadow-sm">
-                  <span className="text-xs sm:text-sm font-black text-slate-900 uppercase block tracking-wider">Total Dropouts</span>
-                  <span className="text-2xl sm:text-3xl font-black text-blue-950 font-mono mt-1.5 block">
-                    {computedDepartments.reduce((acc, d) => acc + d.potentialDropout, 0)}
-                  </span>
+                <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl overflow-hidden shadow-2xs text-center flex flex-col justify-between">
+                  <div className="bg-[#1e3a5f] text-white px-3 py-2 text-xs font-black uppercase tracking-wider">
+                    Total Dropouts
+                  </div>
+                  <div className="p-3.5">
+                    <span className="text-2xl sm:text-3xl font-black text-slate-900 block font-mono">
+                      {computedDepartments.reduce((acc, d) => acc + d.potentialDropout, 0)}
+                    </span>
+                  </div>
                 </div>
 
-                <div className="bg-gradient-to-b from-blue-50/70 via-white to-white border-2 border-blue-600 rounded-2xl p-4 text-center shadow-sm">
-                  <span className="text-xs sm:text-sm font-black text-slate-900 uppercase block tracking-wider">Repeaters</span>
-                  <span className="text-2xl sm:text-3xl font-black text-blue-950 font-mono mt-1.5 block">
-                    {computedDepartments.reduce((acc, d) => acc + d.repeaters, 0)}
-                  </span>
+                <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl overflow-hidden shadow-2xs text-center flex flex-col justify-between">
+                  <div className="bg-[#1e3a5f] text-white px-3 py-2 text-xs font-black uppercase tracking-wider">
+                    Repeaters
+                  </div>
+                  <div className="p-3.5">
+                    <span className="text-2xl sm:text-3xl font-black text-slate-900 block font-mono">
+                      {computedDepartments.reduce((acc, d) => acc + d.repeaters, 0)}
+                    </span>
+                  </div>
                 </div>
 
-                <div className="bg-gradient-to-b from-blue-50/70 via-white to-white border-2 border-blue-600 rounded-2xl p-4 text-center shadow-sm">
-                  <span className="text-xs sm:text-sm font-black text-slate-900 uppercase block tracking-wider">Re-Enrolled</span>
-                  <span className="text-2xl sm:text-3xl font-black text-blue-950 font-mono mt-1.5 block">
-                    {computedDepartments.reduce((acc, d) => acc + d.reEnrolled, 0)}
-                  </span>
+                <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl overflow-hidden shadow-2xs text-center flex flex-col justify-between">
+                  <div className="bg-[#1e3a5f] text-white px-3 py-2 text-xs font-black uppercase tracking-wider">
+                    Re-Enrolled
+                  </div>
+                  <div className="p-3.5">
+                    <span className="text-2xl sm:text-3xl font-black text-slate-900 block font-mono">
+                      {computedDepartments.reduce((acc, d) => acc + d.reEnrolled, 0)}
+                    </span>
+                  </div>
                 </div>
 
-                <div className="bg-gradient-to-b from-blue-50/70 via-white to-white border-2 border-blue-600 rounded-2xl p-4 text-center shadow-sm">
-                  <span className="text-xs sm:text-sm font-black text-slate-900 uppercase block tracking-wider">Counselling Needed</span>
-                  <span className="text-2xl sm:text-3xl font-black text-blue-950 font-mono mt-1.5 block">
-                    {computedDepartments.reduce((acc, d) => acc + d.counsellingNeeded, 0)}
-                  </span>
+                <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl overflow-hidden shadow-2xs text-center flex flex-col justify-between">
+                  <div className="bg-[#1e3a5f] text-white px-3 py-2 text-xs font-black uppercase tracking-wider">
+                    Counselling Needed
+                  </div>
+                  <div className="p-3.5">
+                    <span className="text-2xl sm:text-3xl font-black text-slate-900 block font-mono">
+                      {computedDepartments.reduce((acc, d) => acc + d.counsellingNeeded, 0)}
+                    </span>
+                  </div>
                 </div>
 
-                <div className="bg-gradient-to-b from-blue-50/70 via-white to-white border-2 border-blue-600 rounded-2xl p-4 text-center shadow-sm">
-                  <span className="text-xs sm:text-sm font-black text-slate-900 uppercase block tracking-wider">Status Not Updated</span>
-                  <span className="text-2xl sm:text-3xl font-black text-blue-950 font-mono mt-1.5 block">
-                    {computedDepartments.reduce((acc, d) => acc + d.statusNotUpdated, 0)}
-                  </span>
+                <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl overflow-hidden shadow-2xs text-center flex flex-col justify-between">
+                  <div className="bg-[#1e3a5f] text-white px-3 py-2 text-xs font-black uppercase tracking-wider">
+                    Status Not Updated
+                  </div>
+                  <div className="p-3.5">
+                    <span className="text-2xl sm:text-3xl font-black text-slate-900 block font-mono">
+                      {computedDepartments.reduce((acc, d) => acc + d.statusNotUpdated, 0)}
+                    </span>
+                  </div>
                 </div>
 
-                <div className="bg-gradient-to-b from-blue-50/70 via-white to-white border-2 border-blue-600 rounded-2xl p-4 text-center shadow-sm">
-                  <span className="text-xs sm:text-sm font-black text-slate-900 uppercase block tracking-wider">Migrated</span>
-                  <span className="text-2xl sm:text-3xl font-black text-blue-950 font-mono mt-1.5 block">
-                    {computedDepartments.reduce((acc, d) => acc + d.migrated, 0)}
-                  </span>
+                <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl overflow-hidden shadow-2xs text-center flex flex-col justify-between">
+                  <div className="bg-[#1e3a5f] text-white px-3 py-2 text-xs font-black uppercase tracking-wider">
+                    Migrated
+                  </div>
+                  <div className="p-3.5">
+                    <span className="text-2xl sm:text-3xl font-black text-slate-900 block font-mono">
+                      {computedDepartments.reduce((acc, d) => acc + d.migrated, 0)}
+                    </span>
+                  </div>
                 </div>
               </div>
 
               {/* Comprehensive Abstract Table */}
-              <div className="bg-white border-2 border-blue-600 rounded-2xl p-5 sm:p-6 shadow-sm hover:shadow-md transition-all space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm overflow-hidden space-y-4">
+                <div className="bg-[#1e3a5f] text-white px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
-                    <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                    <h3 className="text-lg font-black text-white tracking-tight">
                       Department-Wise Abstract Comparison
                     </h3>
-                    <p className="text-sm sm:text-base text-slate-700 font-bold mt-0.5">
-                      Total potential dropouts, repeaters, re-enrolled, counselling needed, status not updated &amp; migrated
+                    <p className="text-xs sm:text-sm text-slate-200 font-medium">
+                      Total potential dropouts, repeaters, re-enrolled, counselling needed, status not updated & migrated
                     </p>
                   </div>
 
@@ -1463,108 +1530,110 @@ export default function App() {
                       placeholder="Search department..."
                       value={abstractSearch}
                       onChange={(e) => setAbstractSearch(e.target.value)}
-                      className="text-sm pl-9 pr-3 py-2 rounded-xl border-2 border-blue-400 bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 w-full sm:w-64 font-bold"
+                      className="text-sm pl-9 pr-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400 w-full sm:w-60 font-medium"
                     />
                   </div>
                 </div>
 
-                <div className="overflow-x-auto rounded-xl border-2 border-blue-600 bg-white">
-                  <table className="w-full text-left text-sm">
-                    <thead className="bg-blue-600 text-white font-black">
-                      <tr>
-                        <th className="py-3 px-4">Line Department</th>
-                        <th className="py-3 px-4 text-center">Total Potential Dropout</th>
-                        <th className="py-3 px-4 text-center">Repeaters</th>
-                        <th className="py-3 px-4 text-center">Re-Enrolled</th>
-                        <th className="py-3 px-4 text-center">Counselling Needed</th>
-                        <th className="py-3 px-4 text-center">Status Not Updated</th>
-                        <th className="py-3 px-4 text-center">Migrated</th>
-                        <th className="py-3 px-4 text-right">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200 font-medium text-slate-800">
-                      {computedDepartments
-                        .filter(d => !abstractSearch || d.name.toLowerCase().includes(abstractSearch.toLowerCase()))
-                        .map((dept) => {
-                          const meta = DEPT_META[dept.name] || DEPT_META['Overview'];
-                          const IconComponent = meta.icon;
+                <div className="p-5 sm:p-6 pt-0">
+                  <div className="overflow-x-auto rounded-xl border-2 border-slate-300 bg-white">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-[#1e3a5f] text-white font-black border-b-2 border-slate-400">
+                        <tr>
+                          <th className="py-3 px-4">Line Department</th>
+                          <th className="py-3 px-4 text-center">Total Potential Dropout</th>
+                          <th className="py-3 px-4 text-center">Repeaters</th>
+                          <th className="py-3 px-4 text-center">Re-Enrolled</th>
+                          <th className="py-3 px-4 text-center">Counselling Needed</th>
+                          <th className="py-3 px-4 text-center">Status Not Updated</th>
+                          <th className="py-3 px-4 text-center">Migrated</th>
+                          <th className="py-3 px-4 text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200 font-medium text-slate-800">
+                        {computedDepartments
+                          .filter(d => !abstractSearch || d.name.toLowerCase().includes(abstractSearch.toLowerCase()))
+                          .map((dept) => {
+                            const meta = DEPT_META[dept.name] || DEPT_META['Overview'];
+                            const IconComponent = meta.icon;
 
-                          return (
-                            <tr key={dept.id} className="hover:bg-slate-50 transition-colors">
-                              <td className="py-3.5 px-4 font-black text-slate-900">
-                                <div className="flex items-center gap-2.5">
-                                  <div className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-800 shadow-2xs">
-                                    <IconComponent className="w-4 h-4" />
+                            return (
+                              <tr key={dept.id} className="hover:bg-slate-100 transition-colors">
+                                <td className="py-3.5 px-4 font-black text-slate-900">
+                                  <div className="flex items-center gap-2.5">
+                                    <div className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-300 flex items-center justify-center text-slate-800 shadow-2xs">
+                                      <IconComponent className="w-4 h-4" />
+                                    </div>
+                                    <span className="text-sm font-bold">{dept.name}</span>
                                   </div>
-                                  <span className="text-sm font-bold">{dept.name}</span>
-                                </div>
-                              </td>
-                              <td className="py-3.5 px-4 text-center font-black text-slate-900 text-base">
-                                {dept.potentialDropout}
-                              </td>
-                              <td className="py-3.5 px-4 text-center">
-                                <span className="px-2.5 py-1 rounded-md bg-purple-50 text-purple-950 font-bold text-xs border border-purple-200">
-                                  {dept.repeaters}
-                                </span>
-                              </td>
-                              <td className="py-3.5 px-4 text-center">
-                                <span className="px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-950 font-bold text-xs border border-emerald-200">
-                                  {dept.reEnrolled}
-                                </span>
-                              </td>
-                              <td className="py-3.5 px-4 text-center">
-                                <span className="px-2.5 py-1 rounded-md bg-rose-50 text-rose-950 font-bold text-xs border border-rose-200">
-                                  {dept.counsellingNeeded}
-                                </span>
-                              </td>
-                              <td className="py-3.5 px-4 text-center">
-                                <span className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-900 font-bold text-xs border border-slate-200">
-                                  {dept.statusNotUpdated}
-                                </span>
-                              </td>
-                              <td className="py-3.5 px-4 text-center">
-                                <span className="px-2.5 py-1 rounded-md bg-amber-50 text-amber-950 font-bold text-xs border border-amber-200">
-                                  {dept.migrated}
-                                </span>
-                              </td>
-                              <td className="py-3.5 px-4 text-right">
-                                <button
-                                  onClick={() => setSelectedSlicer(dept.name as SlicerType)}
-                                  className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-900 hover:text-black px-3.5 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 transition-colors bg-white shadow-2xs"
-                                >
-                                  <span>Open</span>
-                                  <ArrowRight className="w-3.5 h-3.5" />
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                    </tbody>
-                    <tfoot className="bg-slate-100 font-black text-slate-900 border-t-2 border-slate-300">
-                      <tr>
-                        <td className="py-3 px-4 text-sm">Total Across All Departments</td>
-                        <td className="py-3 px-4 text-center font-black text-base">
-                          {computedDepartments.reduce((acc, d) => acc + d.potentialDropout, 0)}
-                        </td>
-                        <td className="py-3 px-4 text-center font-black text-base text-purple-950">
-                          {computedDepartments.reduce((acc, d) => acc + d.repeaters, 0)}
-                        </td>
-                        <td className="py-3 px-4 text-center font-black text-base text-emerald-950">
-                          {computedDepartments.reduce((acc, d) => acc + d.reEnrolled, 0)}
-                        </td>
-                        <td className="py-3 px-4 text-center font-black text-base text-rose-950">
-                          {computedDepartments.reduce((acc, d) => acc + d.counsellingNeeded, 0)}
-                        </td>
-                        <td className="py-3 px-4 text-center font-black text-base text-slate-900">
-                          {computedDepartments.reduce((acc, d) => acc + d.statusNotUpdated, 0)}
-                        </td>
-                        <td className="py-3 px-4 text-center font-black text-base text-amber-950">
-                          {computedDepartments.reduce((acc, d) => acc + d.migrated, 0)}
-                        </td>
-                        <td className="py-3 px-4 text-right"></td>
-                      </tr>
-                    </tfoot>
-                  </table>
+                                </td>
+                                <td className="py-3.5 px-4 text-center font-black text-slate-900 text-base">
+                                  {dept.potentialDropout}
+                                </td>
+                                <td className="py-3.5 px-4 text-center">
+                                  <span className="px-2.5 py-1 rounded-md bg-purple-100 text-purple-950 font-bold text-xs border border-purple-300">
+                                    {dept.repeaters}
+                                  </span>
+                                </td>
+                                <td className="py-3.5 px-4 text-center">
+                                  <span className="px-2.5 py-1 rounded-md bg-emerald-100 text-emerald-950 font-bold text-xs border border-emerald-300">
+                                    {dept.reEnrolled}
+                                  </span>
+                                </td>
+                                <td className="py-3.5 px-4 text-center">
+                                  <span className="px-2.5 py-1 rounded-md bg-rose-100 text-rose-950 font-bold text-xs border border-rose-300">
+                                    {dept.counsellingNeeded}
+                                  </span>
+                                </td>
+                                <td className="py-3.5 px-4 text-center">
+                                  <span className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-900 font-bold text-xs border border-slate-300">
+                                    {dept.statusNotUpdated}
+                                  </span>
+                                </td>
+                                <td className="py-3.5 px-4 text-center">
+                                  <span className="px-2.5 py-1 rounded-md bg-amber-100 text-amber-950 font-bold text-xs border border-amber-300">
+                                    {dept.migrated}
+                                  </span>
+                                </td>
+                                <td className="py-3.5 px-4 text-right">
+                                  <button
+                                    onClick={() => setSelectedSlicer(dept.name as SlicerType)}
+                                    className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-900 hover:text-black px-3.5 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 transition-colors bg-white shadow-2xs cursor-pointer"
+                                  >
+                                    <span>Open</span>
+                                    <ArrowRight className="w-3.5 h-3.5" />
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                      </tbody>
+                      <tfoot className="bg-slate-200 font-black text-slate-900 border-t-2 border-slate-300">
+                        <tr>
+                          <td className="py-3 px-4 text-sm">Total Across All Departments</td>
+                          <td className="py-3 px-4 text-center font-black text-base">
+                            {computedDepartments.reduce((acc, d) => acc + d.potentialDropout, 0)}
+                          </td>
+                          <td className="py-3 px-4 text-center font-black text-base text-purple-950">
+                            {computedDepartments.reduce((acc, d) => acc + d.repeaters, 0)}
+                          </td>
+                          <td className="py-3 px-4 text-center font-black text-base text-emerald-950">
+                            {computedDepartments.reduce((acc, d) => acc + d.reEnrolled, 0)}
+                          </td>
+                          <td className="py-3 px-4 text-center font-black text-base text-rose-950">
+                            {computedDepartments.reduce((acc, d) => acc + d.counsellingNeeded, 0)}
+                          </td>
+                          <td className="py-3 px-4 text-center font-black text-base text-slate-900">
+                            {computedDepartments.reduce((acc, d) => acc + d.statusNotUpdated, 0)}
+                          </td>
+                          <td className="py-3 px-4 text-center font-black text-base text-amber-950">
+                            {computedDepartments.reduce((acc, d) => acc + d.migrated, 0)}
+                          </td>
+                          <td className="py-3 px-4 text-right"></td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
                 </div>
               </div>
 
@@ -1572,462 +1641,415 @@ export default function App() {
           )}
 
           {/* ======================================================== */}
-          {/* 3B. COUNSELLING SLICER VIEW (ALL DEPARTMENTS WHERE COUNSELLING = YES) */}
+          {/* 4. COUNSELLING SLICER VIEW (ALL DEPARTMENT YES CASES) */}
           {/* ======================================================== */}
           {selectedSlicer === 'Counselling' && (() => {
-            // Helper to check if counselling is Yes (from sheet data or live edits)
-            const isCounsellingYesStudent = (student: StudentRecord): boolean => {
-              const key = student.emisId || String(student.sNo);
-              if (editedCounselling[key] !== undefined && editedCounselling[key] !== '') {
-                const val = editedCounselling[key].trim().toLowerCase();
-                return val === 'yes' || val === 'required' || val.includes('yes');
-              }
-              const cReq = (student.counsellingRequired || '').trim().toLowerCase();
-              return student.isCounsellingNeeded || cReq === 'yes' || cReq === 'required' || cReq.includes('yes');
-            };
+            const allCounsellingStudents = allStudents.filter(
+              s => s.isCounsellingNeeded || (s.counsellingRequired || '').toLowerCase().trim() === 'yes'
+            );
 
-            const allCounsellingStudents = allStudents.filter(isCounsellingYesStudent);
-
-            // Department-wise distribution for all 8 line departments
-            const deptBreakdown = [
-              'Health Department',
-              'Labour Department',
-              'DCPO',
-              'Social Welfare',
-              'Fisheries Department',
-              'Revenue Department',
-              'DDRO',
-              'DSE'
-            ].map(deptName => {
-              const deptStudents = allCounsellingStudents.filter(s => s.lineDept.toLowerCase() === deptName.toLowerCase());
-              const boys = deptStudents.filter(s => {
-                const g = (s.gender || '').toLowerCase().trim();
-                return g === 'male' || g === 'boy' || g === 'm' || g.startsWith('m');
-              }).length;
-              const girls = deptStudents.filter(s => {
-                const g = (s.gender || '').toLowerCase().trim();
-                return g === 'female' || g === 'girl' || g === 'f' || g.startsWith('f');
-              }).length;
-              const reEnrolled = deptStudents.filter(s => s.isReEnrolled).length;
-
-              return {
-                name: deptName,
-                total: deptStudents.length,
-                boys,
-                girls,
-                reEnrolled,
-                students: deptStudents,
-              };
-            }).sort((a, b) => b.total - a.total);
-
-            // Filtered students according to search, department, and gender
-            const filteredCounsellingStudents = allCounsellingStudents.filter(s => {
-              const matchDept = counsellingDeptFilter === 'All' || s.lineDept.toLowerCase() === counsellingDeptFilter.toLowerCase();
-              
-              let matchGender = true;
-              const g = (s.gender || '').toLowerCase().trim();
-              if (counsellingGenderFilter === 'Boys') {
-                matchGender = g === 'male' || g === 'boy' || g === 'm' || g.startsWith('m');
-              } else if (counsellingGenderFilter === 'Girls') {
-                matchGender = g === 'female' || g === 'girl' || g === 'f' || g.startsWith('f');
-              }
-
-              const q = counsellingSearch.toLowerCase().trim();
-              const matchSearch = !q || 
-                (s.studentName || '').toLowerCase().includes(q) ||
-                (s.emisId || '').toLowerCase().includes(q) ||
-                (s.school || '').toLowerCase().includes(q) ||
-                (s.block || '').toLowerCase().includes(q) ||
-                (s.taluk || '').toLowerCase().includes(q) ||
-                (s.lineDept || '').toLowerCase().includes(q) ||
-                (s.dropoutReason || '').toLowerCase().includes(q) ||
-                (s.status || '').toLowerCase().includes(q) ||
-                (s.contactNo || '').toLowerCase().includes(q);
-
-              return matchDept && matchGender && matchSearch;
+            const filteredCounselling = allCounsellingStudents.filter(st => {
+              const matchDept = counsellingDeptFilter === 'All' || st.lineDept === counsellingDeptFilter;
+              const matchDiv = counsellingDivFilter === 'All' || st.division.toLowerCase() === counsellingDivFilter.toLowerCase();
+              const matchSearch = !counsellingSearch ||
+                st.studentName.toLowerCase().includes(counsellingSearch.toLowerCase()) ||
+                st.school.toLowerCase().includes(counsellingSearch.toLowerCase()) ||
+                st.block.toLowerCase().includes(counsellingSearch.toLowerCase()) ||
+                st.lineDept.toLowerCase().includes(counsellingSearch.toLowerCase()) ||
+                (st.emisId && st.emisId.includes(counsellingSearch));
+              return matchDept && matchDiv && matchSearch;
             });
 
-            const totalBoys = allCounsellingStudents.filter(s => {
+            const totalCounselling = allCounsellingStudents.length;
+            const boysCounselling = allCounsellingStudents.filter(s => {
               const g = (s.gender || '').toLowerCase().trim();
               return g === 'male' || g === 'boy' || g === 'm' || g.startsWith('m');
             }).length;
-
-            const totalGirls = allCounsellingStudents.filter(s => {
+            const girlsCounselling = allCounsellingStudents.filter(s => {
               const g = (s.gender || '').toLowerCase().trim();
               return g === 'female' || g === 'girl' || g === 'f' || g.startsWith('f');
             }).length;
-
-            const totalReEnrolledCounselling = allCounsellingStudents.filter(s => s.isReEnrolled).length;
-            const deptsWithCounselling = deptBreakdown.filter(d => d.total > 0).length;
+            const reEnrolledCounselling = allCounsellingStudents.filter(s => s.isReEnrolled).length;
+            const repeatersCounselling = allCounsellingStudents.filter(s => s.isRepeater).length;
 
             return (
               <div className="space-y-6">
-                
-                {/* Header & Export Controls */}
-                <div className="bg-white border-2 border-blue-600 rounded-2xl p-5 sm:p-6 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="flex items-center gap-3.5">
-                    <div className="w-12 h-12 rounded-2xl bg-blue-700 text-white flex items-center justify-center shadow-md">
-                      <HeartPulse className="w-6 h-6" />
-                    </div>
+                {/* Header and Download Controls */}
+                <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="bg-[#1e3a5f] text-white p-5 sm:p-6 flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                      <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                        Department Counselling Interventions
+                      <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2.5">
+                        <HelpCircle className="w-6 h-6 text-slate-200" />
+                        <span>Counselling Tracking — All Departments</span>
                       </h2>
-                      <p className="text-sm sm:text-base text-slate-700 font-bold mt-0.5">
-                        Consolidated data of all departments where counselling is marked 'Yes' for {selectedMonth}
+                      <p className="text-xs sm:text-sm text-slate-200 font-medium mt-1">
+                        Consolidated caseload where Counselling is marked "Yes" across all line departments for {selectedMonth}
                       </p>
                     </div>
-                  </div>
 
-                  {/* Export Options */}
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    <button
-                      onClick={() => exportStudentsToExcel(filteredCounsellingStudents, `Thoothukudi_Counselling_Yes_${selectedMonth}`)}
-                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs border border-emerald-800 transition-all active:scale-95 cursor-pointer"
-                      title="Download Excel format"
-                    >
-                      <FileSpreadsheet className="w-4 h-4" />
-                      <span>Export Excel (.xlsx)</span>
-                    </button>
+                    {/* Export Options */}
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <button
+                        onClick={() => exportStudentsToExcel(filteredCounselling, `Counselling_Cases_All_Departments_${selectedMonth}`)}
+                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-white/20 hover:bg-white/30 text-white shadow-xs border border-white/30 transition-all active:scale-95 cursor-pointer"
+                        title="Download Excel format"
+                      >
+                        <FileSpreadsheet className="w-4 h-4" />
+                        <span>Excel (.xlsx)</span>
+                      </button>
 
-                    <button
-                      onClick={() => exportStudentsToWord(filteredCounsellingStudents, `Thoothukudi Counselling Yes Students - All Departments (${selectedMonth})`)}
-                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-blue-700 hover:bg-blue-800 text-white shadow-xs border border-blue-800 transition-all active:scale-95 cursor-pointer"
-                      title="Download Word format"
-                    >
-                      <FileText className="w-4 h-4" />
-                      <span>Export Word (.doc)</span>
-                    </button>
+                      <button
+                        onClick={() => exportStudentsToWord(filteredCounselling, `Counselling_Cases_All_Departments_${selectedMonth}`)}
+                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-white/20 hover:bg-white/30 text-white shadow-xs border border-white/30 transition-all active:scale-95 cursor-pointer"
+                        title="Download Word format"
+                      >
+                        <FileText className="w-4 h-4" />
+                        <span>Word (.doc)</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
-                {/* 5 Uniform Top Summary KPI Boxes with Colorful Professional Border */}
+                {/* 5 Uniform Colourful & Professional Summary Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                  
-                  {/* KPI 1: Total Counselling Cases */}
-                  <div className="bg-gradient-to-b from-blue-50/70 via-white to-white border-2 border-blue-600 rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-wider">
+                  <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
+                    <div className="bg-[#1e3a5f] text-white px-4 py-2.5 flex items-center justify-between">
+                      <span className="text-sm font-black text-white uppercase tracking-wider">
                         Total Counselling
                       </span>
-                      <div className="w-10 h-10 rounded-xl bg-blue-700 text-white flex items-center justify-center shadow-xs">
-                        <HeartPulse className="w-5 h-5" />
+                      <div className="w-8 h-8 rounded-lg bg-white/15 text-white flex items-center justify-center">
+                        <HelpCircle className="w-4 h-4" />
                       </div>
                     </div>
-                    <div className="text-3xl sm:text-4xl font-black text-blue-950 mt-2.5 tracking-tight font-mono">
-                      {allCounsellingStudents.length}
-                    </div>
-                    <div className="mt-2.5 text-xs sm:text-sm text-slate-700 font-bold pt-2.5 border-t-2 border-blue-100 flex justify-between">
-                      <span>Counselling = 'Yes'</span>
-                      <span className="font-black text-blue-950">All Depts</span>
+                    <div className="p-4 sm:p-5 flex flex-col justify-between flex-1">
+                      <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
+                        {totalCounselling}
+                      </div>
+                      <div className="mt-3 text-sm text-slate-700 font-bold pt-2.5 border-t border-slate-300 flex justify-between items-center">
+                        <span>Counselling Cases</span>
+                        <span className="font-black text-slate-900">100%</span>
+                      </div>
                     </div>
                   </div>
 
-                  {/* KPI 2: Departments Reporting */}
-                  <div className="bg-gradient-to-b from-blue-50/70 via-white to-white border-2 border-blue-600 rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-wider">
-                        Line Depts Active
+                  <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
+                    <div className="bg-[#1e3a5f] text-white px-4 py-2.5 flex items-center justify-between">
+                      <span className="text-sm font-black text-white uppercase tracking-wider">
+                        Boys Count
                       </span>
-                      <div className="w-10 h-10 rounded-xl bg-blue-700 text-white flex items-center justify-center shadow-xs">
-                        <Building2 className="w-5 h-5" />
+                      <div className="w-8 h-8 rounded-lg bg-white/15 text-white flex items-center justify-center">
+                        <Users className="w-4 h-4" />
                       </div>
                     </div>
-                    <div className="text-3xl sm:text-4xl font-black text-blue-950 mt-2.5 tracking-tight font-mono">
-                      {deptsWithCounselling} <span className="text-lg font-bold text-slate-600">/ 8</span>
-                    </div>
-                    <div className="mt-2.5 text-xs sm:text-sm text-slate-700 font-bold pt-2.5 border-t-2 border-blue-100 flex justify-between">
-                      <span>Reporting Depts</span>
-                      <span className="font-black text-blue-950">{((deptsWithCounselling / 8) * 100).toFixed(0)}%</span>
+                    <div className="p-4 sm:p-5 flex flex-col justify-between flex-1">
+                      <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
+                        {boysCounselling}
+                      </div>
+                      <div className="mt-3 text-sm text-slate-700 font-bold pt-2.5 border-t border-slate-300 flex justify-between items-center">
+                        <span>Male Students</span>
+                        <span className="font-black text-slate-900">
+                          {totalCounselling > 0 ? ((boysCounselling / totalCounselling) * 100).toFixed(0) : 0}%
+                        </span>
+                      </div>
                     </div>
                   </div>
 
-                  {/* KPI 3: Boys Count */}
-                  <div className="bg-gradient-to-b from-blue-50/70 via-white to-white border-2 border-blue-600 rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-wider">
-                        Boys Counselling
+                  <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
+                    <div className="bg-[#1e3a5f] text-white px-4 py-2.5 flex items-center justify-between">
+                      <span className="text-sm font-black text-white uppercase tracking-wider">
+                        Girls Count
                       </span>
-                      <div className="w-10 h-10 rounded-xl bg-blue-700 text-white flex items-center justify-center shadow-xs">
-                        <Users className="w-5 h-5" />
+                      <div className="w-8 h-8 rounded-lg bg-white/15 text-white flex items-center justify-center">
+                        <Users className="w-4 h-4" />
                       </div>
                     </div>
-                    <div className="text-3xl sm:text-4xl font-black text-blue-950 mt-2.5 tracking-tight font-mono">
-                      {totalBoys}
-                    </div>
-                    <div className="mt-2.5 text-xs sm:text-sm text-slate-700 font-bold pt-2.5 border-t-2 border-blue-100 flex justify-between">
-                      <span>Male Students</span>
-                      <span className="font-black text-blue-950">
-                        {allCounsellingStudents.length > 0 ? ((totalBoys / allCounsellingStudents.length) * 100).toFixed(0) : 0}%
-                      </span>
+                    <div className="p-4 sm:p-5 flex flex-col justify-between flex-1">
+                      <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
+                        {girlsCounselling}
+                      </div>
+                      <div className="mt-3 text-sm text-slate-700 font-bold pt-2.5 border-t border-slate-300 flex justify-between items-center">
+                        <span>Female Students</span>
+                        <span className="font-black text-slate-900">
+                          {totalCounselling > 0 ? ((girlsCounselling / totalCounselling) * 100).toFixed(0) : 0}%
+                        </span>
+                      </div>
                     </div>
                   </div>
 
-                  {/* KPI 4: Girls Count */}
-                  <div className="bg-gradient-to-b from-blue-50/70 via-white to-white border-2 border-blue-600 rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-wider">
-                        Girls Counselling
+                  <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
+                    <div className="bg-[#1e3a5f] text-white px-4 py-2.5 flex items-center justify-between">
+                      <span className="text-sm font-black text-white uppercase tracking-wider">
+                        Re-Enrolled
                       </span>
-                      <div className="w-10 h-10 rounded-xl bg-blue-700 text-white flex items-center justify-center shadow-xs">
-                        <Users className="w-5 h-5" />
+                      <div className="w-8 h-8 rounded-lg bg-white/15 text-white flex items-center justify-center">
+                        <GraduationCap className="w-4 h-4" />
                       </div>
                     </div>
-                    <div className="text-3xl sm:text-4xl font-black text-blue-950 mt-2.5 tracking-tight font-mono">
-                      {totalGirls}
-                    </div>
-                    <div className="mt-2.5 text-xs sm:text-sm text-slate-700 font-bold pt-2.5 border-t-2 border-blue-100 flex justify-between">
-                      <span>Female Students</span>
-                      <span className="font-black text-blue-950">
-                        {allCounsellingStudents.length > 0 ? ((totalGirls / allCounsellingStudents.length) * 100).toFixed(0) : 0}%
-                      </span>
+                    <div className="p-4 sm:p-5 flex flex-col justify-between flex-1">
+                      <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
+                        {reEnrolledCounselling}
+                      </div>
+                      <div className="mt-3 text-sm text-slate-700 font-bold pt-2.5 border-t border-slate-300 flex justify-between items-center">
+                        <span>Rejoined School</span>
+                        <span className="font-black text-slate-900">
+                          {totalCounselling > 0 ? ((reEnrolledCounselling / totalCounselling) * 100).toFixed(0) : 0}%
+                        </span>
+                      </div>
                     </div>
                   </div>
 
-                  {/* KPI 5: Re-enrolled among Counselling */}
-                  <div className="bg-gradient-to-b from-blue-50/70 via-white to-white border-2 border-blue-600 rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-wider">
-                        Re - Enrolled
+                  <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
+                    <div className="bg-[#1e3a5f] text-white px-4 py-2.5 flex items-center justify-between">
+                      <span className="text-sm font-black text-white uppercase tracking-wider">
+                        Repeaters
                       </span>
-                      <div className="w-10 h-10 rounded-xl bg-blue-700 text-white flex items-center justify-center shadow-xs">
-                        <GraduationCap className="w-5 h-5" />
+                      <div className="w-8 h-8 rounded-lg bg-white/15 text-white flex items-center justify-center">
+                        <RotateCcw className="w-4 h-4" />
                       </div>
                     </div>
-                    <div className="text-3xl sm:text-4xl font-black text-blue-950 mt-2.5 tracking-tight font-mono">
-                      {totalReEnrolledCounselling}
-                    </div>
-                    <div className="mt-2.5 text-xs sm:text-sm text-slate-700 font-bold pt-2.5 border-t-2 border-blue-100 flex justify-between">
-                      <span>Rejoined School</span>
-                      <span className="font-black text-blue-950">
-                        {allCounsellingStudents.length > 0 ? ((totalReEnrolledCounselling / allCounsellingStudents.length) * 100).toFixed(0) : 0}%
-                      </span>
+                    <div className="p-4 sm:p-5 flex flex-col justify-between flex-1">
+                      <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
+                        {repeatersCounselling}
+                      </div>
+                      <div className="mt-3 text-sm text-slate-700 font-bold pt-2.5 border-t border-slate-300 flex justify-between items-center">
+                        <span>Repeater Cases</span>
+                        <span className="font-black text-slate-900">
+                          {totalCounselling > 0 ? ((repeatersCounselling / totalCounselling) * 100).toFixed(0) : 0}%
+                        </span>
+                      </div>
                     </div>
                   </div>
-
                 </div>
 
-                {/* Department-Wise Counselling Distribution Grid */}
-                <div className="bg-white border-2 border-blue-600 rounded-2xl p-5 sm:p-6 shadow-sm hover:shadow-md transition-all space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b-2 border-blue-100">
+                {/* Department-Wise Counselling Breakdown Cards */}
+                <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm overflow-hidden space-y-4">
+                  <div className="bg-[#1e3a5f] text-white px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
-                      <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-                        <Layers className="w-5 h-5 text-blue-700" />
+                      <h3 className="text-lg font-black text-white tracking-tight flex items-center gap-2">
+                        <Layers className="w-5 h-5 text-slate-200" />
                         <span>Department-Wise Counselling Distribution</span>
                       </h3>
-                      <p className="text-sm sm:text-base text-slate-700 font-bold mt-0.5">
-                        Click any department box to filter the student list below
+                      <p className="text-xs sm:text-sm text-slate-200 font-medium">
+                        Counselling cases assigned to each line department
                       </p>
                     </div>
+
                     {counsellingDeptFilter !== 'All' && (
                       <button
                         onClick={() => setCounsellingDeptFilter('All')}
-                        className="text-xs sm:text-sm font-black px-3 py-1.5 rounded-lg bg-blue-100 text-blue-900 hover:bg-blue-200 transition-colors w-fit"
+                        className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 shadow-2xs cursor-pointer"
                       >
-                        Clear Department Filter ({counsellingDeptFilter})
+                        Reset Department Filter
                       </button>
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5">
-                    {deptBreakdown.map(dept => {
-                      const isDeptSelected = counsellingDeptFilter.toLowerCase() === dept.name.toLowerCase();
-                      const meta = DEPT_META[dept.name] || DEPT_META['Overview'];
-                      const DeptIcon = meta.icon;
+                  <div className="p-5 sm:p-6 pt-0">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+                      {deptList.map(deptName => {
+                        const deptStudents = allCounsellingStudents.filter(s => s.lineDept === deptName);
+                        const isSelected = counsellingDeptFilter === deptName;
+                        const meta = DEPT_META[deptName] || DEPT_META['Overview'];
+                        const IconComp = meta.icon;
 
-                      return (
-                        <div
-                          key={dept.name}
-                          onClick={() => setCounsellingDeptFilter(isDeptSelected ? 'All' : dept.name)}
-                          className={`p-4 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
-                            isDeptSelected
-                              ? 'bg-blue-50/90 border-blue-700 shadow-md ring-2 ring-blue-400'
-                              : 'bg-white hover:bg-blue-50/40 border-blue-600 shadow-xs'
-                          }`}
-                          title={`Click to filter by ${dept.name}`}
-                        >
-                          <div>
+                        return (
+                          <button
+                            key={deptName}
+                            onClick={() => setCounsellingDeptFilter(isSelected ? 'All' : deptName)}
+                            className={`p-3 rounded-xl border-2 text-left transition-all cursor-pointer ${
+                              isSelected
+                                ? 'bg-[#1e3a5f] text-white border-[#1e3a5f] shadow-md ring-2 ring-blue-300'
+                                : 'bg-white hover:bg-slate-200/80 border-slate-300 shadow-2xs text-slate-800'
+                            }`}
+                          >
                             <div className="flex items-center justify-between gap-1 mb-2">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <div className="w-7 h-7 rounded-lg bg-blue-700 text-white flex items-center justify-center shrink-0">
-                                  <DeptIcon className="w-4 h-4" />
-                                </div>
-                                <span className="text-sm font-black text-slate-900 truncate">
-                                  {dept.name}
-                                </span>
+                              <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                                isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700 border border-slate-200'
+                              }`}>
+                                <IconComp className="w-3.5 h-3.5" />
                               </div>
+                              <span className={`text-base font-black font-mono px-2 py-0.5 rounded-md ${
+                                isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-900 border border-slate-200'
+                              }`}>
+                                {deptStudents.length}
+                              </span>
                             </div>
-                            <div className="text-2xl sm:text-3xl font-black text-blue-950 font-mono">
-                              {dept.total} <span className="text-sm font-bold text-slate-600">Cases</span>
+                            <div className="text-xs font-black truncate leading-tight" title={deptName}>
+                              {deptName}
                             </div>
-                          </div>
-
-                          <div className="mt-3 pt-2.5 border-t border-blue-100 flex items-center justify-between text-xs font-bold text-slate-700">
-                            <span>Boys: <strong className="text-blue-900 font-black">{dept.boys}</strong></span>
-                            <span>•</span>
-                            <span>Girls: <strong className="text-pink-700 font-black">{dept.girls}</strong></span>
-                            <span>•</span>
-                            <span>Re-enrolled: <strong className="text-emerald-700 font-black">{dept.reEnrolled}</strong></span>
-                          </div>
-                        </div>
-                      );
-                    })}
+                            <div className={`text-[11px] font-bold mt-1 ${isSelected ? 'text-slate-200' : 'text-slate-500'}`}>
+                              {totalCounselling > 0 ? ((deptStudents.length / totalCounselling) * 100).toFixed(0) : 0}% share
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
 
-                {/* Filterable Student Records Table */}
-                <div className="bg-white border-2 border-blue-600 rounded-2xl p-5 sm:p-6 shadow-sm hover:shadow-md transition-all space-y-4">
-                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-3 border-b-2 border-blue-100">
+                {/* Filter and Search Controls & Student Table */}
+                <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm overflow-hidden space-y-4">
+                  <div className="bg-[#1e3a5f] text-white px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                      <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-                        <Users className="w-5 h-5 text-blue-700" />
-                        <span>Counselling Student Records ({filteredCounsellingStudents.length})</span>
+                      <h3 className="text-lg font-black text-white tracking-tight flex items-center gap-2">
+                        <Users className="w-5 h-5 text-slate-200" />
+                        <span>
+                          Verified Counselling Student Records ({filteredCounselling.length})
+                        </span>
                       </h3>
-                      <p className="text-sm sm:text-base text-slate-700 font-bold mt-0.5">
-                        Students across all departments requiring counselling intervention
+                      <p className="text-xs sm:text-sm text-slate-200 font-medium">
+                        Detailed student caseload where counselling has been provided or marked Yes by departments
                       </p>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">
-                      {/* Department Filter Dropdown */}
-                      <div className="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-xl border-2 border-blue-400">
-                        <Filter className="w-4 h-4 text-blue-700" />
-                        <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Dept:</span>
+                      {/* Department Filter */}
+                      <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-300 shadow-2xs">
+                        <Filter className="w-4 h-4 text-slate-700 shrink-0" />
+                        <label htmlFor="counsel-dept-filter" className="text-xs font-bold text-slate-700 uppercase">
+                          Dept:
+                        </label>
                         <select
+                          id="counsel-dept-filter"
                           value={counsellingDeptFilter}
                           onChange={(e) => setCounsellingDeptFilter(e.target.value)}
-                          className="text-sm font-bold text-slate-900 bg-transparent focus:outline-none cursor-pointer"
+                          className="text-xs sm:text-sm font-bold text-slate-900 bg-transparent focus:outline-none cursor-pointer"
                         >
                           <option value="All">All Departments</option>
-                          {deptBreakdown.map(d => (
-                            <option key={d.name} value={d.name}>{d.name} ({d.total})</option>
+                          {deptList.map(d => (
+                            <option key={d} value={d}>{d}</option>
                           ))}
                         </select>
                       </div>
 
-                      {/* Gender Filter Dropdown */}
-                      <div className="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-xl border-2 border-blue-400">
-                        <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Gender:</span>
+                      {/* Division Filter */}
+                      <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-300 shadow-2xs">
+                        <Building2 className="w-4 h-4 text-slate-700 shrink-0" />
+                        <label htmlFor="counsel-div-filter" className="text-xs font-bold text-slate-700 uppercase">
+                          Division:
+                        </label>
                         <select
-                          value={counsellingGenderFilter}
-                          onChange={(e) => setCounsellingGenderFilter(e.target.value)}
-                          className="text-sm font-bold text-slate-900 bg-transparent focus:outline-none cursor-pointer"
+                          id="counsel-div-filter"
+                          value={counsellingDivFilter}
+                          onChange={(e) => setCounsellingDivFilter(e.target.value)}
+                          className="text-xs sm:text-sm font-bold text-slate-900 bg-transparent focus:outline-none cursor-pointer"
                         >
-                          <option value="All">All Genders</option>
-                          <option value="Boys">Boys Only</option>
-                          <option value="Girls">Girls Only</option>
+                          <option value="All">All Divisions</option>
+                          <option value="Kovilpatti">Kovilpatti</option>
+                          <option value="Thoothukudi">Thoothukudi</option>
+                          <option value="Tiruchendur">Tiruchendur</option>
                         </select>
                       </div>
 
-                      {/* Search Input */}
+                      {/* Search */}
                       <div className="relative">
-                        <Search className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+                        <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
                         <input
                           type="text"
                           placeholder="Search student, EMIS, school..."
                           value={counsellingSearch}
                           onChange={(e) => setCounsellingSearch(e.target.value)}
-                          className="text-sm pl-9 pr-3 py-2 rounded-xl border-2 border-blue-400 bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 w-full sm:w-64 font-bold"
+                          className="text-xs sm:text-sm pl-9 pr-3 py-1.5 rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400 w-full sm:w-56 font-medium"
                         />
                       </div>
                     </div>
                   </div>
 
-                  {/* Student Records Table */}
-                  <div className="overflow-x-auto rounded-xl border-2 border-blue-600 max-h-[550px] overflow-y-auto bg-white">
-                    <table className="w-full text-left">
-                      <thead className="bg-blue-600 text-white font-black sticky top-0 z-10 shadow-sm">
-                        <tr>
-                          <th className="py-3 px-3.5 whitespace-nowrap">S.No</th>
-                          <th className="py-3 px-3.5 whitespace-nowrap">Student Name</th>
-                          <th className="py-3 px-3.5 whitespace-nowrap">EMIS ID</th>
-                          <th className="py-3 px-3.5 whitespace-nowrap">Department</th>
-                          <th className="py-3 px-3.5 whitespace-nowrap">Class & Sec</th>
-                          <th className="py-3 px-3.5 whitespace-nowrap">Gender</th>
-                          <th className="py-3 px-3.5 whitespace-nowrap">School Name</th>
-                          <th className="py-3 px-3.5 whitespace-nowrap">Block / Taluk</th>
-                          <th className="py-3 px-3.5 whitespace-nowrap">Contact No</th>
-                          <th className="py-3 px-3.5 whitespace-nowrap">Dropout Reason</th>
-                          <th className="py-3 px-3.5 whitespace-nowrap">Counselling</th>
-                          <th className="py-3 px-3.5 whitespace-nowrap">Present Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-blue-100 font-semibold text-slate-800">
-                        {filteredCounsellingStudents.length === 0 ? (
+                  <div className="p-5 sm:p-6 pt-0">
+                    <div className="overflow-x-auto rounded-xl border-2 border-slate-300 max-h-[32rem] overflow-y-auto bg-white">
+                      <table className="w-full text-left text-sm whitespace-nowrap">
+                        <thead className="bg-[#1e3a5f] text-white font-black border-b-2 border-slate-400 sticky top-0 z-10">
                           <tr>
-                            <td colSpan={12} className="py-12 text-center text-slate-500 font-bold">
-                              No counselling records found matching the current filters.
+                            <th className="py-3 px-3.5">S.No</th>
+                            <th className="py-3 px-3.5">Student Name</th>
+                            <th className="py-3 px-3.5">EMIS ID</th>
+                            <th className="py-3 px-3.5">Line Department</th>
+                            <th className="py-3 px-3.5">Division</th>
+                            <th className="py-3 px-3.5">Taluk</th>
+                            <th className="py-3 px-3.5">Block</th>
+                            <th className="py-3 px-3.5">School</th>
+                            <th className="py-3 px-3.5">Class</th>
+                            <th className="py-3 px-3.5">Gender</th>
+                            <th className="py-3 px-3.5">Contact No</th>
+                            <th className="py-3 px-3.5">Repeater</th>
+                            <th className="py-3 px-3.5 bg-rose-900 text-white font-black border-l border-r border-rose-800">
+                              Counselling
+                            </th>
+                            <th className="py-3 px-3.5 min-w-48">Dropout Reason</th>
+                            <th className="py-3 px-3.5 min-w-44">Present Status</th>
+                            <th className="py-3 px-3.5 min-w-48">Remarks</th>
+                          </tr>
+                        </thead>
+                      <tbody className="divide-y divide-slate-200 font-medium text-slate-800">
+                        {filteredCounselling.map((st, idx) => {
+                          const key = st.emisId || String(st.sNo);
+                          return (
+                            <tr key={`counsel-st-${key}-${idx}`} className="hover:bg-slate-50 transition-colors">
+                              <td className="py-3 px-3.5 text-slate-600 font-bold">{idx + 1}</td>
+                              <td className="py-3 px-3.5 font-black text-slate-900">{st.studentName}</td>
+                              <td className="py-3 px-3.5 font-mono text-slate-700 font-bold">{st.emisId || '—'}</td>
+                              <td className="py-3 px-3.5">
+                                <span className="px-2.5 py-1 rounded-md text-xs font-black bg-slate-100 text-slate-800 border border-slate-300">
+                                  {st.lineDept}
+                                </span>
+                              </td>
+                              <td className="py-3 px-3.5 font-bold text-slate-800">{st.division}</td>
+                              <td className="py-3 px-3.5 font-medium text-slate-700">{st.taluk || '—'}</td>
+                              <td className="py-3 px-3.5 font-medium text-slate-700">{st.block}</td>
+                              <td className="py-3 px-3.5 font-medium text-slate-700 max-w-xs truncate" title={st.school}>
+                                {st.school}
+                              </td>
+                              <td className="py-3 px-3.5 text-center font-bold text-slate-800">
+                                {st.std ? `Std ${st.std}` : '—'}
+                              </td>
+                              <td className="py-3 px-3.5 font-semibold text-slate-700">{st.gender || '—'}</td>
+                              <td className="py-3 px-3.5 font-mono text-slate-700">{st.contactNo || '—'}</td>
+                              <td className="py-3 px-3.5 text-center">
+                                {st.isRepeater ? (
+                                  <span className="px-2 py-0.5 rounded bg-purple-100 text-purple-900 font-black text-xs border border-purple-300">
+                                    Yes
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-400 text-xs">No</span>
+                                )}
+                              </td>
+                              <td className="py-3 px-3.5 bg-rose-50 text-center border-l border-r border-rose-200">
+                                <span className="px-2.5 py-1 rounded-md bg-rose-600 text-white font-black text-xs shadow-2xs">
+                                  Yes
+                                </span>
+                              </td>
+                              <td className="py-3 px-3.5 text-slate-700 max-w-xs truncate" title={st.dropoutReason}>
+                                {st.dropoutReason || '—'}
+                              </td>
+                              <td className="py-3 px-3.5">
+                                <span className={`px-2.5 py-1 rounded-md text-xs font-bold border ${
+                                  st.isReEnrolled
+                                    ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                                    : st.isMigrated
+                                    ? 'bg-amber-100 text-amber-900 border-amber-300'
+                                    : 'bg-slate-100 text-slate-800 border-slate-300'
+                                }`}>
+                                  {st.status || 'Status Not Updated'}
+                                </span>
+                              </td>
+                              <td className="py-3 px-3.5 text-slate-700 max-w-xs truncate" title={st.remarks}>
+                                {st.remarks || '—'}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {filteredCounselling.length === 0 && (
+                          <tr>
+                            <td colSpan={16} className="py-12 text-center text-slate-500 font-bold">
+                              No counselling cases match the selected filters.
                             </td>
                           </tr>
-                        ) : (
-                          filteredCounsellingStudents.map((st, idx) => {
-                            const studentKey = st.emisId || String(st.sNo);
-                            const isGirl = (st.gender || '').toLowerCase().trim() === 'female' || (st.gender || '').toLowerCase().trim() === 'girl' || (st.gender || '').toLowerCase().trim() === 'f';
-                            
-                            return (
-                              <tr key={st.emisId ? `counsel-st-${st.emisId}-${idx}` : `counsel-st-${st.sNo}-${idx}`} className="hover:bg-blue-50/50 transition-colors">
-                                <td className="py-3 px-3.5 font-bold text-slate-600">{st.sNo || idx + 1}</td>
-                                <td className="py-3 px-3.5 font-black text-slate-900 whitespace-nowrap">{st.studentName}</td>
-                                <td className="py-3 px-3.5 font-mono text-slate-700 font-bold">{st.emisId || '-'}</td>
-                                <td className="py-3 px-3.5 whitespace-nowrap">
-                                  <span className="px-2.5 py-1 rounded-md bg-blue-50 text-blue-900 font-black text-xs border border-blue-200">
-                                    {st.lineDept}
-                                  </span>
-                                </td>
-                                <td className="py-3 px-3.5 whitespace-nowrap">
-                                  <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-900 font-bold text-xs border border-slate-300">
-                                    Std {st.std} {st.sec ? `(${st.sec})` : ''}
-                                  </span>
-                                </td>
-                                <td className="py-3 px-3.5 whitespace-nowrap">
-                                  <span className={`px-2 py-0.5 rounded text-xs font-black ${
-                                    isGirl 
-                                      ? 'bg-pink-50 text-pink-900 border border-pink-200' 
-                                      : 'bg-blue-50 text-blue-900 border border-blue-200'
-                                  }`}>
-                                    {isGirl ? 'Girls' : 'Boys'}
-                                  </span>
-                                </td>
-                                <td className="py-3 px-3.5 text-slate-700 max-w-xs truncate" title={st.school}>{st.school}</td>
-                                <td className="py-3 px-3.5 whitespace-nowrap text-slate-700 font-bold">
-                                  {st.block} {st.taluk ? `• ${st.taluk}` : ''}
-                                </td>
-                                <td className="py-3 px-3.5 whitespace-nowrap font-mono text-slate-700 font-bold">
-                                  {st.contactNo ? (
-                                    <a href={`tel:${st.contactNo}`} className="text-blue-700 hover:underline">
-                                      {st.contactNo}
-                                    </a>
-                                  ) : '-'}
-                                </td>
-                                <td className="py-3 px-3.5 text-slate-700 max-w-xs truncate" title={st.dropoutReason || 'Not Specified'}>
-                                  {st.dropoutReason || 'Not Specified'}
-                                </td>
-                                <td className="py-3 px-3.5 whitespace-nowrap">
-                                  <span className="px-2.5 py-1 rounded-full text-xs font-black bg-rose-50 text-rose-900 border border-rose-300 flex items-center gap-1 w-fit">
-                                    <HeartPulse className="w-3 h-3 text-rose-600" />
-                                    <span>Yes</span>
-                                  </span>
-                                </td>
-                                <td className="py-3 px-3.5 whitespace-nowrap">
-                                  <span className={`px-2.5 py-1 rounded-full text-xs font-black ${
-                                    st.isReEnrolled
-                                      ? 'bg-emerald-50 text-emerald-900 border border-emerald-300'
-                                      : st.isMigrated
-                                      ? 'bg-amber-50 text-amber-900 border border-amber-300'
-                                      : 'bg-blue-50 text-blue-900 border border-blue-300'
-                                  }`}>
-                                    {st.status}
-                                  </span>
-                                </td>
-                              </tr>
-                            );
-                          })
                         )}
                       </tbody>
                     </table>
+                    </div>
                   </div>
                 </div>
-
               </div>
             );
           })()}
@@ -2036,76 +2058,44 @@ export default function App() {
           {/* 4. REVENUE DEPARTMENT (TALUK-WISE SOURCED FROM COL C) */}
           {/* ======================================================== */}
           {selectedSlicer === 'Revenue Department' && (
-            !authenticatedDepts['Revenue Department'] ? (
-              <DepartmentLoginForm
-                departmentName="Revenue Department"
-                credentials={deptCredentials['Revenue Department'] || DEFAULT_DEPARTMENT_CREDENTIALS['Revenue Department']}
-                departmentMeta={DEPT_META['Revenue Department']}
-                onLoginSuccess={(userId) => handleDepartmentLoginSuccess('Revenue Department', userId)}
-                onCancel={() => setSelectedSlicer('Line Department Overview')}
-              />
-            ) : (
             <div className="space-y-6">
-              
-              {/* Authorized Department Session Banner */}
-              <div className="bg-teal-50 border-2 border-teal-300 rounded-2xl p-3 sm:px-5 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-teal-800 text-white flex items-center justify-center font-bold shadow-xs">
-                    <ShieldCheck className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span className="text-[11px] font-black text-teal-950 uppercase tracking-wider block">
-                      Authorized Department Session
-                    </span>
-                    <span className="text-xs sm:text-sm font-bold text-teal-900">
-                      Logged in as: <span className="font-mono font-black">{deptCredentials['Revenue Department']?.userId || 'revenue_dept'}</span> • Revenue Department
-                    </span>
-                  </div>
-                </div>
-                <button
-                  onClick={() => handleDepartmentLogout('Revenue Department')}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black bg-white hover:bg-rose-50 text-rose-700 hover:text-rose-800 border border-rose-300 shadow-2xs transition-colors cursor-pointer"
-                  title="Lock Revenue Department and logout"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                  <span>Lock / Logout</span>
-                </button>
-              </div>
 
               {/* Header and Download Controls */}
-              <div className="bg-white border-2 border-blue-600 rounded-2xl p-5 sm:p-6 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-                    <Landmark className="w-6 h-6 text-blue-700" />
-                    <span>Revenue Department — Taluk-Wise Dashboard</span>
-                  </h2>
-                  <p className="text-sm sm:text-base text-slate-700 font-bold mt-0.5">
-                    Taluk-wise monitoring across Thoothukudi District for {selectedMonth}
-                  </p>
-                </div>
+              <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="bg-[#1e3a5f] text-white p-5 sm:p-6 flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
+                      <Landmark className="w-6 h-6 text-slate-200" />
+                      <span>Revenue Department — Taluk-Wise Dashboard</span>
+                    </h2>
+                    <p className="text-xs sm:text-sm text-slate-200 mt-0.5 font-medium">
+                      Taluk-wise monitoring across Thoothukudi District for {selectedMonth}
+                    </p>
+                  </div>
 
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <button
-                    onClick={() => exportStudentsToExcel(revenueStudents, `Revenue_Department_Students_${selectedMonth}`)}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs border border-emerald-800 transition-all active:scale-95 cursor-pointer"
-                    title="Download Excel format"
-                  >
-                    <FileSpreadsheet className="w-4 h-4" />
-                    <span>Excel (.xlsx)</span>
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <button
+                      onClick={() => exportStudentsToExcel(revenueStudents, `Revenue_Department_Students_${selectedMonth}`)}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-white/20 hover:bg-white/30 text-white shadow-xs border border-white/30 transition-all active:scale-95 cursor-pointer"
+                      title="Download Excel format"
+                    >
+                      <FileSpreadsheet className="w-4 h-4" />
+                      <span>Excel (.xlsx)</span>
+                    </button>
 
-                  <button
-                    onClick={() => exportStudentsToWord(revenueStudents, `Revenue_Department_Students_${selectedMonth}`)}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-blue-700 hover:bg-blue-800 text-white shadow-xs border border-blue-800 transition-all active:scale-95 cursor-pointer"
-                    title="Download Word format"
-                  >
-                    <FileText className="w-4 h-4" />
-                    <span>Word (.doc)</span>
-                  </button>
+                    <button
+                      onClick={() => exportStudentsToWord(revenueStudents, `Revenue_Department_Students_${selectedMonth}`)}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-white/20 hover:bg-white/30 text-white shadow-xs border border-white/30 transition-all active:scale-95 cursor-pointer"
+                      title="Download Word format"
+                    >
+                      <FileText className="w-4 h-4" />
+                      <span>Word (.doc)</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              {/* 4 Summary Boxes for Revenue Department with uniform colorful professional styling */}
+              {/* 4 Summary Boxes for Revenue Department with uniform light grey boxes and #1e3a5f headers */}
               {(() => {
                 const repCount = revenueStudents.filter(s => s.isRepeater).length;
                 const reEnrCount = revenueStudents.filter(s => s.isReEnrolled).length;
@@ -2113,51 +2103,59 @@ export default function App() {
 
                 return (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="bg-gradient-to-b from-blue-50/70 via-white to-white border-2 border-blue-600 rounded-2xl p-4 sm:p-5 shadow-sm text-center">
-                      <span className="text-sm font-black text-slate-900 uppercase tracking-wider block">
+                    <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl overflow-hidden shadow-2xs text-center flex flex-col justify-between">
+                      <div className="bg-[#1e3a5f] text-white px-3 py-2 text-xs font-black uppercase tracking-wider">
                         Potential Dropout
-                      </span>
-                      <div className="text-3xl sm:text-4xl font-black text-blue-950 font-mono mt-2">
-                        {revenueStudents.length}
                       </div>
-                      <div className="text-xs sm:text-sm text-slate-700 mt-1.5 font-bold pt-2 border-t border-blue-100">
-                        Revenue Department Caseload
+                      <div className="p-4">
+                        <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight">
+                          {revenueStudents.length}
+                        </div>
+                        <div className="text-xs sm:text-sm text-slate-700 mt-1.5 font-bold">
+                          Revenue Department Caseload
+                        </div>
                       </div>
                     </div>
 
-                    <div className="bg-gradient-to-b from-blue-50/70 via-white to-white border-2 border-blue-600 rounded-2xl p-4 sm:p-5 shadow-sm text-center">
-                      <span className="text-sm font-black text-slate-900 uppercase tracking-wider block">
+                    <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl overflow-hidden shadow-2xs text-center flex flex-col justify-between">
+                      <div className="bg-[#1e3a5f] text-white px-3 py-2 text-xs font-black uppercase tracking-wider">
                         Re-Enrolled
-                      </span>
-                      <div className="text-3xl sm:text-4xl font-black text-blue-950 font-mono mt-2">
-                        {reEnrCount}
                       </div>
-                      <div className="text-xs sm:text-sm text-slate-700 mt-1.5 font-bold pt-2 border-t border-blue-100">
-                        Re-enrolled in School
+                      <div className="p-4">
+                        <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight">
+                          {reEnrCount}
+                        </div>
+                        <div className="text-xs sm:text-sm text-slate-700 mt-1.5 font-bold">
+                          Re-enrolled in School
+                        </div>
                       </div>
                     </div>
 
-                    <div className="bg-gradient-to-b from-blue-50/70 via-white to-white border-2 border-blue-600 rounded-2xl p-4 sm:p-5 shadow-sm text-center">
-                      <span className="text-sm font-black text-slate-900 uppercase tracking-wider block">
+                    <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl overflow-hidden shadow-2xs text-center flex flex-col justify-between">
+                      <div className="bg-[#1e3a5f] text-white px-3 py-2 text-xs font-black uppercase tracking-wider">
                         Repeaters
-                      </span>
-                      <div className="text-3xl sm:text-4xl font-black text-blue-950 font-mono mt-2">
-                        {repCount}
                       </div>
-                      <div className="text-xs sm:text-sm text-slate-700 mt-1.5 font-bold pt-2 border-t border-blue-100">
-                        Repeaters Caseload
+                      <div className="p-4">
+                        <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight">
+                          {repCount}
+                        </div>
+                        <div className="text-xs sm:text-sm text-slate-700 mt-1.5 font-bold">
+                          Repeaters Caseload
+                        </div>
                       </div>
                     </div>
 
-                    <div className="bg-gradient-to-b from-blue-50/70 via-white to-white border-2 border-blue-600 rounded-2xl p-4 sm:p-5 shadow-sm text-center">
-                      <span className="text-sm font-black text-slate-900 uppercase tracking-wider block">
+                    <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl overflow-hidden shadow-2xs text-center flex flex-col justify-between">
+                      <div className="bg-[#1e3a5f] text-white px-3 py-2 text-xs font-black uppercase tracking-wider">
                         Counselling Needed
-                      </span>
-                      <div className="text-3xl sm:text-4xl font-black text-blue-950 font-mono mt-2">
-                        {counselCount}
                       </div>
-                      <div className="text-xs sm:text-sm text-slate-700 mt-1.5 font-bold pt-2 border-t border-blue-100">
-                        Guidance Required
+                      <div className="p-4">
+                        <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight">
+                          {counselCount}
+                        </div>
+                        <div className="text-xs sm:text-sm text-slate-700 mt-1.5 font-bold">
+                          Guidance Required
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -2165,53 +2163,55 @@ export default function App() {
               })()}
 
               {/* Taluk-Wise Abstract Cards */}
-              <div className="bg-slate-50 border-2 border-slate-300 rounded-2xl p-5 shadow-sm space-y-4">
-                <div className="flex items-center justify-between">
+              <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm overflow-hidden space-y-4">
+                <div className="bg-[#1e3a5f] text-white px-6 py-4 flex items-center justify-between">
                   <div>
-                    <h3 className="text-base font-black text-slate-900 tracking-tight flex items-center gap-2">
-                      <MapPin className="w-5 h-5 text-teal-800" />
+                    <h3 className="text-lg font-black text-white tracking-tight flex items-center gap-2">
+                      <MapPin className="w-5 h-5 text-slate-200" />
                       <span>Taluk-Wise Distribution (Revenue Department)</span>
                     </h3>
-                    <p className="text-xs text-slate-600 font-medium">
+                    <p className="text-xs sm:text-sm text-slate-200 font-medium">
                       Breakdown across taluks in Thoothukudi District
                     </p>
                   </div>
-                  <span className="text-xs font-bold px-3 py-1 rounded-full bg-white text-slate-800 border border-slate-300 shadow-2xs">
+                  <span className="text-xs sm:text-sm font-bold px-3 py-1 rounded-full bg-white/20 text-white border border-white/30 shadow-2xs">
                     {revenueTalukSummaries.length} Taluks
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {revenueTalukSummaries.map((taluk) => {
-                    const isSelected = revenueTalukFilter === taluk.name;
-                    return (
-                      <button
-                        key={taluk.name}
-                        onClick={() => setRevenueTalukFilter(isSelected ? 'All' : taluk.name)}
-                        className={`p-3.5 rounded-xl border-2 text-left transition-all ${
-                          isSelected
-                            ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
-                            : 'bg-white hover:bg-teal-50/50 text-slate-800 border-slate-300 hover:border-teal-400'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-black truncate">{taluk.name}</span>
-                          <span className={`text-xs font-bold px-2 py-0.5 rounded ${
-                            isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-900 border border-slate-300'
+                <div className="p-5 sm:p-6 pt-0">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {revenueTalukSummaries.map((taluk) => {
+                      const isSelected = revenueTalukFilter === taluk.name;
+                      return (
+                        <button
+                          key={taluk.name}
+                          onClick={() => setRevenueTalukFilter(isSelected ? 'All' : taluk.name)}
+                          className={`p-3.5 rounded-xl border-2 text-left transition-all cursor-pointer ${
+                            isSelected
+                              ? 'bg-[#1e3a5f] text-white border-[#1e3a5f] shadow-md ring-2 ring-blue-300'
+                              : 'bg-white hover:bg-slate-200/80 text-slate-800 border-slate-300'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-black truncate">{taluk.name}</span>
+                            <span className={`text-xs font-bold px-2 py-0.5 rounded ${
+                              isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-900 border border-slate-300'
+                            }`}>
+                              {taluk.potentialDropout}
+                            </span>
+                          </div>
+                          <div className={`mt-2 flex items-center justify-between text-xs font-bold ${
+                            isSelected ? 'text-slate-200' : 'text-slate-600'
                           }`}>
-                            {taluk.potentialDropout}
-                          </span>
-                        </div>
-                        <div className={`mt-2 flex items-center justify-between text-xs font-bold ${
-                          isSelected ? 'text-slate-300' : 'text-slate-600'
-                        }`}>
-                          <span>Rep: {taluk.repeaters}</span>
-                          <span>Re-Enr: {taluk.reEnrolled}</span>
-                          <span>Couns: {taluk.counsellingNeeded}</span>
-                        </div>
-                      </button>
-                    );
-                  })}
+                            <span>Rep: {taluk.repeaters}</span>
+                            <span>Re-Enr: {taluk.reEnrolled}</span>
+                            <span>Couns: {taluk.counsellingNeeded}</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
@@ -2228,18 +2228,18 @@ export default function App() {
                 });
 
                 return (
-                  <div className="bg-slate-50 border-2 border-slate-300 rounded-2xl p-5 shadow-sm space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm overflow-hidden space-y-4">
+                    <div className="bg-[#1e3a5f] text-white px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div>
-                        <h3 className="text-base font-black text-slate-900 tracking-tight flex items-center gap-2">
-                          <Users className="w-5 h-5 text-teal-800" />
+                        <h3 className="text-lg font-black text-white tracking-tight flex items-center gap-2">
+                          <Users className="w-5 h-5 text-slate-200" />
                           <span>
                             Taluk Student Records ({filteredTalukStudents.length})
                             {revenueTalukFilter !== 'All' && ` — ${revenueTalukFilter}`}
                           </span>
                         </h3>
-                        <p className="text-xs text-slate-600 font-medium">
-                          Officials can edit Dropout Reason, Present Status dropdown, and Remarks for each student below. Changes update counts and save automatically.
+                        <p className="text-xs sm:text-sm text-slate-200 font-medium">
+                          Officials can edit Dropout Reason, Present Status, and Remarks for each student below. Changes update counts and save automatically.
                         </p>
                       </div>
 
@@ -2247,28 +2247,29 @@ export default function App() {
                         {revenueTalukFilter !== 'All' && (
                           <button
                             onClick={() => setRevenueTalukFilter('All')}
-                            className="px-3 py-1 rounded-lg text-xs font-bold bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 shadow-2xs"
+                            className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 shadow-2xs cursor-pointer"
                           >
                             Reset Taluk Filter
                           </button>
                         )}
                         <div className="relative">
-                          <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-2.5" />
+                          <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
                           <input
                             type="text"
                             placeholder="Filter name, EMIS, school..."
                             value={revenueSearch}
                             onChange={(e) => setRevenueSearch(e.target.value)}
-                            className="text-xs pl-8 pr-3 py-1.5 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-slate-400 w-full sm:w-56"
+                            className="text-xs sm:text-sm pl-9 pr-3 py-1.5 rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400 w-full sm:w-56 font-medium"
                           />
                         </div>
                       </div>
                     </div>
 
-                    {/* Table with ALL Columns and Editable Dropout Reason, Present Status, and Remarks */}
-                    <div className="overflow-x-auto rounded-xl border-2 border-slate-300 max-h-[32rem] overflow-y-auto bg-white">
-                      <table className="w-full text-left text-xs whitespace-nowrap">
-                        <thead className="bg-slate-100 text-slate-800 font-black border-b-2 border-slate-300 sticky top-0 z-10">
+                    <div className="p-5 sm:p-6 pt-0">
+                      {/* Table with ALL Columns and Clean Headers */}
+                      <div className="overflow-x-auto rounded-xl border-2 border-slate-300 max-h-[32rem] overflow-y-auto bg-white">
+                        <table className="w-full text-left text-sm whitespace-nowrap">
+                          <thead className="bg-[#1e3a5f] text-white font-black border-b-2 border-slate-400 sticky top-0 z-10">
                           <tr>
                             <th className="py-3 px-3.5">S.No</th>
                             <th className="py-3 px-3.5">Student Name</th>
@@ -2281,17 +2282,17 @@ export default function App() {
                             <th className="py-3 px-3.5">Gender</th>
                             <th className="py-3 px-3.5">Repeater</th>
                             <th className="py-3 px-3.5 min-w-32 bg-rose-100/70 text-rose-950 font-black border-l border-r border-rose-300">
-                              Counselling (Dropdown)
+                              Counselling
                             </th>
                             <th className="py-3 px-3.5 min-w-56 bg-sky-100/70 text-sky-950 font-black border-l border-r border-sky-300">
-                              Dropout Reason (Editable)
+                              Dropout Reason
                             </th>
                             <th className="py-3 px-3.5 min-w-48 bg-amber-100/70 text-amber-950 font-black border-l border-r border-amber-300">
-                              Present Status (Editable Dropdown)
+                              Present Status
                             </th>
                             <th className="py-3 px-3.5">Contact No</th>
                             <th className="py-3 px-3.5 min-w-56 bg-indigo-100/70 text-indigo-950 font-black border-l border-r border-indigo-300">
-                              Remarks (Editable)
+                              Remarks
                             </th>
                           </tr>
                         </thead>
@@ -2390,11 +2391,11 @@ export default function App() {
                       </table>
                     </div>
                   </div>
+                </div>
                 );
               })()}
 
             </div>
-            )
           )}
 
           {/* ======================================================== */}
@@ -2403,96 +2404,64 @@ export default function App() {
           {selectedSlicer !== 'Overview' && 
            selectedSlicer !== 'Division' && 
            selectedSlicer !== 'Line Department Overview' && 
-           selectedSlicer !== 'Counselling' &&
-           selectedSlicer !== 'Revenue Department' && (
-            !authenticatedDepts[selectedSlicer] ? (
-              <DepartmentLoginForm
-                departmentName={selectedSlicer}
-                credentials={deptCredentials[selectedSlicer] || DEFAULT_DEPARTMENT_CREDENTIALS[selectedSlicer]}
-                departmentMeta={DEPT_META[selectedSlicer]}
-                onLoginSuccess={(userId) => handleDepartmentLoginSuccess(selectedSlicer, userId)}
-                onCancel={() => setSelectedSlicer('Line Department Overview')}
-              />
-            ) : (
+           selectedSlicer !== 'Revenue Department' && 
+           selectedSlicer !== 'Counselling' && (
             <div className="space-y-6">
-              
-              {/* Authorized Department Session Banner */}
-              <div className="bg-emerald-50 border-2 border-emerald-400 rounded-2xl p-3 sm:px-5 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-800 text-white flex items-center justify-center font-bold shadow-xs">
-                    <ShieldCheck className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span className="text-[11px] font-black text-emerald-950 uppercase tracking-wider block">
-                      Authorized Department Session
-                    </span>
-                    <span className="text-xs sm:text-sm font-bold text-emerald-900">
-                      Logged in as: <span className="font-mono font-black">{deptCredentials[selectedSlicer]?.userId || 'official'}</span> • {selectedSlicer}
-                    </span>
-                  </div>
-                </div>
-                <button
-                  onClick={() => handleDepartmentLogout(selectedSlicer)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black bg-white hover:bg-rose-50 text-rose-700 hover:text-rose-800 border border-rose-300 shadow-2xs transition-colors cursor-pointer"
-                  title={`Lock ${selectedSlicer} and logout`}
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                  <span>Lock / Logout</span>
-                </button>
-              </div>
 
-              {/* Header without long description, with quick Export Options */}
-              <div className="bg-white border-2 border-blue-600 rounded-2xl p-5 sm:p-6 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex items-center gap-3.5">
+              {/* Department Header Banner */}
+              <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="bg-[#1e3a5f] text-white p-5 sm:p-6 flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3.5">
+                    {(() => {
+                      const meta = DEPT_META[selectedSlicer] || DEPT_META['Overview'];
+                      const IconComponent = meta.icon;
+                      return (
+                        <div className="w-12 h-12 rounded-2xl bg-white/10 text-white flex items-center justify-center shadow-md border border-white/20">
+                          <IconComponent className="w-6 h-6 text-white" />
+                        </div>
+                      );
+                    })()}
+                    <div>
+                      <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                        {selectedSlicer} Dashboard
+                      </h2>
+                      <p className="text-xs sm:text-sm text-slate-200 mt-0.5 font-medium">
+                        Intervention & Tracking for {selectedMonth}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Export Students List in Excel, Word format */}
                   {(() => {
-                    const meta = DEPT_META[selectedSlicer] || DEPT_META['Overview'];
-                    const IconComponent = meta.icon;
+                    const currentDept = computedDepartments.find(d => d.name === selectedSlicer);
+                    const deptStudents = currentDept?.students || [];
+
                     return (
-                      <div className="w-12 h-12 rounded-2xl bg-blue-700 text-white flex items-center justify-center shadow-md">
-                        <IconComponent className="w-6 h-6" />
+                      <div className="flex flex-wrap items-center gap-2.5">
+                        <button
+                          onClick={() => exportStudentsToExcel(deptStudents, `${selectedSlicer}_Students_${selectedMonth}`)}
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-white/20 hover:bg-white/30 text-white shadow-xs border border-white/30 transition-all active:scale-95 cursor-pointer"
+                          title="Download Excel format"
+                        >
+                          <FileSpreadsheet className="w-4 h-4" />
+                          <span>Excel (.xlsx)</span>
+                        </button>
+
+                        <button
+                          onClick={() => exportStudentsToWord(deptStudents, `${selectedSlicer}_Students_${selectedMonth}`)}
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-white/20 hover:bg-white/30 text-white shadow-xs border border-white/30 transition-all active:scale-95 cursor-pointer"
+                          title="Download Word format"
+                        >
+                          <FileText className="w-4 h-4" />
+                          <span>Word (.doc)</span>
+                        </button>
                       </div>
                     );
                   })()}
-                  <div>
-                    <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                      {selectedSlicer} Dashboard
-                    </h2>
-                    <p className="text-sm sm:text-base text-slate-700 font-bold mt-0.5">
-                      Intervention &amp; Tracking for {selectedMonth}
-                    </p>
-                  </div>
                 </div>
-
-                {/* Export Students List in Excel, Word format */}
-                {(() => {
-                  const currentDept = computedDepartments.find(d => d.name === selectedSlicer);
-                  const deptStudents = currentDept?.students || [];
-
-                  return (
-                    <div className="flex flex-wrap items-center gap-2.5">
-                      <button
-                        onClick={() => exportStudentsToExcel(deptStudents, `${selectedSlicer}_Students_${selectedMonth}`)}
-                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs border border-emerald-800 transition-all active:scale-95 cursor-pointer"
-                        title="Download Excel format"
-                      >
-                        <FileSpreadsheet className="w-4 h-4" />
-                        <span>Excel (.xlsx)</span>
-                      </button>
-
-                      <button
-                        onClick={() => exportStudentsToWord(deptStudents, `${selectedSlicer}_Students_${selectedMonth}`)}
-                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-blue-700 hover:bg-blue-800 text-white shadow-xs border border-blue-800 transition-all active:scale-95 cursor-pointer"
-                        title="Download Word format"
-                      >
-                        <FileText className="w-4 h-4" />
-                        <span>Word (.doc)</span>
-                      </button>
-                    </div>
-                  );
-                })()}
               </div>
 
-              {/* 4 Summary Boxes: Potential Dropout, Re-Enrolled, Repeaters, Counselling Needed with uniform colorful professional styling */}
+              {/* 4 Summary Boxes: Uniform light grey boxes and #1e3a5f headings */}
               {(() => {
                 const currentDept = computedDepartments.find(d => d.name === selectedSlicer);
                 const deptStudents = currentDept?.students || [];
@@ -2502,62 +2471,70 @@ export default function App() {
 
                 return (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {/* Box 1: No. of Potential Dropout in this Department */}
-                    <div className="bg-gradient-to-b from-blue-50/70 via-white to-white border-2 border-blue-600 rounded-2xl p-4 sm:p-5 shadow-sm text-center">
-                      <span className="text-sm font-black text-slate-900 uppercase tracking-wider block">
+                    {/* Box 1: Potential Dropout */}
+                    <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl overflow-hidden shadow-2xs text-center flex flex-col justify-between">
+                      <div className="bg-[#1e3a5f] text-white px-3 py-2 text-xs font-black uppercase tracking-wider">
                         Potential Dropout
-                      </span>
-                      <div className="text-3xl sm:text-4xl font-black text-blue-950 font-mono mt-2">
-                        {deptStudents.length}
                       </div>
-                      <div className="text-xs sm:text-sm text-slate-700 mt-1.5 font-bold pt-2 border-t border-blue-100">
-                        Assigned to {selectedSlicer}
+                      <div className="p-4">
+                        <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight">
+                          {deptStudents.length}
+                        </div>
+                        <div className="text-xs sm:text-sm text-slate-700 mt-1.5 font-bold">
+                          Assigned to {selectedSlicer}
+                        </div>
                       </div>
                     </div>
 
                     {/* Box 2: Re-Enrolled */}
-                    <div className="bg-gradient-to-b from-blue-50/70 via-white to-white border-2 border-blue-600 rounded-2xl p-4 sm:p-5 shadow-sm text-center">
-                      <span className="text-sm font-black text-slate-900 uppercase tracking-wider block">
+                    <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl overflow-hidden shadow-2xs text-center flex flex-col justify-between">
+                      <div className="bg-[#1e3a5f] text-white px-3 py-2 text-xs font-black uppercase tracking-wider">
                         Re-Enrolled
-                      </span>
-                      <div className="text-3xl sm:text-4xl font-black text-blue-950 font-mono mt-2">
-                        {reEnrCount}
                       </div>
-                      <div className="text-xs sm:text-sm text-slate-700 mt-1.5 font-bold pt-2 border-t border-blue-100">
-                        Re-enrolled in School
+                      <div className="p-4">
+                        <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight">
+                          {reEnrCount}
+                        </div>
+                        <div className="text-xs sm:text-sm text-slate-700 mt-1.5 font-bold">
+                          Re-enrolled in School
+                        </div>
                       </div>
                     </div>
 
                     {/* Box 3: Repeaters */}
-                    <div className="bg-gradient-to-b from-blue-50/70 via-white to-white border-2 border-blue-600 rounded-2xl p-4 sm:p-5 shadow-sm text-center">
-                      <span className="text-sm font-black text-slate-900 uppercase tracking-wider block">
+                    <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl overflow-hidden shadow-2xs text-center flex flex-col justify-between">
+                      <div className="bg-[#1e3a5f] text-white px-3 py-2 text-xs font-black uppercase tracking-wider">
                         Repeaters
-                      </span>
-                      <div className="text-3xl sm:text-4xl font-black text-blue-950 font-mono mt-2">
-                        {repCount}
                       </div>
-                      <div className="text-xs sm:text-sm text-slate-700 mt-1.5 font-bold pt-2 border-t border-blue-100">
-                        Repeaters Caseload
+                      <div className="p-4">
+                        <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight">
+                          {repCount}
+                        </div>
+                        <div className="text-xs sm:text-sm text-slate-700 mt-1.5 font-bold">
+                          Repeaters Caseload
+                        </div>
                       </div>
                     </div>
 
                     {/* Box 4: Counselling Needed */}
-                    <div className="bg-gradient-to-b from-blue-50/70 via-white to-white border-2 border-blue-600 rounded-2xl p-4 sm:p-5 shadow-sm text-center">
-                      <span className="text-sm font-black text-slate-900 uppercase tracking-wider block">
+                    <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl overflow-hidden shadow-2xs text-center flex flex-col justify-between">
+                      <div className="bg-[#1e3a5f] text-white px-3 py-2 text-xs font-black uppercase tracking-wider">
                         Counselling Needed
-                      </span>
-                      <div className="text-3xl sm:text-4xl font-black text-blue-950 font-mono mt-2">
-                        {counselCount}
                       </div>
-                      <div className="text-xs sm:text-sm text-slate-700 mt-1.5 font-bold pt-2 border-t border-blue-100">
-                        Emotional Support / Guidance
+                      <div className="p-4">
+                        <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight">
+                          {counselCount}
+                        </div>
+                        <div className="text-xs sm:text-sm text-slate-700 mt-1.5 font-bold">
+                          Guidance Required
+                        </div>
                       </div>
                     </div>
                   </div>
                 );
               })()}
 
-              {/* Student Directory with ALL Columns, Editable Counselling Dropdown (Yes/No), Dropout Reason, Present Status, and Remarks */}
+              {/* Student Directory with ALL Columns */}
               {(() => {
                 const currentDept = computedDepartments.find(d => d.name === selectedSlicer);
                 const deptStudents: StudentRecord[] = currentDept?.students || [];
@@ -2571,15 +2548,15 @@ export default function App() {
                 );
 
                 return (
-                  <div className="bg-slate-50 border-2 border-slate-300 rounded-2xl p-5 sm:p-6 shadow-sm space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm overflow-hidden space-y-4">
+                    <div className="bg-[#1e3a5f] text-white px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div>
-                        <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
-                          <Users className="w-5 h-5 text-slate-800" />
+                        <h3 className="text-lg font-black text-white tracking-tight flex items-center gap-2">
+                          <Users className="w-5 h-5 text-slate-200" />
                           <span>Assigned Student Records ({filteredStudents.length})</span>
                         </h3>
-                        <p className="text-sm text-slate-600 font-medium">
-                          Department officials can edit Counselling (Yes/No), Dropout Reason, Present Status, and Remarks for each student below. Changes save automatically.
+                        <p className="text-xs sm:text-sm text-slate-200 font-medium">
+                          Department officials can edit Counselling, Dropout Reason, Present Status, and Remarks for each student below. Changes save automatically.
                         </p>
                       </div>
 
@@ -2590,40 +2567,41 @@ export default function App() {
                           placeholder="Search student, block, EMIS..."
                           value={deptSearch}
                           onChange={(e) => setDeptSearch(e.target.value)}
-                          className="text-sm pl-9 pr-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-slate-400 w-full sm:w-60 font-medium"
+                          className="text-xs sm:text-sm pl-9 pr-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400 w-full sm:w-60 font-medium"
                         />
                       </div>
                     </div>
 
-                    {/* Table with ALL Columns and Editable Counselling Dropdown (Yes/No), Dropout Reason, Present Status, and Remarks */}
-                    <div className="overflow-x-auto rounded-xl border-2 border-slate-300 max-h-[32rem] overflow-y-auto bg-white">
-                      <table className="w-full text-left text-sm whitespace-nowrap">
-                        <thead className="bg-slate-100 text-slate-900 font-black border-b-2 border-slate-300 sticky top-0 z-10">
-                          <tr>
-                            <th className="py-3 px-3.5">S.No</th>
-                            <th className="py-3 px-3.5">Student Name</th>
-                            <th className="py-3 px-3.5">EMIS ID</th>
-                            <th className="py-3 px-3.5">Division</th>
-                            <th className="py-3 px-3.5">Taluk</th>
-                            <th className="py-3 px-3.5">Block</th>
-                            <th className="py-3 px-3.5">School</th>
-                            <th className="py-3 px-3.5">Category</th>
-                            <th className="py-3 px-3.5">Gender</th>
-                            <th className="py-3 px-3.5">Class</th>
-                            <th className="py-3 px-3.5">Address</th>
-                            <th className="py-3 px-3.5">Contact No</th>
-                            <th className="py-3 px-3.5">Repeater</th>
-                            <th className="py-3 px-3.5 min-w-32 bg-rose-100/70 text-rose-950 font-black border-l border-r border-rose-300">
-                              Counselling (Dropdown)
-                            </th>
-                            <th className="py-3 px-3.5 min-w-56 bg-sky-100/70 text-sky-950 font-black border-l border-r border-sky-300">
-                              Dropout Reason (Editable)
-                            </th>
-                            <th className="py-3 px-3.5 min-w-48 bg-amber-100/70 text-amber-950 font-black border-l border-r border-amber-300">
-                              Present Status (Editable Dropdown)
-                            </th>
+                    <div className="p-5 sm:p-6 pt-0">
+                      {/* Table with ALL Columns and Clean Headers */}
+                      <div className="overflow-x-auto rounded-xl border-2 border-slate-300 max-h-[32rem] overflow-y-auto bg-white">
+                        <table className="w-full text-left text-sm whitespace-nowrap">
+                          <thead className="bg-[#1e3a5f] text-white font-black border-b-2 border-slate-400 sticky top-0 z-10">
+                            <tr>
+                              <th className="py-3 px-3.5">S.No</th>
+                              <th className="py-3 px-3.5">Student Name</th>
+                              <th className="py-3 px-3.5">EMIS ID</th>
+                              <th className="py-3 px-3.5">Division</th>
+                              <th className="py-3 px-3.5">Taluk</th>
+                              <th className="py-3 px-3.5">Block</th>
+                              <th className="py-3 px-3.5">School</th>
+                              <th className="py-3 px-3.5">Category</th>
+                              <th className="py-3 px-3.5">Gender</th>
+                              <th className="py-3 px-3.5">Class</th>
+                              <th className="py-3 px-3.5">Address</th>
+                              <th className="py-3 px-3.5">Contact No</th>
+                              <th className="py-3 px-3.5">Repeater</th>
+                              <th className="py-3 px-3.5 min-w-32 bg-rose-100/70 text-rose-950 font-black border-l border-r border-rose-300">
+                                Counselling
+                              </th>
+                              <th className="py-3 px-3.5 min-w-56 bg-sky-100/70 text-sky-950 font-black border-l border-r border-sky-300">
+                                Dropout Reason
+                              </th>
+                              <th className="py-3 px-3.5 min-w-48 bg-amber-100/70 text-amber-950 font-black border-l border-r border-amber-300">
+                                Present Status
+                              </th>
                             <th className="py-3 px-3.5 min-w-56 bg-indigo-100/70 text-indigo-950 font-black border-l border-r border-indigo-300">
-                              Remarks (Editable)
+                              Remarks
                             </th>
                           </tr>
                         </thead>
@@ -2722,11 +2700,11 @@ export default function App() {
                       </table>
                     </div>
                   </div>
+                </div>
                 );
               })()}
 
             </div>
-            )
           )}
 
         </main>
