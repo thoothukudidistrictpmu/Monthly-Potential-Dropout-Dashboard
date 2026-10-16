@@ -52,7 +52,37 @@ import {
 import { Background3D } from './components/Background3D';
 import { TamilNaduLogo } from './components/TamilNaduLogo';
 import { DepartmentLoginForm } from './components/DepartmentLoginForm';
+import { PWAInstallButton } from './components/PWAInstallButton';
 import { exportStudentsToExcel, exportStudentsToWord, exportStudentsToDocs, exportAbstractToExcel } from './exportUtils';
+
+// Distinct vibrant colors for Block-Wise Potential Dropout bar chart alone
+const BLOCK_BAR_COLORS = [
+  '#2563eb', // Royal Blue
+  '#0d9488', // Teal
+  '#ea580c', // Bright Orange
+  '#7c3aed', // Rich Purple
+  '#e11d48', // Rose Red
+  '#059669', // Emerald Green
+  '#d97706', // Amber Gold
+  '#0284c7', // Sky Blue
+  '#4f46e5', // Deep Indigo
+  '#b91c1c', // Crimson
+  '#0891b2', // Cyan
+  '#9333ea', // Violet
+  '#16a34a', // Leaf Green
+];
+
+// Distinct vibrant colors for Line Department-Wise Dropout Allocation bar chart alone
+const DEPT_BAR_COLORS = [
+  '#0284c7', // Health (Sky Blue)
+  '#ea580c', // Labour (Vibrant Orange)
+  '#e11d48', // DCPO (Rose Crimson)
+  '#7c3aed', // Social Welfare (Rich Purple)
+  '#0d9488', // Fisheries (Ocean Teal)
+  '#2563eb', // Revenue (Royal Blue)
+  '#059669', // Differently Abled (Emerald Green)
+  '#4f46e5', // Police / SJPU (Deep Indigo)
+];
 
 // Slicers: Overview, Division, Line Department Overview, Counselling, and 8 line departments
 const SLICERS = [
@@ -657,6 +687,9 @@ export default function App() {
                 ))}
               </select>
             </div>
+
+            {/* Install App Button */}
+            <PWAInstallButton />
 
             {/* Refresh Button */}
             <button
