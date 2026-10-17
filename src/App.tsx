@@ -972,10 +972,13 @@ export default function App() {
                           <Tooltip content={<CustomTooltip />} cursor={{ fill: '#cbd5e1' }} />
                           <Bar
                             dataKey="count"
-                            fill="#1e3a5f"
                             radius={[4, 4, 0, 0]}
-                            label={{ position: 'top', fill: '#1e3a5f', fontSize: 11, fontWeight: 700 }}
-                          />
+                            label={{ position: 'top', fill: '#0f172a', fontSize: 11, fontWeight: 700 }}
+                          >
+                            {charts.blockWise.map((_, index) => (
+                              <Cell key={`block-cell-${index}`} fill={BLOCK_BAR_COLORS[index % BLOCK_BAR_COLORS.length]} />
+                            ))}
+                          </Bar>
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
@@ -1025,10 +1028,13 @@ export default function App() {
                           <Tooltip content={<CustomTooltip />} cursor={{ fill: '#cbd5e1' }} />
                           <Bar
                             dataKey="count"
-                            fill="#1e3a5f"
                             radius={[4, 4, 0, 0]}
-                            label={{ position: 'top', fill: '#1e3a5f', fontSize: 11, fontWeight: 700 }}
-                          />
+                            label={{ position: 'top', fill: '#0f172a', fontSize: 11, fontWeight: 700 }}
+                          >
+                            {charts.lineDepartment.map((_, index) => (
+                              <Cell key={`dept-cell-${index}`} fill={DEPT_BAR_COLORS[index % DEPT_BAR_COLORS.length]} />
+                            ))}
+                          </Bar>
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
@@ -1353,175 +1359,6 @@ export default function App() {
                     );
                   })}
               </div>
-
-              {/* Division Student Directory */}
-              {(() => {
-                const filteredDivStudents = allStudents.filter((st) => {
-                  const matchDiv = divisionFilter === 'All' || 
-                    st.division.toLowerCase() === divisionFilter.toLowerCase();
-                  const matchSearch = !divisionSearch ||
-                    st.studentName.toLowerCase().includes(divisionSearch.toLowerCase()) ||
-                    st.block.toLowerCase().includes(divisionSearch.toLowerCase()) ||
-                    st.school.toLowerCase().includes(divisionSearch.toLowerCase()) ||
-                    (st.emisId && st.emisId.includes(divisionSearch));
-                  return matchDiv && matchSearch;
-                });
-
-                return (
-                  <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm overflow-hidden space-y-4">
-                    <div className="bg-[#1e3a5f] text-white px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div>
-                        <h3 className="text-lg font-black text-white tracking-tight flex items-center gap-2">
-                          <Users className="w-5 h-5 text-slate-200" />
-                          <span>Division Student Records ({filteredDivStudents.length})</span>
-                        </h3>
-                        <p className="text-xs sm:text-sm text-slate-200 font-medium">
-                          Records across Kovilpatti, Thoothukudi, and Tiruchendur
-                        </p>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-3">
-                        {/* Division Filter Buttons */}
-                        <div className="flex items-center gap-1.5 bg-white/10 p-1.5 rounded-xl border border-white/20">
-                          {['All', 'Kovilpatti', 'Thoothukudi', 'Tiruchendur'].map((df) => (
-                            <button
-                              key={df}
-                              onClick={() => setDivisionFilter(df)}
-                              className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all ${
-                                divisionFilter === df
-                                  ? 'bg-white text-slate-900 shadow-xs'
-                                  : 'text-white/80 hover:text-white'
-                              }`}
-                            >
-                              {df}
-                            </button>
-                          ))}
-                        </div>
-
-                        {/* Search Input */}
-                        <div className="relative">
-                          <Search className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
-                          <input
-                            type="text"
-                            placeholder="Search name, block, EMIS..."
-                            value={divisionSearch}
-                            onChange={(e) => setDivisionSearch(e.target.value)}
-                            className="text-sm pl-9 pr-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400 w-full sm:w-60 font-medium"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="p-5">
-                      <div className="overflow-x-auto rounded-xl border-2 border-slate-300 max-h-96 overflow-y-auto bg-white">
-                        <table className="w-full text-left text-sm">
-                          <thead className="bg-[#1e3a5f] text-white font-black border-b-2 border-slate-400 sticky top-0 z-10">
-                            <tr>
-                              <th className="py-3 px-3.5">S.No</th>
-                              <th className="py-3 px-3.5">Student Name</th>
-                              <th className="py-3 px-3.5">EMIS ID</th>
-                              <th className="py-3 px-3.5">Division</th>
-                              <th className="py-3 px-3.5">Block</th>
-                              <th className="py-3 px-3.5">Class</th>
-                              <th className="py-3 px-3.5">School</th>
-                              <th className="py-3 px-3.5">Repeaters</th>
-                              <th className="py-3 px-3.5">Present Status</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-200 font-medium text-slate-800">
-                            {filteredDivStudents.slice(0, 100).map((st, idx) => (
-                              <tr key={st.emisId ? `div-st-${st.emisId}-${idx}` : `div-st-${st.sNo}-${idx}`} className="hover:bg-slate-100 transition-colors">
-                                <td className="py-2.5 px-3.5 font-bold text-slate-600">{st.sNo}</td>
-                                <td className="py-2.5 px-3.5 font-black text-slate-900">{st.studentName}</td>
-                                <td className="py-2.5 px-3.5 text-slate-700 font-bold">{st.emisId || '-'}</td>
-                                <td className="py-2.5 px-3.5 font-bold text-slate-800">{st.division}</td>
-                                <td className="py-2.5 px-3.5 font-bold text-slate-800">{st.block}</td>
-                                <td className="py-2.5 px-3.5">
-                                  <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-800 font-bold text-xs border border-slate-300">
-                                    Std {st.std} {st.sec ? `(${st.sec})` : ''}
-                                  </span>
-                                </td>
-                                <td className="py-2.5 px-3.5 text-slate-700 max-w-xs truncate">{st.school}</td>
-                                <td className="py-2.5 px-3.5">
-                                  <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                                    st.isRepeater
-                                      ? 'bg-purple-100 text-purple-900 border border-purple-300'
-                                      : 'bg-slate-100 text-slate-700 border border-slate-300'
-                                  }`}>
-                                    {st.repeaterStatus}
-                                  </span>
-                                </td>
-                                <td className="py-2.5 px-3.5">
-                                  <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                                    st.isReEnrolled
-                                      ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                                      : 'bg-amber-100 text-amber-900 border border-amber-300'
-                                  }`}>
-                                    {st.status}
-                                  </span>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-
-                    <div className="overflow-x-auto rounded-xl border-2 border-slate-300 max-h-96 overflow-y-auto bg-white">
-                      <table className="w-full text-left text-sm">
-                        <thead className="bg-slate-100 text-slate-900 font-black border-b-2 border-slate-300 sticky top-0 z-10">
-                          <tr>
-                            <th className="py-3 px-3.5">S.No</th>
-                            <th className="py-3 px-3.5">Student Name</th>
-                            <th className="py-3 px-3.5">EMIS ID</th>
-                            <th className="py-3 px-3.5">Division</th>
-                            <th className="py-3 px-3.5">Block</th>
-                            <th className="py-3 px-3.5">Class</th>
-                            <th className="py-3 px-3.5">School</th>
-                            <th className="py-3 px-3.5">Repeaters</th>
-                            <th className="py-3 px-3.5">Present Status</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-200 font-medium text-slate-800">
-                          {filteredDivStudents.slice(0, 100).map((st, idx) => (
-                            <tr key={st.emisId ? `div-st-${st.emisId}-${idx}` : `div-st-${st.sNo}-${idx}`} className="hover:bg-slate-50 transition-colors">
-                              <td className="py-2.5 px-3.5 font-bold text-slate-600">{st.sNo}</td>
-                              <td className="py-2.5 px-3.5 font-black text-slate-900">{st.studentName}</td>
-                              <td className="py-2.5 px-3.5 text-slate-700 font-bold">{st.emisId || '-'}</td>
-                              <td className="py-2.5 px-3.5 font-bold text-slate-800">{st.division}</td>
-                              <td className="py-2.5 px-3.5 font-bold text-slate-800">{st.block}</td>
-                              <td className="py-2.5 px-3.5">
-                                <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-800 font-bold text-xs border border-slate-300">
-                                  Std {st.std} {st.sec ? `(${st.sec})` : ''}
-                                </span>
-                              </td>
-                              <td className="py-2.5 px-3.5 text-slate-700 max-w-xs truncate">{st.school}</td>
-                              <td className="py-2.5 px-3.5">
-                                <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                                  st.isRepeater
-                                    ? 'bg-purple-100 text-purple-900 border border-purple-300'
-                                    : 'bg-slate-100 text-slate-700 border border-slate-300'
-                                }`}>
-                                  {st.repeaterStatus}
-                                </span>
-                              </td>
-                              <td className="py-2.5 px-3.5">
-                                <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                                  st.isReEnrolled
-                                    ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                                    : 'bg-amber-100 text-amber-900 border border-amber-300'
-                                }`}>
-                                  {st.status}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                );
-              })()}
 
             </div>
           )}
@@ -2565,6 +2402,7 @@ export default function App() {
           {selectedSlicer !== 'Overview' && 
            selectedSlicer !== 'Division' && 
            selectedSlicer !== 'Line Department Overview' && 
+           selectedSlicer !== 'Counselling' && 
            selectedSlicer !== 'Revenue Department' && (
             !authenticatedDepts[selectedSlicer] ? (
               <DepartmentLoginForm
