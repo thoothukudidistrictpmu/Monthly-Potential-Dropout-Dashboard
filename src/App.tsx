@@ -149,7 +149,6 @@ export default function App() {
   const [divisionSearch, setDivisionSearch] = useState<string>('');
   const [revenueTalukFilter, setRevenueTalukFilter] = useState<string>('All');
   const [revenueSearch, setRevenueSearch] = useState<string>('');
-  const [abstractSearch, setAbstractSearch] = useState<string>('');
   const [counsellingSearch, setCounsellingSearch] = useState<string>('');
   const [counsellingDeptFilter, setCounsellingDeptFilter] = useState<string>('All');
   const [counsellingDivFilter, setCounsellingDivFilter] = useState<string>('All');
@@ -1289,9 +1288,6 @@ export default function App() {
                     <Layers className="w-6 h-6 text-slate-200" />
                     <span>Division Overview — Thoothukudi District</span>
                   </h2>
-                  <p className="text-xs sm:text-sm text-slate-200 font-medium mt-1">
-                    Educational Divisions performance &amp; block breakdown for {selectedMonth}
-                  </p>
                 </div>
 
                 {/* Division Dropdown (in division page alone as requested) */}
@@ -1340,9 +1336,6 @@ export default function App() {
                               <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
                                 {div.name} Division
                               </h3>
-                              <p className="text-xs sm:text-sm text-slate-200 font-medium mt-0.5">
-                                Jurisdiction Blocks: {div.blocks.map(b => b.name).join(', ')}
-                              </p>
                             </div>
                           </div>
 
@@ -1521,9 +1514,6 @@ export default function App() {
                       <Layers className="w-6 h-6 text-slate-200" />
                       <span>Line Department Overview</span>
                     </h2>
-                    <p className="text-xs sm:text-sm text-slate-200 mt-0.5 font-medium">
-                      Consolidated cross-department abstract for {selectedMonth} across Thoothukudi District
-                    </p>
                   </div>
 
                   {/* Export Options for Line Department Overview Abstract (Excel and Word only) */}
@@ -1619,48 +1609,23 @@ export default function App() {
               </div>
 
               {/* Comprehensive Abstract Table */}
-              <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm overflow-hidden space-y-4">
-                <div className="bg-[#1e3a5f] text-white px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <h3 className="text-lg font-black text-white tracking-tight">
-                      Department-Wise Abstract Comparison
-                    </h3>
-                    <p className="text-xs sm:text-sm text-slate-200 font-medium">
-                      Total potential dropouts, repeaters, re-enrolled, counselling needed, status not updated & migrated
-                    </p>
-                  </div>
-
-                  <div className="relative">
-                    <Search className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
-                    <input
-                      type="text"
-                      placeholder="Search department..."
-                      value={abstractSearch}
-                      onChange={(e) => setAbstractSearch(e.target.value)}
-                      className="text-sm pl-9 pr-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400 w-full sm:w-60 font-medium"
-                    />
-                  </div>
-                </div>
-
-                <div className="p-5 sm:p-6 pt-0">
-                  <div className="overflow-x-auto rounded-xl border-2 border-slate-300 bg-white">
-                    <table className="w-full text-left text-sm">
-                      <thead className="bg-[#1e3a5f] text-white font-black border-b-2 border-slate-400">
-                        <tr>
-                          <th className="py-3 px-4">Line Department</th>
-                          <th className="py-3 px-4 text-center">Total Potential Dropout</th>
-                          <th className="py-3 px-4 text-center">Repeaters</th>
-                          <th className="py-3 px-4 text-center">Re-Enrolled</th>
-                          <th className="py-3 px-4 text-center">Counselling Needed</th>
-                          <th className="py-3 px-4 text-center">Status Not Updated</th>
-                          <th className="py-3 px-4 text-center">Migrated</th>
-                          <th className="py-3 px-4 text-right">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-200 font-medium text-slate-800">
-                        {computedDepartments
-                          .filter(d => !abstractSearch || d.name.toLowerCase().includes(abstractSearch.toLowerCase()))
-                          .map((dept) => {
+              <div className="overflow-x-auto rounded-xl border-2 border-slate-300 bg-white shadow-sm">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-[#1e3a5f] text-white font-black border-b-2 border-slate-400">
+                    <tr>
+                      <th className="py-3 px-4">Line Department</th>
+                      <th className="py-3 px-4 text-center">Total Potential Dropout</th>
+                      <th className="py-3 px-4 text-center">Repeaters</th>
+                      <th className="py-3 px-4 text-center">Re-Enrolled</th>
+                      <th className="py-3 px-4 text-center">Counselling Needed</th>
+                      <th className="py-3 px-4 text-center">Status Not Updated</th>
+                      <th className="py-3 px-4 text-center">Migrated</th>
+                      <th className="py-3 px-4 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 font-medium text-slate-800">
+                    {computedDepartments
+                      .map((dept) => {
                             const meta = DEPT_META[dept.name] || DEPT_META['Overview'];
                             const IconComponent = meta.icon;
 
@@ -1741,8 +1706,6 @@ export default function App() {
                       </tfoot>
                     </table>
                   </div>
-                </div>
-              </div>
 
             </div>
           )}
