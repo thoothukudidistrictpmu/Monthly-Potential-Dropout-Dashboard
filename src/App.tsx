@@ -37,7 +37,9 @@ import {
   Unlock,
   ShieldCheck,
   LogOut,
-  KeyRound
+  KeyRound,
+  Menu,
+  X
 } from 'lucide-react';
 import { 
   SPREADSHEET_ID, 
@@ -140,6 +142,7 @@ const PRESENT_STATUS_OPTIONS = [
 
 export default function App() {
   const [selectedSlicer, setSelectedSlicer] = useState<SlicerType>('Overview');
+  const [mobileSlicersOpen, setMobileSlicersOpen] = useState<boolean>(false);
   const [selectedMonth, setSelectedMonth] = useState<string>('Sep 2026');
   const [deptSearch, setDeptSearch] = useState<string>('');
   const [divisionFilter, setDivisionFilter] = useState<string>('All');
@@ -691,6 +694,16 @@ export default function App() {
             {/* Install App Button */}
             <PWAInstallButton />
 
+            {/* Mobile Three-Line Menu Button */}
+            <button
+              onClick={() => setMobileSlicersOpen(true)}
+              className="md:hidden inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-black bg-white/20 hover:bg-white/30 text-white border border-white/30 shadow-xs transition-all active:scale-95 cursor-pointer"
+              title="Open Department Slicers Menu"
+            >
+              <Menu className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+              <span>Slicers</span>
+            </button>
+
             {/* Refresh Button */}
             <button
               onClick={() => fetchData(true)}
@@ -712,8 +725,37 @@ export default function App() {
       {/* Main Layout: Left Navigation Sidebar + Dynamic Workspace */}
       <div className="max-w-7xl w-full mx-auto flex-1 flex flex-col md:flex-row p-4 sm:p-6 gap-6 relative z-10">
         
-        {/* Left Sidebar — Month name in big font replacing the word 'department slicers' */}
-        <aside className="w-full md:w-64 shrink-0">
+        {/* Mobile Slicer Selector Bar (Shows Three Lines Icon ☰) */}
+        <div className="md:hidden w-full mb-1">
+          <button
+            onClick={() => setMobileSlicersOpen(true)}
+            className="w-full bg-[#1e3a5f] hover:bg-[#152a45] text-white p-3 sm:p-3.5 rounded-2xl shadow-md border-2 border-[#162c48] flex items-center justify-between transition-all active:scale-[0.99] cursor-pointer"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0 border border-white/30">
+                <Menu className="w-6 h-6 text-white" />
+              </div>
+              <div className="text-left min-w-0">
+                <div className="text-[10px] sm:text-xs font-bold text-slate-200 uppercase tracking-wider">
+                  Active Slicer • Tap for All Slicers
+                </div>
+                <div className="text-sm sm:text-base font-black text-white truncate flex items-center gap-2">
+                  <span className="truncate">{selectedSlicer}</span>
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-white/20 border border-white/30 shrink-0">
+                    {selectedMonth}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white/20 border border-white/30 text-xs font-black text-white shrink-0 ml-2">
+              <span>All Slicers</span>
+              <ChevronRight className="w-4 h-4" />
+            </div>
+          </button>
+        </div>
+
+        {/* Left Sidebar on desktop — hidden on mobile */}
+        <aside className="hidden md:block w-full md:w-64 shrink-0">
           <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl p-3.5 shadow-sm sticky top-20">
             {/* Top of sidebar: Month Name in Big Font (Replacing 'department slicers') */}
             <div className="px-3.5 py-2.5 mb-3 bg-[#1e3a5f] text-white rounded-xl shadow-xs flex items-center justify-between">
@@ -799,6 +841,114 @@ export default function App() {
           </div>
         </aside>
 
+        {/* Mobile Slicers Drawer / Modal (Opens when user touches the three lines icon) */}
+        {mobileSlicersOpen && (
+          <div className="fixed inset-0 z-50 flex md:hidden">
+            {/* Backdrop */}
+            <div 
+              onClick={() => setMobileSlicersOpen(false)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity"
+            />
+
+            {/* Drawer Sheet */}
+            <div className="relative w-full max-w-xs sm:max-w-sm bg-slate-100 h-full shadow-2xl flex flex-col z-10 border-r-2 border-slate-300 overflow-hidden">
+              {/* Header */}
+              <div className="bg-[#1e3a5f] text-white p-4.5 flex items-center justify-between border-b-2 border-slate-900 shadow-sm">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center border border-white/20">
+                    <Menu className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-white">Department Slicers</h3>
+                    <p className="text-xs text-slate-200 font-medium">{selectedMonth} • Thoothukudi</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setMobileSlicersOpen(false)}
+                  className="w-8 h-8 rounded-lg bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition-colors cursor-pointer"
+                  title="Close"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Slicers List */}
+              <div className="flex-1 overflow-y-auto p-3.5 space-y-2">
+                {SLICERS.map((slicer) => {
+                  const isSelected = selectedSlicer === slicer;
+                  const meta = DEPT_META[slicer] || DEPT_META['Overview'];
+                  const IconComponent = meta.icon;
+                  const isLineDept = slicer !== 'Overview' && slicer !== 'Division' && slicer !== 'Line Department Overview' && slicer !== 'Counselling';
+                  const isAuthed = !!authenticatedDepts[slicer];
+
+                  return (
+                    <button
+                      key={`mobile-slicer-${slicer}`}
+                      onClick={() => {
+                        setSelectedSlicer(slicer);
+                        setMobileSlicersOpen(false);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className={`w-full text-left px-3.5 py-3 rounded-xl text-sm font-bold flex items-center justify-between transition-all duration-150 cursor-pointer ${
+                        isSelected
+                          ? 'bg-[#1e3a5f] text-white shadow-md border-2 border-[#162c48]'
+                          : 'bg-white hover:bg-slate-200/80 text-slate-800 hover:text-slate-950 border-2 border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div
+                          className={`w-7 h-7 rounded-lg shrink-0 flex items-center justify-center transition-colors ${
+                            isSelected
+                              ? 'bg-white/20 text-white'
+                              : 'bg-slate-100 text-slate-700 border border-slate-200'
+                          }`}
+                        >
+                          <IconComponent className="w-4 h-4" />
+                        </div>
+                        <span className="tracking-tight truncate">{slicer}</span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0 ml-1">
+                        {isLineDept && (
+                          isAuthed ? (
+                            <span
+                              title="Session Authenticated"
+                              className={`text-[10px] font-black px-1.5 py-0.5 rounded flex items-center gap-1 ${
+                                isSelected
+                                  ? 'bg-emerald-400/20 text-emerald-300 border border-emerald-400/30'
+                                  : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              }`}
+                            >
+                              <Unlock className="w-2.5 h-2.5" />
+                              <span>Active</span>
+                            </span>
+                          ) : (
+                            <span
+                              title="Password Protected"
+                              className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 ${
+                                isSelected
+                                  ? 'bg-white/10 text-slate-300 border border-white/20'
+                                  : 'bg-slate-100 text-slate-500 border border-slate-200'
+                              }`}
+                            >
+                              <Lock className="w-2.5 h-2.5" />
+                            </span>
+                          )
+                        )}
+                        <ChevronRight
+                          className={`w-4 h-4 transition-transform duration-150 ${
+                            isSelected ? 'text-white translate-x-0.5' : 'text-slate-400 opacity-60'
+                          }`}
+                        />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Main Workspace */}
         <main className="flex-1 min-w-0">
           
@@ -808,25 +958,25 @@ export default function App() {
           {selectedSlicer === 'Overview' && (
             <div className="space-y-6">
               
-              {/* Top Row — 5 Colourful & Professional Uniform Summary Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+              {/* Top Row — 5 Colourful & Professional Uniform Summary Cards (Two Column Grid on Mobile) */}
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
                 
                 {/* Box 1: Potential Dropout */}
                 <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
-                  <div className="bg-[#1e3a5f] text-white px-4 py-2.5 flex items-center justify-between">
-                    <span className="text-sm font-black tracking-wider uppercase text-white">
+                  <div className="bg-[#1e3a5f] text-white px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between">
+                    <span className="text-xs sm:text-sm font-black tracking-wider uppercase text-white truncate">
                       Potential Dropout
                     </span>
-                    <div className="w-8 h-8 rounded-lg bg-white/15 text-white flex items-center justify-center">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/15 text-white flex items-center justify-center shrink-0">
                       <Users className="w-4 h-4" />
                     </div>
                   </div>
-                  <div className="p-4 sm:p-5 flex flex-col justify-between flex-1">
-                    <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
+                  <div className="p-3.5 sm:p-5 flex flex-col justify-between flex-1">
+                    <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
                       {summary.potentialDropout}
                     </div>
-                    <div className="mt-3 text-sm text-slate-700 font-bold pt-2.5 border-t border-slate-300 flex justify-between items-center">
-                      <span>Identified Students</span>
+                    <div className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-slate-700 font-bold pt-2 sm:pt-2.5 border-t border-slate-300 flex justify-between items-center">
+                      <span>Identified</span>
                       <span className="font-black text-slate-900">100%</span>
                     </div>
                   </div>
@@ -834,20 +984,20 @@ export default function App() {
 
                 {/* Box 2: Re - Enrolled */}
                 <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
-                  <div className="bg-[#1e3a5f] text-white px-4 py-2.5 flex items-center justify-between">
-                    <span className="text-sm font-black tracking-wider uppercase text-white">
+                  <div className="bg-[#1e3a5f] text-white px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between">
+                    <span className="text-xs sm:text-sm font-black tracking-wider uppercase text-white truncate">
                       Re - Enrolled
                     </span>
-                    <div className="w-8 h-8 rounded-lg bg-white/15 text-white flex items-center justify-center">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/15 text-white flex items-center justify-center shrink-0">
                       <GraduationCap className="w-4 h-4" />
                     </div>
                   </div>
-                  <div className="p-4 sm:p-5 flex flex-col justify-between flex-1">
-                    <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
+                  <div className="p-3.5 sm:p-5 flex flex-col justify-between flex-1">
+                    <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
                       {summary.reEnrolled}
                     </div>
-                    <div className="mt-3 text-sm text-slate-700 font-bold pt-2.5 border-t border-slate-300 flex justify-between items-center">
-                      <span>Rejoined School</span>
+                    <div className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-slate-700 font-bold pt-2 sm:pt-2.5 border-t border-slate-300 flex justify-between items-center">
+                      <span>Rejoined</span>
                       <span className="font-black text-slate-900">
                         {summary.potentialDropout > 0 ? ((summary.reEnrolled / summary.potentialDropout) * 100).toFixed(0) : 0}%
                       </span>
@@ -857,20 +1007,20 @@ export default function App() {
 
                 {/* Box 3: Migrated */}
                 <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
-                  <div className="bg-[#1e3a5f] text-white px-4 py-2.5 flex items-center justify-between">
-                    <span className="text-sm font-black tracking-wider uppercase text-white">
+                  <div className="bg-[#1e3a5f] text-white px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between">
+                    <span className="text-xs sm:text-sm font-black tracking-wider uppercase text-white truncate">
                       Migrated
                     </span>
-                    <div className="w-8 h-8 rounded-lg bg-white/15 text-white flex items-center justify-center">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/15 text-white flex items-center justify-center shrink-0">
                       <MapPin className="w-4 h-4" />
                     </div>
                   </div>
-                  <div className="p-4 sm:p-5 flex flex-col justify-between flex-1">
-                    <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
+                  <div className="p-3.5 sm:p-5 flex flex-col justify-between flex-1">
+                    <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
                       {summary.migrated}
                     </div>
-                    <div className="mt-3 text-sm text-slate-700 font-bold pt-2.5 border-t border-slate-300 flex justify-between items-center">
-                      <span>Relocated District</span>
+                    <div className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-slate-700 font-bold pt-2 sm:pt-2.5 border-t border-slate-300 flex justify-between items-center">
+                      <span>Relocated</span>
                       <span className="font-black text-slate-900">
                         {summary.potentialDropout > 0 ? ((summary.migrated / summary.potentialDropout) * 100).toFixed(0) : 0}%
                       </span>
@@ -880,20 +1030,20 @@ export default function App() {
 
                 {/* Box 4: Repeaters */}
                 <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
-                  <div className="bg-[#1e3a5f] text-white px-4 py-2.5 flex items-center justify-between">
-                    <span className="text-sm font-black tracking-wider uppercase text-white">
+                  <div className="bg-[#1e3a5f] text-white px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between">
+                    <span className="text-xs sm:text-sm font-black tracking-wider uppercase text-white truncate">
                       Repeaters
                     </span>
-                    <div className="w-8 h-8 rounded-lg bg-white/15 text-white flex items-center justify-center">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/15 text-white flex items-center justify-center shrink-0">
                       <RotateCcw className="w-4 h-4" />
                     </div>
                   </div>
-                  <div className="p-4 sm:p-5 flex flex-col justify-between flex-1">
-                    <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
+                  <div className="p-3.5 sm:p-5 flex flex-col justify-between flex-1">
+                    <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
                       {summary.repeaters}
                     </div>
-                    <div className="mt-3 text-sm text-slate-700 font-bold pt-2.5 border-t border-slate-300 flex justify-between items-center">
-                      <span>Repeater Students</span>
+                    <div className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-slate-700 font-bold pt-2 sm:pt-2.5 border-t border-slate-300 flex justify-between items-center">
+                      <span>Repeaters</span>
                       <span className="font-black text-slate-900">
                         {summary.potentialDropout > 0 ? ((summary.repeaters / summary.potentialDropout) * 100).toFixed(0) : 0}%
                       </span>
@@ -902,20 +1052,20 @@ export default function App() {
                 </div>
 
                 {/* Box 5: Counselling Needed */}
-                <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
-                  <div className="bg-[#1e3a5f] text-white px-4 py-2.5 flex items-center justify-between">
-                    <span className="text-sm font-black tracking-wider uppercase text-white">
+                <div className="col-span-2 sm:col-span-1 lg:col-span-1 bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
+                  <div className="bg-[#1e3a5f] text-white px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between">
+                    <span className="text-xs sm:text-sm font-black tracking-wider uppercase text-white truncate">
                       Counselling Needed
                     </span>
-                    <div className="w-8 h-8 rounded-lg bg-white/15 text-white flex items-center justify-center">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/15 text-white flex items-center justify-center shrink-0">
                       <HelpCircle className="w-4 h-4" />
                     </div>
                   </div>
-                  <div className="p-4 sm:p-5 flex flex-col justify-between flex-1">
-                    <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
+                  <div className="p-3.5 sm:p-5 flex flex-col justify-between flex-1">
+                    <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
                       {summary.counsellingNeeded}
                     </div>
-                    <div className="mt-3 text-sm text-slate-700 font-bold pt-2.5 border-t border-slate-300 flex justify-between items-center">
+                    <div className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-slate-700 font-bold pt-2 sm:pt-2.5 border-t border-slate-300 flex justify-between items-center">
                       <span>Requires Counselling</span>
                       <span className="font-black text-slate-900">
                         {summary.potentialDropout > 0 ? ((summary.counsellingNeeded / summary.potentialDropout) * 100).toFixed(0) : 0}%
@@ -1673,43 +1823,43 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* 5 Uniform Colourful & Professional Summary Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                {/* 5 Uniform Colourful & Professional Summary Cards (Two Column Grid on Mobile) */}
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
                   <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
-                    <div className="bg-[#1e3a5f] text-white px-4 py-2.5 flex items-center justify-between">
-                      <span className="text-sm font-black text-white uppercase tracking-wider">
+                    <div className="bg-[#1e3a5f] text-white px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between">
+                      <span className="text-xs sm:text-sm font-black text-white uppercase tracking-wider truncate">
                         Total Counselling
                       </span>
-                      <div className="w-8 h-8 rounded-lg bg-white/15 text-white flex items-center justify-center">
+                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/15 text-white flex items-center justify-center shrink-0">
                         <HelpCircle className="w-4 h-4" />
                       </div>
                     </div>
-                    <div className="p-4 sm:p-5 flex flex-col justify-between flex-1">
-                      <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
+                    <div className="p-3.5 sm:p-5 flex flex-col justify-between flex-1">
+                      <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
                         {totalCounselling}
                       </div>
-                      <div className="mt-3 text-sm text-slate-700 font-bold pt-2.5 border-t border-slate-300 flex justify-between items-center">
-                        <span>Counselling Cases</span>
+                      <div className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-slate-700 font-bold pt-2 sm:pt-2.5 border-t border-slate-300 flex justify-between items-center">
+                        <span>Counselling</span>
                         <span className="font-black text-slate-900">100%</span>
                       </div>
                     </div>
                   </div>
 
                   <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
-                    <div className="bg-[#1e3a5f] text-white px-4 py-2.5 flex items-center justify-between">
-                      <span className="text-sm font-black text-white uppercase tracking-wider">
+                    <div className="bg-[#1e3a5f] text-white px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between">
+                      <span className="text-xs sm:text-sm font-black text-white uppercase tracking-wider truncate">
                         Boys Count
                       </span>
-                      <div className="w-8 h-8 rounded-lg bg-white/15 text-white flex items-center justify-center">
+                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/15 text-white flex items-center justify-center shrink-0">
                         <Users className="w-4 h-4" />
                       </div>
                     </div>
-                    <div className="p-4 sm:p-5 flex flex-col justify-between flex-1">
-                      <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
+                    <div className="p-3.5 sm:p-5 flex flex-col justify-between flex-1">
+                      <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
                         {boysCounselling}
                       </div>
-                      <div className="mt-3 text-sm text-slate-700 font-bold pt-2.5 border-t border-slate-300 flex justify-between items-center">
-                        <span>Male Students</span>
+                      <div className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-slate-700 font-bold pt-2 sm:pt-2.5 border-t border-slate-300 flex justify-between items-center">
+                        <span>Male</span>
                         <span className="font-black text-slate-900">
                           {totalCounselling > 0 ? ((boysCounselling / totalCounselling) * 100).toFixed(0) : 0}%
                         </span>
@@ -1718,20 +1868,20 @@ export default function App() {
                   </div>
 
                   <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
-                    <div className="bg-[#1e3a5f] text-white px-4 py-2.5 flex items-center justify-between">
-                      <span className="text-sm font-black text-white uppercase tracking-wider">
+                    <div className="bg-[#1e3a5f] text-white px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between">
+                      <span className="text-xs sm:text-sm font-black text-white uppercase tracking-wider truncate">
                         Girls Count
                       </span>
-                      <div className="w-8 h-8 rounded-lg bg-white/15 text-white flex items-center justify-center">
+                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/15 text-white flex items-center justify-center shrink-0">
                         <Users className="w-4 h-4" />
                       </div>
                     </div>
-                    <div className="p-4 sm:p-5 flex flex-col justify-between flex-1">
-                      <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
+                    <div className="p-3.5 sm:p-5 flex flex-col justify-between flex-1">
+                      <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
                         {girlsCounselling}
                       </div>
-                      <div className="mt-3 text-sm text-slate-700 font-bold pt-2.5 border-t border-slate-300 flex justify-between items-center">
-                        <span>Female Students</span>
+                      <div className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-slate-700 font-bold pt-2 sm:pt-2.5 border-t border-slate-300 flex justify-between items-center">
+                        <span>Female</span>
                         <span className="font-black text-slate-900">
                           {totalCounselling > 0 ? ((girlsCounselling / totalCounselling) * 100).toFixed(0) : 0}%
                         </span>
@@ -1740,20 +1890,20 @@ export default function App() {
                   </div>
 
                   <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
-                    <div className="bg-[#1e3a5f] text-white px-4 py-2.5 flex items-center justify-between">
-                      <span className="text-sm font-black text-white uppercase tracking-wider">
+                    <div className="bg-[#1e3a5f] text-white px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between">
+                      <span className="text-xs sm:text-sm font-black text-white uppercase tracking-wider truncate">
                         Re-Enrolled
                       </span>
-                      <div className="w-8 h-8 rounded-lg bg-white/15 text-white flex items-center justify-center">
+                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/15 text-white flex items-center justify-center shrink-0">
                         <GraduationCap className="w-4 h-4" />
                       </div>
                     </div>
-                    <div className="p-4 sm:p-5 flex flex-col justify-between flex-1">
-                      <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
+                    <div className="p-3.5 sm:p-5 flex flex-col justify-between flex-1">
+                      <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
                         {reEnrolledCounselling}
                       </div>
-                      <div className="mt-3 text-sm text-slate-700 font-bold pt-2.5 border-t border-slate-300 flex justify-between items-center">
-                        <span>Rejoined School</span>
+                      <div className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-slate-700 font-bold pt-2 sm:pt-2.5 border-t border-slate-300 flex justify-between items-center">
+                        <span>Rejoined</span>
                         <span className="font-black text-slate-900">
                           {totalCounselling > 0 ? ((reEnrolledCounselling / totalCounselling) * 100).toFixed(0) : 0}%
                         </span>
@@ -1761,21 +1911,21 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
-                    <div className="bg-[#1e3a5f] text-white px-4 py-2.5 flex items-center justify-between">
-                      <span className="text-sm font-black text-white uppercase tracking-wider">
+                  <div className="col-span-2 sm:col-span-1 lg:col-span-1 bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
+                    <div className="bg-[#1e3a5f] text-white px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between">
+                      <span className="text-xs sm:text-sm font-black text-white uppercase tracking-wider truncate">
                         Repeaters
                       </span>
-                      <div className="w-8 h-8 rounded-lg bg-white/15 text-white flex items-center justify-center">
+                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/15 text-white flex items-center justify-center shrink-0">
                         <RotateCcw className="w-4 h-4" />
                       </div>
                     </div>
-                    <div className="p-4 sm:p-5 flex flex-col justify-between flex-1">
-                      <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
+                    <div className="p-3.5 sm:p-5 flex flex-col justify-between flex-1">
+                      <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
                         {repeatersCounselling}
                       </div>
-                      <div className="mt-3 text-sm text-slate-700 font-bold pt-2.5 border-t border-slate-300 flex justify-between items-center">
-                        <span>Repeater Cases</span>
+                      <div className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-slate-700 font-bold pt-2 sm:pt-2.5 border-t border-slate-300 flex justify-between items-center">
+                        <span>Repeaters</span>
                         <span className="font-black text-slate-900">
                           {totalCounselling > 0 ? ((repeatersCounselling / totalCounselling) * 100).toFixed(0) : 0}%
                         </span>
@@ -2502,14 +2652,14 @@ export default function App() {
                 const counselCount = deptStudents.filter(s => s.isCounsellingNeeded).length;
 
                 return (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                     {/* Box 1: Potential Dropout */}
                     <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl overflow-hidden shadow-2xs text-center flex flex-col justify-between">
                       <div className="bg-[#1e3a5f] text-white px-3 py-2 text-xs font-black uppercase tracking-wider">
                         Potential Dropout
                       </div>
-                      <div className="p-4">
-                        <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight">
+                      <div className="p-3.5 sm:p-4">
+                        <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight">
                           {deptStudents.length}
                         </div>
                         <div className="text-xs sm:text-sm text-slate-700 mt-1.5 font-bold">
@@ -2523,8 +2673,8 @@ export default function App() {
                       <div className="bg-[#1e3a5f] text-white px-3 py-2 text-xs font-black uppercase tracking-wider">
                         Re-Enrolled
                       </div>
-                      <div className="p-4">
-                        <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight">
+                      <div className="p-3.5 sm:p-4">
+                        <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight">
                           {reEnrCount}
                         </div>
                         <div className="text-xs sm:text-sm text-slate-700 mt-1.5 font-bold">
@@ -2538,8 +2688,8 @@ export default function App() {
                       <div className="bg-[#1e3a5f] text-white px-3 py-2 text-xs font-black uppercase tracking-wider">
                         Repeaters
                       </div>
-                      <div className="p-4">
-                        <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight">
+                      <div className="p-3.5 sm:p-4">
+                        <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight">
                           {repCount}
                         </div>
                         <div className="text-xs sm:text-sm text-slate-700 mt-1.5 font-bold">
@@ -2553,8 +2703,8 @@ export default function App() {
                       <div className="bg-[#1e3a5f] text-white px-3 py-2 text-xs font-black uppercase tracking-wider">
                         Counselling Needed
                       </div>
-                      <div className="p-4">
-                        <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight">
+                      <div className="p-3.5 sm:p-4">
+                        <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight">
                           {counselCount}
                         </div>
                         <div className="text-xs sm:text-sm text-slate-700 mt-1.5 font-bold">
