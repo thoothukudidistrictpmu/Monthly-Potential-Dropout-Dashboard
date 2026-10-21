@@ -651,14 +651,24 @@ export default function App() {
       <header className="bg-[#1e3a5f] text-white border-b-2 border-slate-900 sticky top-0 z-30 shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-4">
           
-          {/* Dashboard Title with Official Tamil Nadu Logo */}
-          <div className="flex items-center gap-3.5">
-            <TamilNaduLogo className="w-12 h-12 sm:w-14 sm:h-14 shadow-md bg-white rounded-full p-1 border-2 border-white/40" size={56} />
+          {/* Dashboard Title with Official Tamil Nadu Logo & Top-Left Three-Line Menu Box */}
+          <div className="flex items-center gap-3">
+            {/* The Three Line Box in top left corner (mobile only) */}
+            <button
+              onClick={() => setMobileSlicersOpen(true)}
+              className="md:hidden w-10 h-10 rounded-xl bg-white/20 hover:bg-white/30 text-white flex items-center justify-center border-2 border-white/30 shadow-xs active:scale-95 cursor-pointer shrink-0"
+              title="Menu"
+              aria-label="Navigation Menu"
+            >
+              <Menu className="w-5 h-5 text-white" />
+            </button>
+
+            <TamilNaduLogo className="w-11 h-11 sm:w-14 sm:h-14 shadow-md bg-white rounded-full p-1 border-2 border-white/40 shrink-0" size={56} />
             <div>
-              <h1 className="text-lg sm:text-2xl font-black text-white tracking-tight leading-tight">
+              <h1 className="text-base sm:text-2xl font-black text-white tracking-tight leading-tight">
                 Thoothukudi District - Potential Dropout Dashboard
               </h1>
-              <p className="text-sm text-slate-200 font-bold mt-0.5">
+              <p className="text-xs sm:text-sm text-slate-200 font-bold mt-0.5">
                 District Administration, Thoothukudi
               </p>
             </div>
@@ -694,16 +704,6 @@ export default function App() {
             {/* Install App Button */}
             <PWAInstallButton />
 
-            {/* Mobile Three-Line Menu Button */}
-            <button
-              onClick={() => setMobileSlicersOpen(true)}
-              className="md:hidden inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-black bg-white/20 hover:bg-white/30 text-white border border-white/30 shadow-xs transition-all active:scale-95 cursor-pointer"
-              title="Open Department Slicers Menu"
-            >
-              <Menu className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-              <span>Slicers</span>
-            </button>
-
             {/* Refresh Button */}
             <button
               onClick={() => fetchData(true)}
@@ -724,35 +724,6 @@ export default function App() {
 
       {/* Main Layout: Left Navigation Sidebar + Dynamic Workspace */}
       <div className="max-w-7xl w-full mx-auto flex-1 flex flex-col md:flex-row p-4 sm:p-6 gap-6 relative z-10">
-        
-        {/* Mobile Slicer Selector Bar (Shows Three Lines Icon ☰) */}
-        <div className="md:hidden w-full mb-1">
-          <button
-            onClick={() => setMobileSlicersOpen(true)}
-            className="w-full bg-[#1e3a5f] hover:bg-[#152a45] text-white p-3 sm:p-3.5 rounded-2xl shadow-md border-2 border-[#162c48] flex items-center justify-between transition-all active:scale-[0.99] cursor-pointer"
-          >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0 border border-white/30">
-                <Menu className="w-6 h-6 text-white" />
-              </div>
-              <div className="text-left min-w-0">
-                <div className="text-[10px] sm:text-xs font-bold text-slate-200 uppercase tracking-wider">
-                  Active Slicer • Tap for All Slicers
-                </div>
-                <div className="text-sm sm:text-base font-black text-white truncate flex items-center gap-2">
-                  <span className="truncate">{selectedSlicer}</span>
-                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-white/20 border border-white/30 shrink-0">
-                    {selectedMonth}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white/20 border border-white/30 text-xs font-black text-white shrink-0 ml-2">
-              <span>All Slicers</span>
-              <ChevronRight className="w-4 h-4" />
-            </div>
-          </button>
-        </div>
 
         {/* Left Sidebar on desktop — hidden on mobile */}
         <aside className="hidden md:block w-full md:w-64 shrink-0">
@@ -850,17 +821,19 @@ export default function App() {
               className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity"
             />
 
-            {/* Drawer Sheet */}
-            <div className="relative w-full max-w-xs sm:max-w-sm bg-slate-100 h-full shadow-2xl flex flex-col z-10 border-r-2 border-slate-300 overflow-hidden">
+            {/* Drawer Sheet — sized to 85vw with 100dvh dynamic height so all 12 slicers show fully */}
+            <div className="relative w-[85vw] max-w-sm bg-slate-100 h-[100dvh] max-h-screen shadow-2xl flex flex-col z-10 border-r-2 border-slate-300 overflow-hidden">
               {/* Header */}
-              <div className="bg-[#1e3a5f] text-white p-4.5 flex items-center justify-between border-b-2 border-slate-900 shadow-sm">
+              <div className="bg-[#1e3a5f] text-white p-4 flex items-center justify-between border-b-2 border-slate-900 shadow-sm shrink-0">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center border border-white/20">
-                    <Menu className="w-5 h-5 text-white" />
+                  <div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center border border-white/20 shrink-0">
+                    <Menu className="w-4 h-4 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-base font-black text-white">Department Slicers</h3>
-                    <p className="text-xs text-slate-200 font-medium">{selectedMonth} • Thoothukudi</p>
+                    <h3 className="text-sm sm:text-base font-black text-white leading-tight">
+                      Navigation Menu
+                    </h3>
+                    <p className="text-[11px] text-slate-200 font-bold">{selectedMonth} • Thoothukudi</p>
                   </div>
                 </div>
                 <button
@@ -872,8 +845,8 @@ export default function App() {
                 </button>
               </div>
 
-              {/* Slicers List */}
-              <div className="flex-1 overflow-y-auto p-3.5 space-y-2">
+              {/* Slicers List — Fully visible with no text truncation and ample bottom padding for mobile touch */}
+              <div className="flex-1 overflow-y-auto p-3 space-y-2 pb-24 overscroll-contain">
                 {SLICERS.map((slicer) => {
                   const isSelected = selectedSlicer === slicer;
                   const meta = DEPT_META[slicer] || DEPT_META['Overview'];
@@ -889,13 +862,13 @@ export default function App() {
                         setMobileSlicersOpen(false);
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                       }}
-                      className={`w-full text-left px-3.5 py-3 rounded-xl text-sm font-bold flex items-center justify-between transition-all duration-150 cursor-pointer ${
+                      className={`w-full text-left p-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-between transition-all duration-150 cursor-pointer ${
                         isSelected
                           ? 'bg-[#1e3a5f] text-white shadow-md border-2 border-[#162c48]'
-                          : 'bg-white hover:bg-slate-200/80 text-slate-800 hover:text-slate-950 border-2 border-slate-200 hover:border-slate-300'
+                          : 'bg-white hover:bg-slate-200 text-slate-800 hover:text-slate-950 border-2 border-slate-200 hover:border-slate-300'
                       }`}
                     >
-                      <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="flex items-center gap-2.5 min-w-0 pr-1">
                         <div
                           className={`w-7 h-7 rounded-lg shrink-0 flex items-center justify-center transition-colors ${
                             isSelected
@@ -905,7 +878,9 @@ export default function App() {
                         >
                           <IconComponent className="w-4 h-4" />
                         </div>
-                        <span className="tracking-tight truncate">{slicer}</span>
+                        <span className="tracking-tight font-black leading-snug whitespace-normal break-words text-xs sm:text-sm">
+                          {slicer}
+                        </span>
                       </div>
 
                       <div className="flex items-center gap-1.5 shrink-0 ml-1">
@@ -913,7 +888,7 @@ export default function App() {
                           isAuthed ? (
                             <span
                               title="Session Authenticated"
-                              className={`text-[10px] font-black px-1.5 py-0.5 rounded flex items-center gap-1 ${
+                              className={`text-[9px] font-black px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0 ${
                                 isSelected
                                   ? 'bg-emerald-400/20 text-emerald-300 border border-emerald-400/30'
                                   : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
@@ -925,7 +900,7 @@ export default function App() {
                           ) : (
                             <span
                               title="Password Protected"
-                              className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 ${
+                              className={`text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0 ${
                                 isSelected
                                   ? 'bg-white/10 text-slate-300 border border-white/20'
                                   : 'bg-slate-100 text-slate-500 border border-slate-200'
@@ -936,7 +911,7 @@ export default function App() {
                           )
                         )}
                         <ChevronRight
-                          className={`w-4 h-4 transition-transform duration-150 ${
+                          className={`w-4 h-4 shrink-0 transition-transform duration-150 ${
                             isSelected ? 'text-white translate-x-0.5' : 'text-slate-400 opacity-60'
                           }`}
                         />
