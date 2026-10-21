@@ -243,6 +243,23 @@ export default function App() {
     }
   }, [selectedMonth]);
 
+  // Prevent background scroll and support ESC key when mobile slicers menu is open
+  useEffect(() => {
+    if (mobileSlicersOpen) {
+      document.body.style.overflow = 'hidden';
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') setMobileSlicersOpen(false);
+      };
+      window.addEventListener('keydown', handleKeyDown);
+      return () => {
+        document.body.style.overflow = '';
+        window.removeEventListener('keydown', handleKeyDown);
+      };
+    } else {
+      document.body.style.overflow = '';
+    }
+  }, [mobileSlicersOpen]);
+
   const fetchData = async (isManualRefresh = false, monthToFetch = selectedMonth) => {
     if (isManualRefresh) setRefreshing(true);
     setError(null);
@@ -647,6 +664,120 @@ export default function App() {
         </div>
       )}
 
+      {/* Mobile Slicers Drawer / Modal (Top-level z-[100] so it overlays the header and shows all slicers from top) */}
+      {mobileSlicersOpen && (
+        <div className="fixed inset-0 z-[100] flex md:hidden" role="dialog" aria-modal="true">
+          {/* Dark Backdrop */}
+          <div 
+            onClick={() => setMobileSlicersOpen(false)}
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity"
+            aria-label="Close menu"
+          />
+
+          {/* Drawer Sheet — fixed from top 0 with 100dvh height, starts at top of screen */}
+          <div className="relative w-[85vw] max-w-sm bg-slate-100 h-[100dvh] max-h-screen shadow-2xl flex flex-col z-[101] border-r-2 border-slate-300 overflow-hidden">
+            {/* Header */}
+            <div className="bg-[#1e3a5f] text-white p-4 flex items-center justify-between border-b-2 border-slate-900 shadow-sm shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center border border-white/20 shrink-0">
+                  <Menu className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-sm sm:text-base font-black text-white leading-tight">
+                    All Slicers (12)
+                  </h3>
+                  <p className="text-[11px] text-slate-200 font-bold">{selectedMonth} • Thoothukudi</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setMobileSlicersOpen(false)}
+                className="w-8 h-8 rounded-lg bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition-colors cursor-pointer"
+                title="Close"
+                aria-label="Close menu"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Slicers List — Starts immediately at top with Overview (#1) and Division (#2) */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-2 pb-24 overscroll-contain">
+              {SLICERS.map((slicer) => {
+                const isSelected = selectedSlicer === slicer;
+                const meta = DEPT_META[slicer] || DEPT_META['Overview'];
+                const IconComponent = meta.icon;
+                const isLineDept = slicer !== 'Overview' && slicer !== 'Division' && slicer !== 'Line Department Overview' && slicer !== 'Counselling';
+                const isAuthed = !!authenticatedDepts[slicer];
+
+                return (
+                  <button
+                    key={`mobile-slicer-${slicer}`}
+                    onClick={() => {
+                      setSelectedSlicer(slicer);
+                      setMobileSlicersOpen(false);
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className={`w-full text-left p-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-between transition-all duration-150 cursor-pointer ${
+                      isSelected
+                        ? 'bg-[#1e3a5f] text-white shadow-md border-2 border-[#162c48]'
+                        : 'bg-white hover:bg-slate-200 text-slate-800 hover:text-slate-950 border-2 border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 pr-1">
+                      <div
+                        className={`w-7 h-7 rounded-lg shrink-0 flex items-center justify-center transition-colors ${
+                          isSelected
+                            ? 'bg-white/20 text-white'
+                            : 'bg-slate-100 text-slate-700 border border-slate-200'
+                        }`}
+                      >
+                        <IconComponent className="w-4 h-4" />
+                      </div>
+                      <span className="tracking-tight font-black leading-snug whitespace-normal break-words text-xs sm:text-sm">
+                        {slicer}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0 ml-1">
+                      {isLineDept && (
+                        isAuthed ? (
+                          <span
+                            title="Session Authenticated"
+                            className={`text-[9px] font-black px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0 ${
+                              isSelected
+                                ? 'bg-emerald-400/20 text-emerald-300 border border-emerald-400/30'
+                                : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            }`}
+                          >
+                            <Unlock className="w-2.5 h-2.5" />
+                            <span>Active</span>
+                          </span>
+                        ) : (
+                          <span
+                            title="Password Protected"
+                            className={`text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0 ${
+                              isSelected
+                                ? 'bg-white/10 text-slate-300 border border-white/20'
+                                : 'bg-slate-100 text-slate-500 border border-slate-200'
+                            }`}
+                          >
+                            <Lock className="w-2.5 h-2.5" />
+                          </span>
+                        )
+                      )}
+                      <ChevronRight
+                        className={`w-4 h-4 shrink-0 transition-transform duration-150 ${
+                          isSelected ? 'text-white translate-x-0.5' : 'text-slate-400 opacity-60'
+                        }`}
+                      />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Executive Classic Header with Unified #1e3a5f Background */}
       <header className="bg-[#1e3a5f] text-white border-b-2 border-slate-900 sticky top-0 z-30 shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-4">
@@ -811,118 +942,6 @@ export default function App() {
             </nav>
           </div>
         </aside>
-
-        {/* Mobile Slicers Drawer / Modal (Opens when user touches the three lines icon) */}
-        {mobileSlicersOpen && (
-          <div className="fixed inset-0 z-50 flex md:hidden">
-            {/* Backdrop */}
-            <div 
-              onClick={() => setMobileSlicersOpen(false)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity"
-            />
-
-            {/* Drawer Sheet — sized to 85vw with 100dvh dynamic height so all 12 slicers show fully */}
-            <div className="relative w-[85vw] max-w-sm bg-slate-100 h-[100dvh] max-h-screen shadow-2xl flex flex-col z-10 border-r-2 border-slate-300 overflow-hidden">
-              {/* Header */}
-              <div className="bg-[#1e3a5f] text-white p-4 flex items-center justify-between border-b-2 border-slate-900 shadow-sm shrink-0">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center border border-white/20 shrink-0">
-                    <Menu className="w-4 h-4 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm sm:text-base font-black text-white leading-tight">
-                      Navigation Menu
-                    </h3>
-                    <p className="text-[11px] text-slate-200 font-bold">{selectedMonth} • Thoothukudi</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setMobileSlicersOpen(false)}
-                  className="w-8 h-8 rounded-lg bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition-colors cursor-pointer"
-                  title="Close"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Slicers List — Fully visible with no text truncation and ample bottom padding for mobile touch */}
-              <div className="flex-1 overflow-y-auto p-3 space-y-2 pb-24 overscroll-contain">
-                {SLICERS.map((slicer) => {
-                  const isSelected = selectedSlicer === slicer;
-                  const meta = DEPT_META[slicer] || DEPT_META['Overview'];
-                  const IconComponent = meta.icon;
-                  const isLineDept = slicer !== 'Overview' && slicer !== 'Division' && slicer !== 'Line Department Overview' && slicer !== 'Counselling';
-                  const isAuthed = !!authenticatedDepts[slicer];
-
-                  return (
-                    <button
-                      key={`mobile-slicer-${slicer}`}
-                      onClick={() => {
-                        setSelectedSlicer(slicer);
-                        setMobileSlicersOpen(false);
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                      }}
-                      className={`w-full text-left p-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-between transition-all duration-150 cursor-pointer ${
-                        isSelected
-                          ? 'bg-[#1e3a5f] text-white shadow-md border-2 border-[#162c48]'
-                          : 'bg-white hover:bg-slate-200 text-slate-800 hover:text-slate-950 border-2 border-slate-200 hover:border-slate-300'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0 pr-1">
-                        <div
-                          className={`w-7 h-7 rounded-lg shrink-0 flex items-center justify-center transition-colors ${
-                            isSelected
-                              ? 'bg-white/20 text-white'
-                              : 'bg-slate-100 text-slate-700 border border-slate-200'
-                          }`}
-                        >
-                          <IconComponent className="w-4 h-4" />
-                        </div>
-                        <span className="tracking-tight font-black leading-snug whitespace-normal break-words text-xs sm:text-sm">
-                          {slicer}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 shrink-0 ml-1">
-                        {isLineDept && (
-                          isAuthed ? (
-                            <span
-                              title="Session Authenticated"
-                              className={`text-[9px] font-black px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0 ${
-                                isSelected
-                                  ? 'bg-emerald-400/20 text-emerald-300 border border-emerald-400/30'
-                                  : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                              }`}
-                            >
-                              <Unlock className="w-2.5 h-2.5" />
-                              <span>Active</span>
-                            </span>
-                          ) : (
-                            <span
-                              title="Password Protected"
-                              className={`text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0 ${
-                                isSelected
-                                  ? 'bg-white/10 text-slate-300 border border-white/20'
-                                  : 'bg-slate-100 text-slate-500 border border-slate-200'
-                              }`}
-                            >
-                              <Lock className="w-2.5 h-2.5" />
-                            </span>
-                          )
-                        )}
-                        <ChevronRight
-                          className={`w-4 h-4 shrink-0 transition-transform duration-150 ${
-                            isSelected ? 'text-white translate-x-0.5' : 'text-slate-400 opacity-60'
-                          }`}
-                        />
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Main Workspace */}
         <main className="flex-1 min-w-0">
