@@ -5,15 +5,62 @@ export const SPREADSHEET_ID = '1QaxFBlOUpkGU2ZraBCcUooFmgXVV4vVuN4WdionZUKk';
 
 export const MONTH_TABS: Record<string, string> = {
   'Sep 2026': '419562693',
-  'Oct 2026': '808537006',
-  'Nov 2026': '695314108',
-  // Backward compatibility aliases
+  'Sept 2026': '419562693',
   'Sep 26': '419562693',
-  'Oct 26': '808537006',
-  'Nov 26': '695314108',
+  'Oct 2026': '683603902',
+  'October 2026': '683603902',
+  'Oct 26': '683603902',
+  'Nov 2026': '683603902', // fallback until user creates tab in sheet
 };
 
-export const AVAILABLE_MONTHS = ['Sep 2026', 'Oct 2026', 'Nov 2026'];
+export const AVAILABLE_MONTHS = ['Sep 2026', 'Oct 2026'];
+
+export async function fetchLiveMonthTabs(): Promise<{ tabs: Record<string, string>; availableMonths: string[] }> {
+  try {
+    const res = await fetch(`https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/htmlview`, {
+      headers: { 'User-Agent': 'Thoothukudi-Dropout-Dashboard/2.0' }
+    });
+    if (!res.ok) {
+      return { tabs: MONTH_TABS, availableMonths: AVAILABLE_MONTHS };
+    }
+    const html = await res.text();
+    const regex = /items\.push\(\{name:\s*\"([^\"]+)\"[^}]*gid:\s*\"?([0-9]+)\"?/g;
+    const tabs: Record<string, string> = { ...MONTH_TABS };
+    const monthList: string[] = [];
+    let match;
+
+    const nonMonthKeywords = ['user and password', 'dashboard', 'category reference', 'control room', 'counsellor profiles'];
+
+    while ((match = regex.exec(html)) !== null) {
+      const rawName = match[1].trim();
+      const gid = match[2].trim();
+      const lower = rawName.toLowerCase();
+      if (nonMonthKeywords.some(keyword => lower.includes(keyword))) continue;
+
+      let stdName = rawName;
+      if (/sep/i.test(rawName)) stdName = 'Sep 2026';
+      else if (/oct/i.test(rawName)) stdName = 'Oct 2026';
+      else if (/nov/i.test(rawName)) stdName = 'Nov 2026';
+      else if (/dec/i.test(rawName)) stdName = 'Dec 2026';
+      else if (/jan/i.test(rawName)) stdName = 'Jan 2027';
+
+      tabs[rawName] = gid;
+      tabs[stdName] = gid;
+      if (!monthList.includes(stdName)) {
+        monthList.push(stdName);
+      }
+    }
+
+    if (monthList.length === 0) {
+      monthList.push('Sep 2026', 'Oct 2026');
+    }
+
+    return { tabs, availableMonths: monthList };
+  } catch (err) {
+    console.warn('Error fetching live tabs:', err);
+    return { tabs: MONTH_TABS, availableMonths: AVAILABLE_MONTHS };
+  }
+}
 
 // Department Guidelines from District Collector Category Reference
 export const DEPT_GUIDELINES: Record<string, string> = {
@@ -272,7 +319,83 @@ export function processSheetCSV(csvText: string, month: string): DashboardPayloa
   const rows = parseCSV(csvText);
 
   if (rows.length < 2) {
-    throw new Error('Spreadsheet returned empty or insufficient rows.');
+    const blockData = [
+      'Kovilpatti', 'Kayathar', 'Vilathikulam', 'Pudur', 'Ottapidaram',
+      'Thoothukudi Urban', 'Thoothukudi Rural', 'Karunkulam', 'Srivaikundam',
+      'Thiruchenthur', 'Alwarthirunagari', 'Sathankulam', 'Udangudi'
+    ].map(name => ({ name, count: 0 }));
+
+    const lineDepartmentData = [
+      'Health Department', 'Labour Department', 'DCPO', 'Social Welfare',
+      'Fisheries Department', 'Revenue Department', 'DDRO', 'DSE'
+    ].map(name => ({ name, count: 0, fullName: name }));
+
+    const classData = Array.from({ length: 12 }, (_, idx) => ({
+      name: `Class ${idx + 1}`,
+      value: 0,
+      count: 0,
+      boys: 0,
+      girls: 0,
+      total: 0,
+      sortOrder: idx + 1,
+    }));
+
+    return {
+      selectedMonth: month,
+      availableMonths: AVAILABLE_MONTHS,
+      summary: {
+        potentialDropout: 0,
+        readmitted: 0,
+        migrated: 0,
+        repeaters: 0,
+        reEnrolled: 0,
+        counsellingNeeded: 0,
+        statusNotUpdated: 0,
+      },
+      charts: {
+        blockWise: blockData,
+        lineDepartment: lineDepartmentData,
+        classWise: classData,
+      },
+      blockData,
+      lineDepartmentData,
+      classData,
+      students: [],
+      departments: lineDepartmentData.map(d => ({
+        id: d.name,
+        name: d.name,
+        guideline: DEPT_GUIDELINES[d.name] || '',
+        count: 0,
+        potentialDropout: 0,
+        repeaters: 0,
+        reEnrolled: 0,
+        counsellingNeeded: 0,
+        statusNotUpdated: 0,
+        migrated: 0,
+        students: [],
+      })),
+      allLineDepartmentsAbstract: lineDepartmentData.map(d => ({
+        id: d.name,
+        name: d.name,
+        fullName: d.name,
+        guideline: DEPT_GUIDELINES[d.name] || '',
+        potentialDropout: 0,
+        repeaters: 0,
+        reEnrolled: 0,
+        counsellingNeeded: 0,
+        statusNotUpdated: 0,
+        migrated: 0,
+        students: [],
+      })),
+      talukSummaries: [],
+      divisions: [
+        { name: 'Kovilpatti', totalStudents: 0, repeaters: 0, reEnrolled: 0, counsellingNeeded: 0, blocks: [] },
+        { name: 'Thoothukudi', totalStudents: 0, repeaters: 0, reEnrolled: 0, counsellingNeeded: 0, blocks: [] },
+        { name: 'Tiruchendur', totalStudents: 0, repeaters: 0, reEnrolled: 0, counsellingNeeded: 0, blocks: [] },
+      ],
+      studentsCount: 0,
+      lastRefreshedAt: new Date().toISOString(),
+    };
   }
 
   // Row 0 is the Header row

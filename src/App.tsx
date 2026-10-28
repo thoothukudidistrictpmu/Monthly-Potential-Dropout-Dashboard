@@ -39,7 +39,8 @@ import {
   LogOut,
   KeyRound,
   Menu,
-  X
+  X,
+  AlertCircle
 } from 'lucide-react';
 import { 
   SPREADSHEET_ID, 
@@ -49,7 +50,8 @@ import {
   DepartmentAbstract,
   DepartmentCredential,
   DEFAULT_DEPARTMENT_CREDENTIALS,
-  fetchLiveCredentials
+  fetchLiveCredentials,
+  fetchLiveMonthTabs
 } from './sheetData';
 import { Background3D } from './components/Background3D';
 import { TamilNaduLogo } from './components/TamilNaduLogo';
@@ -260,7 +262,7 @@ export default function App() {
   }, [mobileSlicersOpen]);
 
   const fetchData = async (isManualRefresh = false, monthToFetch = selectedMonth) => {
-    if (isManualRefresh) setRefreshing(true);
+    setRefreshing(true);
     setError(null);
     try {
       let fetchedData = null;
@@ -285,7 +287,14 @@ export default function App() {
 
       // 2. Direct Google Sheets published CSV fallback
       if (!fetchedData) {
-        const targetGid = MONTH_TABS[monthToFetch] || MONTH_TABS['Sep 2026'];
+        let liveTabs = MONTH_TABS;
+        try {
+          const live = await fetchLiveMonthTabs();
+          liveTabs = live.tabs;
+        } catch {
+          // fallback to MONTH_TABS
+        }
+        const targetGid = liveTabs[monthToFetch] || MONTH_TABS[monthToFetch] || MONTH_TABS['Sep 2026'];
         const directUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&gid=${targetGid}`;
         const sheetRes = await fetch(directUrl);
         if (!sheetRes.ok) {
@@ -943,8 +952,22 @@ export default function App() {
         </aside>
 
         {/* Main Workspace */}
-        <main className="flex-1 min-w-0">
+        <main className="flex-1 min-w-0 space-y-6">
           
+          {rawStudents.length === 0 && !loading && (
+            <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 sm:p-5 flex items-start gap-3.5 shadow-sm text-amber-950">
+              <AlertCircle className="w-6 h-6 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-base font-black">
+                  No Student Records in Google Sheet for {selectedMonth}
+                </h4>
+                <p className="text-sm font-medium text-amber-900 mt-1">
+                  The Google Sheet tab for <strong>"{selectedMonth}"</strong> currently has no student entries. Once student rows are entered in the "{selectedMonth}" sheet tab, click <strong>Refresh</strong> to sync.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* ======================================================== */}
           {/* 1. OVERVIEW VIEW (FORMERLY COMMON DASHBOARD) */}
           {/* ======================================================== */}
@@ -1086,11 +1109,7 @@ export default function App() {
                     </span>
                   </div>
                   <div className="p-5">
-                    <p className="text-sm text-slate-700 mb-3 font-medium">
-                      Monthly dropout distribution across Thoothukudi District blocks
-                    </p>
-                    
-                    <div className="h-64 sm:h-72 mt-2">
+                    <div className="h-64 sm:h-72">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart
                           data={charts.blockWise}
@@ -1142,11 +1161,7 @@ export default function App() {
                     </span>
                   </div>
                   <div className="p-5">
-                    <p className="text-sm text-slate-700 mb-3 font-medium">
-                      Department-wise student intervention counts
-                    </p>
-                    
-                    <div className="h-64 sm:h-72 mt-2">
+                    <div className="h-64 sm:h-72">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart
                           data={charts.lineDepartment}
@@ -1206,11 +1221,7 @@ export default function App() {
                 </div>
                 
                 <div className="p-5">
-                  <p className="text-sm text-slate-700 mb-3 font-medium">
-                    Distribution of potential dropout students across classes. Hover or tap any bar to view the info box containing Boys count and Girls count.
-                  </p>
-
-                  <div className="h-64 sm:h-72 mt-2">
+                  <div className="h-64 sm:h-72">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart
                         data={computedClassStats}
@@ -1260,9 +1271,6 @@ export default function App() {
                         <span className="w-3 h-3 rounded-sm bg-pink-500 inline-block shadow-2xs"></span>
                         Girls Count
                       </span>
-                      <span className="text-slate-600 font-medium italic">
-                        (Displayed in the info box for each class bar)
-                      </span>
                     </div>
 
                     <span className="font-bold text-slate-800 bg-slate-200/80 px-3 py-1 rounded-lg border border-slate-300 shadow-2xs">
@@ -1286,7 +1294,7 @@ export default function App() {
                 <div>
                   <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2.5">
                     <Layers className="w-6 h-6 text-slate-200" />
-                    <span>Division Overview — Thoothukudi District</span>
+                    <span>Division Overview</span>
                   </h2>
                 </div>
 
@@ -1304,7 +1312,7 @@ export default function App() {
                       className="text-sm sm:text-base font-black text-slate-900 bg-transparent focus:outline-none cursor-pointer pr-1"
                       title="Filter Division in Division Page"
                     >
-                      <option value="All" className="font-bold text-slate-900 bg-white">All Divisions (One by One)</option>
+                      <option value="All" className="font-bold text-slate-900 bg-white">All Divisions</option>
                       <option value="Kovilpatti" className="font-bold text-slate-900 bg-white">Kovilpatti Division</option>
                       <option value="Thoothukudi" className="font-bold text-slate-900 bg-white">Thoothukudi Division</option>
                       <option value="Tiruchendur" className="font-bold text-slate-900 bg-white">Tiruchendur Division</option>
@@ -1340,9 +1348,6 @@ export default function App() {
                           </div>
 
                           <div className="flex items-center gap-2.5">
-                            <span className="px-4 py-2 rounded-xl text-xs sm:text-sm font-black text-white bg-white/20 border border-white/30 shadow-2xs">
-                              {div.totalStudents} Potential Dropouts
-                            </span>
                             <span className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold text-white bg-white/15 border border-white/25 shadow-2xs">
                               {div.blocks.length} Blocks
                             </span>
@@ -1411,13 +1416,10 @@ export default function App() {
 
                           {/* Full Width Block Breakdown Table (No cramming, no truncation, plenty of space) */}
                           <div className="space-y-3 pt-2">
-                            <div className="flex items-center justify-between">
+                            <div>
                               <h4 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
                                 Educational Block-Wise Breakdown — {div.name} Division
                               </h4>
-                              <span className="text-xs sm:text-sm font-bold text-slate-700">
-                                Official Verified Educational Records
-                              </span>
                             </div>
 
                             <div className="overflow-x-auto rounded-2xl border-2 border-slate-300 bg-white shadow-2xs">
@@ -1750,11 +1752,8 @@ export default function App() {
                     <div>
                       <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2.5">
                         <HelpCircle className="w-6 h-6 text-slate-200" />
-                        <span>Counselling Tracking — All Departments</span>
+                        <span>Counselling Students Tracking</span>
                       </h2>
-                      <p className="text-xs sm:text-sm text-slate-200 font-medium mt-1">
-                        Consolidated caseload where Counselling is marked "Yes" across all line departments for {selectedMonth}
-                      </p>
                     </div>
 
                     {/* Export Options */}
@@ -1899,9 +1898,6 @@ export default function App() {
                         <Layers className="w-5 h-5 text-slate-200" />
                         <span>Department-Wise Counselling Distribution</span>
                       </h3>
-                      <p className="text-xs sm:text-sm text-slate-200 font-medium">
-                        Counselling cases assigned to each line department
-                      </p>
                     </div>
 
                     {counsellingDeptFilter !== 'All' && (
@@ -1967,9 +1963,6 @@ export default function App() {
                           Verified Counselling Student Records ({filteredCounselling.length})
                         </span>
                       </h3>
-                      <p className="text-xs sm:text-sm text-slate-200 font-medium">
-                        Detailed student caseload where counselling has been provided or marked Yes by departments
-                      </p>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">
@@ -2172,9 +2165,6 @@ export default function App() {
                       <Landmark className="w-6 h-6 text-slate-200" />
                       <span>Revenue Department — Taluk-Wise Dashboard</span>
                     </h2>
-                    <p className="text-xs sm:text-sm text-slate-200 mt-0.5 font-medium">
-                      Taluk-wise monitoring across Thoothukudi District for {selectedMonth}
-                    </p>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2.5">
@@ -2342,9 +2332,6 @@ export default function App() {
                             {revenueTalukFilter !== 'All' && ` — ${revenueTalukFilter}`}
                           </span>
                         </h3>
-                        <p className="text-xs sm:text-sm text-slate-200 font-medium">
-                          Officials can edit Dropout Reason, Present Status, and Remarks for each student below. Changes update counts and save automatically.
-                        </p>
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2">
@@ -2564,9 +2551,6 @@ export default function App() {
                       <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
                         {selectedSlicer} Dashboard
                       </h2>
-                      <p className="text-xs sm:text-sm text-slate-200 mt-0.5 font-medium">
-                        Intervention & Tracking for {selectedMonth}
-                      </p>
                     </div>
                   </div>
 
@@ -2694,9 +2678,6 @@ export default function App() {
                           <Users className="w-5 h-5 text-slate-200" />
                           <span>Assigned Student Records ({filteredStudents.length})</span>
                         </h3>
-                        <p className="text-xs sm:text-sm text-slate-200 font-medium">
-                          Department officials can edit Counselling, Dropout Reason, Present Status, and Remarks for each student below. Changes save automatically.
-                        </p>
                       </div>
 
                       <div className="relative">

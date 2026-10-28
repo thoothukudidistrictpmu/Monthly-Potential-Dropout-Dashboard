@@ -3,7 +3,7 @@ import http from 'http';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { SPREADSHEET_ID, MONTH_TABS, processSheetCSV, fetchLiveCredentials, DEFAULT_DEPARTMENT_CREDENTIALS } from './src/sheetData.js';
+import { SPREADSHEET_ID, MONTH_TABS, processSheetCSV, fetchLiveCredentials, fetchLiveMonthTabs, DEFAULT_DEPARTMENT_CREDENTIALS } from './src/sheetData.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,6 +23,25 @@ const CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes cache
 let cachedCredentials: any = null;
 let credentialsTimestamp = 0;
 
+let cachedMonthTabs: Record<string, string> = { ...MONTH_TABS };
+let cachedAvailableMonths: string[] = ['Sep 2026', 'Oct 2026'];
+let monthTabsTimestamp = 0;
+
+async function getOrFetchMonthTabs() {
+  if (Date.now() - monthTabsTimestamp < CACHE_TTL_MS) {
+    return { tabs: cachedMonthTabs, availableMonths: cachedAvailableMonths };
+  }
+  try {
+    const live = await fetchLiveMonthTabs();
+    cachedMonthTabs = { ...MONTH_TABS, ...live.tabs };
+    cachedAvailableMonths = live.availableMonths;
+    monthTabsTimestamp = Date.now();
+    return { tabs: cachedMonthTabs, availableMonths: cachedAvailableMonths };
+  } catch {
+    return { tabs: cachedMonthTabs, availableMonths: cachedAvailableMonths };
+  }
+}
+
 async function getOrFetchCredentials() {
   if (cachedCredentials && Date.now() - credentialsTimestamp < CACHE_TTL_MS) {
     return cachedCredentials;
@@ -38,13 +57,39 @@ async function getOrFetchCredentials() {
 }
 
 async function fetchSpreadsheetData(month = 'Sep 2026', forceRefresh = false) {
-  // Normalize month name to sheet tab name
-  const normalizedMonth = month === 'Sep 26' ? 'Sep 2026' : month === 'Oct 26' ? 'Oct 2026' : month === 'Nov 26' ? 'Nov 2026' : month;
-  const targetGid = MONTH_TABS[normalizedMonth] || MONTH_TABS[month] || MONTH_TABS['Sep 2026'];
+  // Normalize month name
+  let normalizedMonth = month;
+  if (/sep/i.test(month)) normalizedMonth = 'Sep 2026';
+  else if (/oct/i.test(month)) normalizedMonth = 'Oct 2026';
+  else if (/nov/i.test(month)) normalizedMonth = 'Nov 2026';
+
   const cacheKey = normalizedMonth;
+
+  if (forceRefresh) {
+    delete cacheStore[cacheKey];
+    monthTabsTimestamp = 0;
+    credentialsTimestamp = 0;
+  }
 
   if (!forceRefresh && cacheStore[cacheKey] && Date.now() - cacheStore[cacheKey].timestamp < CACHE_TTL_MS) {
     return { data: cacheStore[cacheKey].data, cached: true, timestamp: cacheStore[cacheKey].timestamp };
+  }
+
+  const { tabs, availableMonths } = await getOrFetchMonthTabs();
+  const targetGid = tabs[normalizedMonth] || tabs[month] || MONTH_TABS[normalizedMonth];
+
+  if (!targetGid) {
+    // Tab doesn't exist in sheet yet, return empty payload for that month
+    const creds = await getOrFetchCredentials();
+    const emptyPayload = processSheetCSV('"S.No","Division Name","Taluk Name","Block Name","School Name","Student Name","Category","EMIS_ID","Gender","Std","Sec","Address ","Contact No","Repeater or Not","Line Department","Dropout Reason","Counselling Required","Present Status","Remarks / Notes"\n', normalizedMonth);
+    emptyPayload.availableMonths = availableMonths;
+    emptyPayload.credentials = creds;
+
+    cacheStore[cacheKey] = {
+      data: emptyPayload,
+      timestamp: Date.now(),
+    };
+    return { data: emptyPayload, cached: false, timestamp: Date.now() };
   }
 
   try {
@@ -62,6 +107,7 @@ async function fetchSpreadsheetData(month = 'Sep 2026', forceRefresh = false) {
 
     const csvText = await sheetRes.text();
     const payload = processSheetCSV(csvText, normalizedMonth);
+    payload.availableMonths = availableMonths;
     payload.credentials = creds;
 
     cacheStore[cacheKey] = {

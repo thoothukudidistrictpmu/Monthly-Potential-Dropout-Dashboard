@@ -88,9 +88,6 @@ export const DepartmentLoginForm: React.FC<DepartmentLoginFormProps> = ({
               <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-snug">
                 {departmentName}
               </h2>
-              <p className="text-xs text-slate-200 font-medium mt-0.5">
-                Line Department Official Authentication Portal
-              </p>
             </div>
             <div className="hidden sm:flex w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-md items-center justify-center border border-white/20">
               <IconComponent className="w-6 h-6 text-white" />
