@@ -40,7 +40,10 @@ import {
   KeyRound,
   Menu,
   X,
-  AlertCircle
+  AlertCircle,
+  Inbox,
+  ArrowRightLeft,
+  Download
 } from 'lucide-react';
 import { 
   SPREADSHEET_ID, 
@@ -57,7 +60,14 @@ import { Background3D } from './components/Background3D';
 import { TamilNaduLogo } from './components/TamilNaduLogo';
 import { DepartmentLoginForm } from './components/DepartmentLoginForm';
 import { PWAInstallButton } from './components/PWAInstallButton';
-import { exportStudentsToExcel, exportStudentsToWord, exportStudentsToDocs, exportAbstractToExcel } from './exportUtils';
+import { 
+  exportStudentsToExcel, 
+  exportStudentsToWord, 
+  exportStudentsToDocs, 
+  exportAbstractToExcel,
+  exportDivisionToExcel,
+  exportDivisionToWord
+} from './exportUtils';
 
 // Distinct vibrant colors for Block-Wise Potential Dropout bar chart alone
 const BLOCK_BAR_COLORS = [
@@ -154,12 +164,16 @@ export default function App() {
   const [counsellingSearch, setCounsellingSearch] = useState<string>('');
   const [counsellingDeptFilter, setCounsellingDeptFilter] = useState<string>('All');
   const [counsellingDivFilter, setCounsellingDivFilter] = useState<string>('All');
+  const [counsellingCounsellorFilter, setCounsellingCounsellorFilter] = useState<string>('All');
   
-  // Department-edited status, dropout reason, counselling, and remarks state (keyed by student EMIS or sNo)
+  // Department-edited status, dropout reason, counselling, remarks, transfer requests and counselling by (keyed by student EMIS or sNo)
   const [editedStatuses, setEditedStatuses] = useState<Record<string, string>>({});
   const [editedDropoutReasons, setEditedDropoutReasons] = useState<Record<string, string>>({});
   const [editedCounselling, setEditedCounselling] = useState<Record<string, string>>({});
   const [editedRemarks, setEditedRemarks] = useState<Record<string, string>>({});
+  const [editedTransferDepts, setEditedTransferDepts] = useState<Record<string, string>>({});
+  const [editedCounsellingBy, setEditedCounsellingBy] = useState<Record<string, string>>({});
+  const [deptShowTransferMap, setDeptShowTransferMap] = useState<Record<string, boolean>>({});
   const [statusSaveNotice, setStatusSaveNotice] = useState<string | null>(null);
 
   // Department Credentials (taken live from Google Sheet 'User and Password' tab with fallback)
@@ -217,7 +231,7 @@ export default function App() {
     setTimeout(() => setStatusSaveNotice(null), 2500);
   };
 
-  // Load saved status, dropout reasons, counselling, and remarks edits from localStorage on mount/month change
+  // Load saved status, dropout reasons, counselling, remarks, transfers, and counselling by from localStorage on mount/month change
   useEffect(() => {
     try {
       const statusKey = `thoothukudi_status_edits_${selectedMonth}`;
@@ -239,6 +253,16 @@ export default function App() {
       const savedRemarks = localStorage.getItem(remarksKey);
       if (savedRemarks) setEditedRemarks(JSON.parse(savedRemarks));
       else setEditedRemarks({});
+
+      const transferKey = `thoothukudi_transfers_${selectedMonth}`;
+      const savedTransfers = localStorage.getItem(transferKey);
+      if (savedTransfers) setEditedTransferDepts(JSON.parse(savedTransfers));
+      else setEditedTransferDepts({});
+
+      const counselByKey = `thoothukudi_counsel_by_${selectedMonth}`;
+      const savedCounselBy = localStorage.getItem(counselByKey);
+      if (savedCounselBy) setEditedCounsellingBy(JSON.parse(savedCounselBy));
+      else setEditedCounsellingBy({});
     } catch {
       // Ignore localStorage errors
     }
@@ -378,7 +402,35 @@ export default function App() {
     setTimeout(() => setStatusSaveNotice(null), 2500);
   };
 
-  // Merge loaded students with department official edits (Status, Dropout Reason, Counselling, Remarks)
+  // Handle request to transfer cases between departments (Column Q)
+  const handleTransferDeptChange = (studentKey: string, newDept: string) => {
+    const updated = { ...editedTransferDepts, [studentKey]: newDept };
+    setEditedTransferDepts(updated);
+    try {
+      const storageKey = `thoothukudi_transfers_${selectedMonth}`;
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Could not save transfer request to localStorage', e);
+    }
+    setStatusSaveNotice(newDept ? `Case transfer request submitted to ${newDept}` : `Transfer request cleared`);
+    setTimeout(() => setStatusSaveNotice(null), 3000);
+  };
+
+  // Handle updating counsellor assigned (Column S)
+  const handleCounsellingByChange = (studentKey: string, newCounsellor: string) => {
+    const updated = { ...editedCounsellingBy, [studentKey]: newCounsellor };
+    setEditedCounsellingBy(updated);
+    try {
+      const storageKey = `thoothukudi_counsel_by_${selectedMonth}`;
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Could not save counsellor to localStorage', e);
+    }
+    setStatusSaveNotice(newCounsellor ? `Counsellor assigned: ${newCounsellor}` : `Counsellor assignment cleared`);
+    setTimeout(() => setStatusSaveNotice(null), 3000);
+  };
+
+  // Merge loaded students with department official edits (Status, Dropout Reason, Counselling, Remarks, Transfers, Counsellor)
   const getMergedStudents = (studentsList: StudentRecord[] = []): StudentRecord[] => {
     return studentsList.map(st => {
       const key = st.emisId || String(st.sNo);
@@ -388,6 +440,8 @@ export default function App() {
         ? editedCounselling[key] 
         : (st.counsellingRequired || (st.isCounsellingNeeded ? 'Yes' : 'No'));
       const customRemarks = editedRemarks[key] !== undefined ? editedRemarks[key] : st.remarks;
+      const customTransferDept = editedTransferDepts[key] !== undefined ? editedTransferDepts[key] : (st.transferRequestDept || '');
+      const customCounsellingBy = editedCounsellingBy[key] !== undefined ? editedCounsellingBy[key] : (st.counsellingBy || '');
 
       const lower = (customStatus || '').toLowerCase();
       const isReEnrolled = lower.includes('re-enroll') || lower.includes('reenroll') || lower.includes('readmit');
@@ -399,8 +453,10 @@ export default function App() {
         ...st,
         status: customStatus,
         dropoutReason: customDropoutReason,
+        transferRequestDept: customTransferDept,
         counsellingRequired: customCounselling,
         isCounsellingNeeded,
+        counsellingBy: customCounsellingBy,
         remarks: customRemarks,
         isReEnrolled,
         isMigrated,
@@ -1298,7 +1354,7 @@ export default function App() {
                   </h2>
                 </div>
 
-                {/* Division Dropdown (in division page alone as requested) */}
+                {/* Division Dropdown & Download Options */}
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-slate-300 shadow-xs">
                     <Filter className="w-4 h-4 text-slate-800 shrink-0" />
@@ -1318,7 +1374,53 @@ export default function App() {
                       <option value="Tiruchendur" className="font-bold text-slate-900 bg-white">Tiruchendur Division</option>
                     </select>
                   </div>
-                  <span className="text-xs sm:text-sm font-black px-4 py-2.5 rounded-xl bg-white/20 text-white border border-white/30 shadow-2xs">
+
+                  {/* Export Options for Selected Division / All Divisions */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        if (divisionFilter === 'All') {
+                          exportStudentsToExcel(allStudents, `All_Divisions_Students_${selectedMonth}`);
+                        } else {
+                          const targetDiv = computedDivisions.find(d => d.name.toLowerCase() === divisionFilter.toLowerCase());
+                          const divStudents = allStudents.filter(s => s.division.toLowerCase() === divisionFilter.toLowerCase());
+                          if (targetDiv) {
+                            exportDivisionToExcel(targetDiv, divStudents, `${targetDiv.name}_Division_${selectedMonth}`);
+                          } else {
+                            exportStudentsToExcel(divStudents, `${divisionFilter}_Division_${selectedMonth}`);
+                          }
+                        }
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-bold bg-white/20 hover:bg-white/30 text-white shadow-xs border border-white/30 transition-all active:scale-95 cursor-pointer"
+                      title="Download Excel format"
+                    >
+                      <FileSpreadsheet className="w-4 h-4" />
+                      <span>Excel (.xlsx)</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        if (divisionFilter === 'All') {
+                          exportStudentsToWord(allStudents, `All Divisions Students — ${selectedMonth}`);
+                        } else {
+                          const targetDiv = computedDivisions.find(d => d.name.toLowerCase() === divisionFilter.toLowerCase());
+                          const divStudents = allStudents.filter(s => s.division.toLowerCase() === divisionFilter.toLowerCase());
+                          if (targetDiv) {
+                            exportDivisionToWord(targetDiv, divStudents, `${targetDiv.name} Division — Blocks & Student Caseload (${selectedMonth})`);
+                          } else {
+                            exportStudentsToWord(divStudents, `${divisionFilter} Division Students — ${selectedMonth}`);
+                          }
+                        }
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-bold bg-white/20 hover:bg-white/30 text-white shadow-xs border border-white/30 transition-all active:scale-95 cursor-pointer"
+                      title="Download Word format"
+                    >
+                      <FileText className="w-4 h-4" />
+                      <span>Word (.doc)</span>
+                    </button>
+                  </div>
+
+                  <span className="text-xs sm:text-sm font-black px-4 py-2 rounded-xl bg-white/20 text-white border border-white/30 shadow-2xs">
                     {divisionFilter === 'All' ? '3 Divisions' : `${divisionFilter} Division`}
                   </span>
                 </div>
@@ -1329,6 +1431,7 @@ export default function App() {
                 {computedDivisions
                   .filter(div => divisionFilter === 'All' || div.name.toLowerCase() === divisionFilter.toLowerCase())
                   .map((div) => {
+                    const divStudents = allStudents.filter(s => s.division.toLowerCase() === div.name.toLowerCase());
                     return (
                       <div
                         key={div.name}
@@ -1347,8 +1450,27 @@ export default function App() {
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-2.5">
-                            <span className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold text-white bg-white/15 border border-white/25 shadow-2xs">
+                          {/* Individual Division Download Buttons */}
+                          <div className="flex flex-wrap items-center gap-2.5">
+                            <button
+                              onClick={() => exportDivisionToExcel(div, divStudents, `${div.name}_Division_${selectedMonth}`)}
+                              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white/20 hover:bg-white/30 text-white shadow-xs border border-white/30 transition-all active:scale-95 cursor-pointer"
+                              title={`Download ${div.name} Division in Excel`}
+                            >
+                              <FileSpreadsheet className="w-3.5 h-3.5" />
+                              <span>Excel (.xlsx)</span>
+                            </button>
+
+                            <button
+                              onClick={() => exportDivisionToWord(div, divStudents, `${div.name} Division — Blocks & Student Caseload (${selectedMonth})`)}
+                              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white/20 hover:bg-white/30 text-white shadow-xs border border-white/30 transition-all active:scale-95 cursor-pointer"
+                              title={`Download ${div.name} Division in Word`}
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                              <span>Word (.doc)</span>
+                            </button>
+
+                            <span className="px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-white/15 border border-white/25 shadow-2xs">
                               {div.blocks.length} Blocks
                             </span>
                           </div>
@@ -1720,16 +1842,50 @@ export default function App() {
               s => s.isCounsellingNeeded || (s.counsellingRequired || '').toLowerCase().trim() === 'yes'
             );
 
+            // Extract distinct counsellors entered in Column S of Google Sheet
+            const rawCounsellorsInSheet = Array.from(
+              new Set(
+                allCounsellingStudents
+                  .map(s => (s.counsellingBy || '').trim())
+                  .filter(Boolean)
+              )
+            );
+
+            const defaultCounsellorNames = [
+              'Counsellor 1 (Kovilpatti)',
+              'Counsellor 2 (Thoothukudi)',
+              'Counsellor 3 (Tiruchendur)',
+            ];
+
+            const distinctCounsellors: string[] = [
+              rawCounsellorsInSheet[0] || defaultCounsellorNames[0],
+              rawCounsellorsInSheet[1] || defaultCounsellorNames[1],
+              rawCounsellorsInSheet[2] || defaultCounsellorNames[2],
+            ];
+            if (rawCounsellorsInSheet.length > 3) {
+              for (let i = 3; i < rawCounsellorsInSheet.length; i++) {
+                distinctCounsellors.push(rawCounsellorsInSheet[i]);
+              }
+            }
+
             const filteredCounselling = allCounsellingStudents.filter(st => {
               const matchDept = counsellingDeptFilter === 'All' || st.lineDept === counsellingDeptFilter;
               const matchDiv = counsellingDivFilter === 'All' || st.division.toLowerCase() === counsellingDivFilter.toLowerCase();
+              const matchCounsellor = counsellingCounsellorFilter === 'All'
+                ? true
+                : counsellingCounsellorFilter === 'Unassigned'
+                ? !(st.counsellingBy || '').trim()
+                : ((st.counsellingBy || '').trim().toLowerCase() === counsellingCounsellorFilter.toLowerCase() ||
+                   (st.counsellingBy || '').trim().toLowerCase().includes(counsellingCounsellorFilter.toLowerCase()) ||
+                   counsellingCounsellorFilter.toLowerCase().includes((st.counsellingBy || '').trim().toLowerCase()));
               const matchSearch = !counsellingSearch ||
                 st.studentName.toLowerCase().includes(counsellingSearch.toLowerCase()) ||
                 st.school.toLowerCase().includes(counsellingSearch.toLowerCase()) ||
                 st.block.toLowerCase().includes(counsellingSearch.toLowerCase()) ||
                 st.lineDept.toLowerCase().includes(counsellingSearch.toLowerCase()) ||
+                (st.counsellingBy && st.counsellingBy.toLowerCase().includes(counsellingSearch.toLowerCase())) ||
                 (st.emisId && st.emisId.includes(counsellingSearch));
-              return matchDept && matchDiv && matchSearch;
+              return matchDept && matchDiv && matchCounsellor && matchSearch;
             });
 
             const totalCounselling = allCounsellingStudents.length;
@@ -1774,6 +1930,114 @@ export default function App() {
                       >
                         <FileText className="w-4 h-4" />
                         <span>Word (.doc)</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3 Dedicated Boxes for Counsellors (Sourced from Column S: Counselling By in Google Sheet) */}
+                <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm overflow-hidden space-y-4">
+                  <div className="bg-[#1e3a5f] text-white px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-lg font-black text-white tracking-tight flex items-center gap-2">
+                        <UserCheck className="w-5 h-5 text-slate-200" />
+                        <span>Counsellor-Wise Caseload (Column S: Counselling By)</span>
+                      </h3>
+                    </div>
+
+                    {counsellingCounsellorFilter !== 'All' && (
+                      <button
+                        onClick={() => setCounsellingCounsellorFilter('All')}
+                        className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 shadow-2xs cursor-pointer"
+                      >
+                        Reset Counsellor Filter
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="p-5 sm:p-6 pt-0">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      {distinctCounsellors.slice(0, 3).map((cName, idx) => {
+                        const isSelected = counsellingCounsellorFilter === cName;
+                        const counselledStudents = allCounsellingStudents.filter(s => {
+                          const val = (s.counsellingBy || '').trim();
+                          if (!val) return false;
+                          return val.toLowerCase() === cName.toLowerCase() ||
+                                 val.toLowerCase().includes(cName.toLowerCase()) ||
+                                 cName.toLowerCase().includes(val.toLowerCase());
+                        });
+                        const cReEnrolled = counselledStudents.filter(s => s.isReEnrolled).length;
+                        const cRepeaters = counselledStudents.filter(s => s.isRepeater).length;
+
+                        return (
+                          <div
+                            key={cName}
+                            onClick={() => setCounsellingCounsellorFilter(isSelected ? 'All' : cName)}
+                            className={`border-2 rounded-2xl overflow-hidden shadow-2xs transition-all cursor-pointer flex flex-col justify-between ${
+                              isSelected
+                                ? 'bg-blue-50/70 border-blue-600 ring-2 ring-blue-400 shadow-md'
+                                : 'bg-white hover:bg-slate-50 border-slate-300'
+                            }`}
+                          >
+                            <div className={`px-4 py-2.5 flex items-center justify-between text-white ${
+                              isSelected ? 'bg-blue-800' : 'bg-[#1e3a5f]'
+                            }`}>
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="w-6 h-6 rounded-md bg-white/20 text-white flex items-center justify-center font-mono font-bold text-xs shrink-0">
+                                  {idx + 1}
+                                </span>
+                                <span className="text-xs sm:text-sm font-black uppercase tracking-wider truncate" title={cName}>
+                                  {cName}
+                                </span>
+                              </div>
+                              <UserCheck className="w-4 h-4 text-slate-200 shrink-0" />
+                            </div>
+
+                            <div className="p-4 flex flex-col justify-between flex-1">
+                              <div>
+                                <div className="flex items-baseline justify-between">
+                                  <span className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight">
+                                    {counselledStudents.length}
+                                  </span>
+                                  <span className="text-xs font-black px-2.5 py-1 rounded-md bg-slate-100 text-slate-800 border border-slate-300">
+                                    {totalCounselling > 0 ? ((counselledStudents.length / totalCounselling) * 100).toFixed(0) : 0}% of Cases
+                                  </span>
+                                </div>
+                                <span className="text-xs text-slate-600 font-bold block mt-1">
+                                  Students Counselled
+                                </span>
+                              </div>
+
+                              <div className="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between text-xs font-bold text-slate-700">
+                                <span>Re-enrolled: <strong className="text-emerald-700">{cReEnrolled}</strong></span>
+                                <span>Repeaters: <strong className="text-purple-700">{cRepeaters}</strong></span>
+                                <span className={`text-[11px] underline font-black ${isSelected ? 'text-blue-700' : 'text-slate-500'}`}>
+                                  {isSelected ? 'Active Filter' : 'Filter Cases'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Unassigned / Pending Assignment Status */}
+                    <div className="mt-4 pt-3 border-t border-slate-300 flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span>
+                        <span className="font-bold text-slate-700">
+                          Pending Counsellor Allocation (Column S empty): <strong className="text-amber-800 font-mono font-black">{allCounsellingStudents.filter(s => !(s.counsellingBy || '').trim()).length}</strong> students
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => setCounsellingCounsellorFilter(counsellingCounsellorFilter === 'Unassigned' ? 'All' : 'Unassigned')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-black border transition-colors cursor-pointer ${
+                          counsellingCounsellorFilter === 'Unassigned'
+                            ? 'bg-amber-600 text-white border-amber-700 shadow-xs'
+                            : 'bg-white hover:bg-amber-50 text-amber-900 border-amber-300 shadow-2xs'
+                        }`}
+                      >
+                        {counsellingCounsellorFilter === 'Unassigned' ? 'Showing Unassigned' : 'Filter Unassigned Students'}
                       </button>
                     </div>
                   </div>
@@ -1966,6 +2230,26 @@ export default function App() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">
+                      {/* Counsellor Filter (Column S) */}
+                      <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-300 shadow-2xs">
+                        <UserCheck className="w-4 h-4 text-slate-700 shrink-0" />
+                        <label htmlFor="counsel-counsellor-filter" className="text-xs font-bold text-slate-700 uppercase">
+                          Counsellor:
+                        </label>
+                        <select
+                          id="counsel-counsellor-filter"
+                          value={counsellingCounsellorFilter}
+                          onChange={(e) => setCounsellingCounsellorFilter(e.target.value)}
+                          className="text-xs sm:text-sm font-bold text-slate-900 bg-transparent focus:outline-none cursor-pointer max-w-[150px] truncate"
+                        >
+                          <option value="All">All Counsellors</option>
+                          {distinctCounsellors.map(c => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                          <option value="Unassigned">Unassigned / Pending</option>
+                        </select>
+                      </div>
+
                       {/* Department Filter */}
                       <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-300 shadow-2xs">
                         <Filter className="w-4 h-4 text-slate-700 shrink-0" />
@@ -2012,7 +2296,7 @@ export default function App() {
                           placeholder="Search student, EMIS, school..."
                           value={counsellingSearch}
                           onChange={(e) => setCounsellingSearch(e.target.value)}
-                          className="text-xs sm:text-sm pl-9 pr-3 py-1.5 rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400 w-full sm:w-56 font-medium"
+                          className="text-xs sm:text-sm pl-9 pr-3 py-1.5 rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400 w-full sm:w-52 font-medium"
                         />
                       </div>
                     </div>
@@ -2023,8 +2307,10 @@ export default function App() {
                       <table className="w-full text-left text-sm whitespace-nowrap">
                         <thead className="bg-[#1e3a5f] text-white font-black border-b-2 border-slate-400 sticky top-0 z-10">
                           <tr>
-                            <th className="py-3 px-3.5">S.No</th>
-                            <th className="py-3 px-3.5">Student Name</th>
+                            <th className="py-3 px-3.5 md:sticky md:left-0 md:z-30 bg-[#1e3a5f] w-12 text-center">S.No</th>
+                            <th className="py-3 px-3.5 md:sticky md:left-12 md:z-30 bg-[#1e3a5f] md:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.18)] min-w-44">
+                              Student Name
+                            </th>
                             <th className="py-3 px-3.5">EMIS ID</th>
                             <th className="py-3 px-3.5">Line Department</th>
                             <th className="py-3 px-3.5">Division</th>
@@ -2038,6 +2324,12 @@ export default function App() {
                             <th className="py-3 px-3.5 bg-rose-900 text-white font-black border-l border-r border-rose-800">
                               Counselling
                             </th>
+                            <th className="py-3 px-3.5 min-w-44 bg-blue-900 text-white font-black border-l border-r border-blue-800">
+                              Counselling By (Col S)
+                            </th>
+                            <th className="py-3 px-3.5 min-w-44 bg-teal-900 text-white font-black border-l border-r border-teal-800">
+                              Transfer Request (Col Q)
+                            </th>
                             <th className="py-3 px-3.5 min-w-48">Dropout Reason</th>
                             <th className="py-3 px-3.5 min-w-44">Present Status</th>
                             <th className="py-3 px-3.5 min-w-48">Remarks</th>
@@ -2047,9 +2339,13 @@ export default function App() {
                         {filteredCounselling.map((st, idx) => {
                           const key = st.emisId || String(st.sNo);
                           return (
-                            <tr key={`counsel-st-${key}-${idx}`} className="hover:bg-slate-50 transition-colors">
-                              <td className="py-3 px-3.5 text-slate-600 font-bold">{idx + 1}</td>
-                              <td className="py-3 px-3.5 font-black text-slate-900">{st.studentName}</td>
+                            <tr key={`counsel-st-${key}-${idx}`} className="hover:bg-slate-50 transition-colors group">
+                              <td className="py-3 px-3.5 text-slate-600 font-bold md:sticky md:left-0 md:z-20 bg-white group-hover:bg-slate-50 text-center">
+                                {idx + 1}
+                              </td>
+                              <td className="py-3 px-3.5 font-black text-slate-900 md:sticky md:left-12 md:z-20 bg-white group-hover:bg-slate-50 md:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.12)]">
+                                {st.studentName}
+                              </td>
                               <td className="py-3 px-3.5 font-mono text-slate-700 font-bold">{st.emisId || '—'}</td>
                               <td className="py-3 px-3.5">
                                 <span className="px-2.5 py-1 rounded-md text-xs font-black bg-slate-100 text-slate-800 border border-slate-300">
@@ -2081,6 +2377,34 @@ export default function App() {
                                   Yes
                                 </span>
                               </td>
+
+                              {/* Editable Counselling By (Column S) */}
+                              <td className="py-2 px-3 bg-blue-50/50 border-l border-r border-blue-200">
+                                <input
+                                  type="text"
+                                  value={st.counsellingBy || ''}
+                                  placeholder="Assign counsellor..."
+                                  onChange={(e) => handleCounsellingByChange(key, e.target.value)}
+                                  className="w-full min-w-[160px] text-xs font-bold py-1 px-2 rounded-lg border-2 border-blue-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs placeholder:text-slate-400 placeholder:italic"
+                                  title="Edit Counselling By (Column S in Google Sheet)"
+                                />
+                              </td>
+
+                              {/* Editable Transfer Request Department (Column Q) */}
+                              <td className="py-2 px-3 bg-teal-50/50 border-l border-r border-teal-200">
+                                <select
+                                  value={st.transferRequestDept || ''}
+                                  onChange={(e) => handleTransferDeptChange(key, e.target.value)}
+                                  className="w-full min-w-[150px] text-xs font-bold py-1 px-2 rounded-lg border-2 border-teal-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-2xs cursor-pointer"
+                                  title="Request to Transfer Case to another Department (Column Q)"
+                                >
+                                  <option value="">No Transfer</option>
+                                  {deptList.map(d => (
+                                    <option key={d} value={d}>Transfer to {d}</option>
+                                  ))}
+                                </select>
+                              </td>
+
                               <td className="py-3 px-3.5 text-slate-700 max-w-xs truncate" title={st.dropoutReason}>
                                 {st.dropoutReason || '—'}
                               </td>
@@ -2103,7 +2427,7 @@ export default function App() {
                         })}
                         {filteredCounselling.length === 0 && (
                           <tr>
-                            <td colSpan={16} className="py-12 text-center text-slate-500 font-bold">
+                            <td colSpan={18} className="py-12 text-center text-slate-500 font-bold">
                               No counselling cases match the selected filters.
                             </td>
                           </tr>
@@ -2256,60 +2580,234 @@ export default function App() {
                 );
               })()}
 
-              {/* Taluk-Wise Abstract Cards */}
-              <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm overflow-hidden space-y-4">
-                <div className="bg-[#1e3a5f] text-white px-6 py-4 flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-black text-white tracking-tight flex items-center gap-2">
-                      <MapPin className="w-5 h-5 text-slate-200" />
-                      <span>Taluk-Wise Distribution (Revenue Department)</span>
-                    </h3>
-                    <p className="text-xs sm:text-sm text-slate-200 font-medium">
-                      Breakdown across taluks in Thoothukudi District
-                    </p>
-                  </div>
-                  <span className="text-xs sm:text-sm font-bold px-3 py-1 rounded-full bg-white/20 text-white border border-white/30 shadow-2xs">
-                    {revenueTalukSummaries.length} Taluks
-                  </span>
-                </div>
+              {/* Incoming Case Transfer Requests Received Box (Column Q) */}
+              {(() => {
+                const incomingTransfers = allStudents.filter(
+                  s => s.transferRequestDept &&
+                       s.transferRequestDept.trim().toLowerCase() === 'revenue department' &&
+                       s.lineDept.trim().toLowerCase() !== 'revenue department'
+                );
 
-                <div className="p-5 sm:p-6 pt-0">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                    {revenueTalukSummaries.map((taluk) => {
-                      const isSelected = revenueTalukFilter === taluk.name;
-                      return (
-                        <button
-                          key={taluk.name}
-                          onClick={() => setRevenueTalukFilter(isSelected ? 'All' : taluk.name)}
-                          className={`p-3.5 rounded-xl border-2 text-left transition-all cursor-pointer ${
-                            isSelected
-                              ? 'bg-[#1e3a5f] text-white border-[#1e3a5f] shadow-md ring-2 ring-blue-300'
-                              : 'bg-white hover:bg-slate-200/80 text-slate-800 border-slate-300'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-black truncate">{taluk.name}</span>
-                            <span className={`text-xs font-bold px-2 py-0.5 rounded ${
-                              isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-900 border border-slate-300'
+                return (
+                  <div className={`border-2 rounded-2xl p-4 sm:p-5 shadow-sm transition-all ${
+                    incomingTransfers.length > 0 
+                      ? 'bg-amber-50/80 border-amber-300' 
+                      : 'bg-slate-100 border-slate-300'
+                  }`}>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold shadow-xs shrink-0 ${
+                          incomingTransfers.length > 0 ? 'bg-amber-600 text-white' : 'bg-[#1e3a5f] text-white'
+                        }`}>
+                          <ArrowRightLeft className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-black text-slate-900 uppercase tracking-wider">
+                              Case Transfer Requests (Col Q)
+                            </span>
+                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-black shadow-2xs ${
+                              incomingTransfers.length > 0 
+                                ? 'bg-amber-600 text-white' 
+                                : 'bg-slate-200 text-slate-700 border border-slate-300'
                             }`}>
-                              {taluk.potentialDropout}
+                              {incomingTransfers.length} {incomingTransfers.length === 1 ? 'Case' : 'Cases'}
                             </span>
                           </div>
-                          <div className={`mt-2 flex items-center justify-between text-xs font-bold ${
-                            isSelected ? 'text-slate-200' : 'text-slate-600'
-                          }`}>
-                            <span>Rep: {taluk.repeaters}</span>
-                            <span>Re-Enr: {taluk.reEnrolled}</span>
-                            <span>Couns: {taluk.counsellingNeeded}</span>
-                          </div>
+                          <p className="text-xs text-slate-600 font-bold mt-0.5">
+                            {incomingTransfers.length > 0
+                              ? `${incomingTransfers.length} student ${incomingTransfers.length === 1 ? 'case' : 'cases'} requested by other line departments to be transferred to Revenue Department`
+                              : 'No pending case transfer requests received from other departments'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {incomingTransfers.length > 0 && (
+                        <button
+                          onClick={() => setDeptShowTransferMap(prev => ({ ...prev, 'Revenue Department': !prev['Revenue Department'] }))}
+                          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-black bg-white hover:bg-amber-100 text-amber-950 border border-amber-300 shadow-2xs transition-colors cursor-pointer"
+                        >
+                          <Inbox className="w-4 h-4" />
+                          <span>{deptShowTransferMap['Revenue Department'] ? 'Hide Requests' : `View ${incomingTransfers.length} Incoming Cases`}</span>
                         </button>
-                      );
-                    })}
+                      )}
+                    </div>
+
+                    {incomingTransfers.length > 0 && deptShowTransferMap['Revenue Department'] && (
+                      <div className="mt-4 overflow-x-auto rounded-xl border border-amber-300 bg-white shadow-2xs max-h-80 overflow-y-auto">
+                        <table className="w-full text-left text-xs whitespace-nowrap">
+                          <thead className="bg-amber-900 text-white font-bold sticky top-0 z-10">
+                            <tr>
+                              <th className="py-2.5 px-3">S.No</th>
+                              <th className="py-2.5 px-3">Student Name</th>
+                              <th className="py-2.5 px-3">EMIS ID</th>
+                              <th className="py-2.5 px-3">Current Assigned Dept</th>
+                              <th className="py-2.5 px-3">Taluk</th>
+                              <th className="py-2.5 px-3">Block</th>
+                              <th className="py-2.5 px-3">School</th>
+                              <th className="py-2.5 px-3">Dropout Reason</th>
+                              <th className="py-2.5 px-3">Present Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-amber-100 text-slate-800">
+                            {incomingTransfers.map((st, idx) => (
+                              <tr key={`inc-rev-${st.emisId || st.sNo}-${idx}`} className="hover:bg-amber-50/60 transition-colors">
+                                <td className="py-2 px-3 font-bold text-slate-600">{idx + 1}</td>
+                                <td className="py-2 px-3 font-black text-slate-900">{st.studentName}</td>
+                                <td className="py-2 px-3 font-mono text-slate-700">{st.emisId || '-'}</td>
+                                <td className="py-2 px-3">
+                                  <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-800 font-bold border border-slate-300">
+                                    {st.lineDept}
+                                  </span>
+                                </td>
+                                <td className="py-2 px-3 font-bold text-slate-800">{st.taluk}</td>
+                                <td className="py-2 px-3">{st.block}</td>
+                                <td className="py-2 px-3 max-w-xs truncate">{st.school}</td>
+                                <td className="py-2 px-3 max-w-xs truncate">{st.dropoutReason || '-'}</td>
+                                <td className="py-2 px-3 font-bold">{st.status}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Taluk-Wise Breakdown Table (Just like the blockwise breakdown in Division slicer) */}
+              <div className="bg-slate-100 border-2 border-slate-300 rounded-3xl shadow-sm overflow-hidden text-slate-800 space-y-4">
+                <div className="bg-[#1e3a5f] text-white px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg sm:text-xl font-black text-white tracking-tight flex items-center gap-2">
+                      <MapPin className="w-5 h-5 text-slate-200" />
+                      <span>Taluk-Wise Breakdown — Revenue Department</span>
+                    </h3>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {revenueTalukFilter !== 'All' && (
+                      <button
+                        onClick={() => setRevenueTalukFilter('All')}
+                        className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 shadow-2xs cursor-pointer"
+                      >
+                        Reset Filter ({revenueTalukFilter})
+                      </button>
+                    )}
+                    <span className="px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-white/15 border border-white/25 shadow-2xs">
+                      {revenueTalukSummaries.length} Taluks
+                    </span>
+                  </div>
+                </div>
+
+                <div className="p-5 sm:p-6 pt-0 space-y-4">
+                  {/* Full Width Taluk Breakdown Table */}
+                  <div className="overflow-x-auto rounded-2xl border-2 border-slate-300 bg-white shadow-2xs">
+                    <table className="w-full text-left text-sm min-w-[720px]">
+                      <thead className="bg-[#1e3a5f] text-white font-black border-b-2 border-slate-400">
+                        <tr>
+                          <th className="py-3.5 px-4 sm:px-6 whitespace-nowrap">Taluk Name</th>
+                          <th className="py-3.5 px-4 text-center whitespace-nowrap">Potential Dropouts</th>
+                          <th className="py-3.5 px-4 text-center whitespace-nowrap">Repeaters</th>
+                          <th className="py-3.5 px-4 text-center whitespace-nowrap">Re-Enrolled</th>
+                          <th className="py-3.5 px-4 text-center whitespace-nowrap">Counselling Needed</th>
+                          <th className="py-3.5 px-4 text-center whitespace-nowrap">Status Not Updated</th>
+                          <th className="py-3.5 px-4 text-center whitespace-nowrap">Department Share</th>
+                          <th className="py-3.5 px-4 text-right whitespace-nowrap">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200 font-medium text-slate-800">
+                        {revenueTalukSummaries.map((taluk) => {
+                          const isSelected = revenueTalukFilter === taluk.name;
+                          const pct = revenueStudents.length > 0 ? ((taluk.potentialDropout / revenueStudents.length) * 100).toFixed(1) : '0';
+                          return (
+                            <tr 
+                              key={taluk.name} 
+                              className={`transition-colors cursor-pointer ${
+                                isSelected ? 'bg-teal-50 font-bold' : 'hover:bg-slate-100/80'
+                              }`}
+                              onClick={() => setRevenueTalukFilter(isSelected ? 'All' : taluk.name)}
+                            >
+                              <td className="py-3.5 px-4 sm:px-6 font-black text-slate-900 text-base whitespace-nowrap flex items-center gap-2">
+                                <MapPin className="w-4 h-4 text-teal-700" />
+                                <span>{taluk.name}</span>
+                              </td>
+                              <td className="py-3.5 px-4 text-center font-black text-slate-900 text-base whitespace-nowrap">
+                                {taluk.potentialDropout}
+                              </td>
+                              <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                                <span className="px-3 py-1 rounded-md bg-purple-100 text-purple-950 font-black text-xs border border-purple-300">
+                                  {taluk.repeaters}
+                                </span>
+                              </td>
+                              <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                                <span className="px-3 py-1 rounded-md bg-emerald-100 text-emerald-950 font-black text-xs border border-emerald-300">
+                                  {taluk.reEnrolled}
+                                </span>
+                              </td>
+                              <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                                <span className="px-3 py-1 rounded-md bg-rose-100 text-rose-950 font-black text-xs border border-rose-300">
+                                  {taluk.counsellingNeeded}
+                                </span>
+                              </td>
+                              <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                                <span className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-900 font-bold text-xs border border-slate-300">
+                                  {taluk.statusNotUpdated}
+                                </span>
+                              </td>
+                              <td className="py-3.5 px-4 text-center font-bold text-slate-700 whitespace-nowrap">
+                                {pct}%
+                              </td>
+                              <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setRevenueTalukFilter(isSelected ? 'All' : taluk.name);
+                                  }}
+                                  className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors shadow-2xs cursor-pointer ${
+                                    isSelected
+                                      ? 'bg-[#1e3a5f] text-white border-[#1e3a5f]'
+                                      : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-300'
+                                  }`}
+                                >
+                                  <span>{isSelected ? 'Active' : 'Filter Taluk'}</span>
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                      <tfoot className="bg-slate-200 font-black text-slate-900 border-t-2 border-slate-300">
+                        <tr>
+                          <td className="py-3 px-4 sm:px-6 text-sm whitespace-nowrap">
+                            Total (Revenue Department)
+                          </td>
+                          <td className="py-3 px-4 text-center font-black text-base whitespace-nowrap">
+                            {revenueStudents.length}
+                          </td>
+                          <td className="py-3 px-4 text-center font-black text-base text-purple-950 whitespace-nowrap">
+                            {revenueStudents.filter(s => s.isRepeater).length}
+                          </td>
+                          <td className="py-3 px-4 text-center font-black text-base text-emerald-950 whitespace-nowrap">
+                            {revenueStudents.filter(s => s.isReEnrolled).length}
+                          </td>
+                          <td className="py-3 px-4 text-center font-black text-base text-rose-950 whitespace-nowrap">
+                            {revenueStudents.filter(s => s.isCounsellingNeeded).length}
+                          </td>
+                          <td className="py-3 px-4 text-center font-black text-base text-slate-900 whitespace-nowrap">
+                            {revenueStudents.filter(s => s.isStatusNotUpdated).length}
+                          </td>
+                          <td className="py-3 px-4 text-center font-black text-slate-900 whitespace-nowrap">
+                            100%
+                          </td>
+                          <td className="py-3 px-4 text-right whitespace-nowrap"></td>
+                        </tr>
+                      </tfoot>
+                    </table>
                   </div>
                 </div>
               </div>
 
-              {/* Taluk-Wise Student Directory with ALL Columns and Editable Present Status */}
+              {/* Taluk-Wise Student Directory with ALL Columns and Editable Fields */}
               {(() => {
                 const filteredTalukStudents = revenueStudents.filter((st) => {
                   const matchTaluk = revenueTalukFilter === 'All' || st.taluk === revenueTalukFilter;
@@ -2357,13 +2855,15 @@ export default function App() {
                     </div>
 
                     <div className="p-5 sm:p-6 pt-0">
-                      {/* Table with ALL Columns and Clean Headers */}
+                      {/* Table with Frozen Student Name on Laptop and All Columns */}
                       <div className="overflow-x-auto rounded-xl border-2 border-slate-300 max-h-[32rem] overflow-y-auto bg-white">
                         <table className="w-full text-left text-sm whitespace-nowrap">
                           <thead className="bg-[#1e3a5f] text-white font-black border-b-2 border-slate-400 sticky top-0 z-10">
                           <tr>
-                            <th className="py-3 px-3.5">S.No</th>
-                            <th className="py-3 px-3.5">Student Name</th>
+                            <th className="py-3 px-3.5 md:sticky md:left-0 md:z-30 bg-[#1e3a5f] w-12 text-center">S.No</th>
+                            <th className="py-3 px-3.5 md:sticky md:left-12 md:z-30 bg-[#1e3a5f] md:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.18)] min-w-44">
+                              Student Name
+                            </th>
                             <th className="py-3 px-3.5">EMIS ID</th>
                             <th className="py-3 px-3.5">Taluk</th>
                             <th className="py-3 px-3.5">Division</th>
@@ -2372,17 +2872,23 @@ export default function App() {
                             <th className="py-3 px-3.5">Class</th>
                             <th className="py-3 px-3.5">Gender</th>
                             <th className="py-3 px-3.5">Repeater</th>
-                            <th className="py-3 px-3.5 min-w-32 bg-rose-100/70 text-rose-950 font-black border-l border-r border-rose-300">
+                            <th className="py-3 px-3.5 min-w-32 bg-rose-900 text-white font-black border-l border-r border-rose-800">
                               Counselling
                             </th>
-                            <th className="py-3 px-3.5 min-w-56 bg-sky-100/70 text-sky-950 font-black border-l border-r border-sky-300">
+                            <th className="py-3 px-3.5 min-w-44 bg-blue-900 text-white font-black border-l border-r border-blue-800">
+                              Counselling By (Col S)
+                            </th>
+                            <th className="py-3 px-3.5 min-w-44 bg-teal-900 text-white font-black border-l border-r border-teal-800">
+                              Transfer Request (Col Q)
+                            </th>
+                            <th className="py-3 px-3.5 min-w-56 bg-sky-900 text-white font-black border-l border-r border-sky-800">
                               Dropout Reason
                             </th>
-                            <th className="py-3 px-3.5 min-w-48 bg-amber-100/70 text-amber-950 font-black border-l border-r border-amber-300">
+                            <th className="py-3 px-3.5 min-w-48 bg-amber-900 text-white font-black border-l border-r border-amber-800">
                               Present Status
                             </th>
                             <th className="py-3 px-3.5">Contact No</th>
-                            <th className="py-3 px-3.5 min-w-56 bg-indigo-100/70 text-indigo-950 font-black border-l border-r border-indigo-300">
+                            <th className="py-3 px-3.5 min-w-56 bg-indigo-900 text-white font-black border-l border-r border-indigo-800">
                               Remarks
                             </th>
                           </tr>
@@ -2392,9 +2898,13 @@ export default function App() {
                             const key = st.emisId || String(st.sNo);
                             const counsellingVal = (st.counsellingRequired === 'Yes' || st.isCounsellingNeeded) ? 'Yes' : 'No';
                             return (
-                              <tr key={`rev-${key}-${idx}`} className="hover:bg-teal-50/40 transition-colors">
-                                <td className="py-2.5 px-3.5 font-bold text-slate-600">{st.sNo}</td>
-                                <td className="py-2.5 px-3.5 font-black text-slate-900">{st.studentName}</td>
+                              <tr key={`rev-${key}-${idx}`} className="hover:bg-slate-50 transition-colors group">
+                                <td className="py-2.5 px-3.5 font-bold text-slate-600 md:sticky md:left-0 md:z-20 bg-white group-hover:bg-slate-50 text-center">
+                                  {st.sNo}
+                                </td>
+                                <td className="py-2.5 px-3.5 font-black text-slate-900 md:sticky md:left-12 md:z-20 bg-white group-hover:bg-slate-50 md:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.12)]">
+                                  {st.studentName}
+                                </td>
                                 <td className="py-2.5 px-3.5 text-slate-700 font-bold">{st.emisId || '-'}</td>
                                 <td className="py-2.5 px-3.5 font-bold text-teal-900 bg-teal-50/60">{st.taluk}</td>
                                 <td className="py-2.5 px-3.5 text-slate-700">{st.division}</td>
@@ -2431,6 +2941,33 @@ export default function App() {
                                   </select>
                                 </td>
 
+                                {/* EDITABLE COUNSELLING BY (COLUMN S) */}
+                                <td className="py-2 px-3 bg-blue-50/50 border-l border-r border-blue-200">
+                                  <input
+                                    type="text"
+                                    value={st.counsellingBy || ''}
+                                    placeholder="Assign counsellor..."
+                                    onChange={(e) => handleCounsellingByChange(key, e.target.value)}
+                                    className="w-full min-w-[160px] text-xs font-bold py-1 px-2 rounded-lg border-2 border-blue-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs placeholder:text-slate-400 placeholder:italic"
+                                    title="Edit Counselling By (Column S in Google Sheet)"
+                                  />
+                                </td>
+
+                                {/* EDITABLE TRANSFER REQUEST DEPARTMENT (COLUMN Q) */}
+                                <td className="py-2 px-3 bg-teal-50/50 border-l border-r border-teal-200">
+                                  <select
+                                    value={st.transferRequestDept || ''}
+                                    onChange={(e) => handleTransferDeptChange(key, e.target.value)}
+                                    className="w-full min-w-[150px] text-xs font-bold py-1 px-2 rounded-lg border-2 border-teal-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-2xs cursor-pointer"
+                                    title="Request to Transfer Case to another Department (Column Q)"
+                                  >
+                                    <option value="">No Transfer</option>
+                                    {deptList.map(d => (
+                                      <option key={d} value={d}>Transfer to {d}</option>
+                                    ))}
+                                  </select>
+                                </td>
+
                                 {/* EDITABLE DROPOUT REASON FOR OFFICIALS */}
                                 <td className="py-2 px-3 bg-sky-50/40 border-l border-r border-sky-200">
                                   <input
@@ -2455,7 +2992,6 @@ export default function App() {
                                         {opt}
                                       </option>
                                     ))}
-                                    {/* Include sheet original value if not in list */}
                                     {!PRESENT_STATUS_OPTIONS.includes(st.status) && (
                                       <option value={st.status}>{st.status}</option>
                                     )}
@@ -2584,6 +3120,101 @@ export default function App() {
                 </div>
               </div>
 
+              {/* Incoming Case Transfer Requests Received Box (Column Q) */}
+              {(() => {
+                const incomingTransfers = allStudents.filter(
+                  s => s.transferRequestDept &&
+                       s.transferRequestDept.trim().toLowerCase() === selectedSlicer.toLowerCase() &&
+                       s.lineDept.trim().toLowerCase() !== selectedSlicer.toLowerCase()
+                );
+
+                return (
+                  <div className={`border-2 rounded-2xl p-4 sm:p-5 shadow-sm transition-all ${
+                    incomingTransfers.length > 0 
+                      ? 'bg-amber-50/80 border-amber-300' 
+                      : 'bg-slate-100 border-slate-300'
+                  }`}>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold shadow-xs shrink-0 ${
+                          incomingTransfers.length > 0 ? 'bg-amber-600 text-white' : 'bg-[#1e3a5f] text-white'
+                        }`}>
+                          <ArrowRightLeft className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-black text-slate-900 uppercase tracking-wider">
+                              Case Transfer Requests (Col Q)
+                            </span>
+                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-black shadow-2xs ${
+                              incomingTransfers.length > 0 
+                                ? 'bg-amber-600 text-white' 
+                                : 'bg-slate-200 text-slate-700 border border-slate-300'
+                            }`}>
+                              {incomingTransfers.length} {incomingTransfers.length === 1 ? 'Case' : 'Cases'}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-600 font-bold mt-0.5">
+                            {incomingTransfers.length > 0
+                              ? `${incomingTransfers.length} student ${incomingTransfers.length === 1 ? 'case' : 'cases'} requested by other line departments to be transferred to ${selectedSlicer}`
+                              : `No pending case transfer requests received from other departments`}
+                          </p>
+                        </div>
+                      </div>
+
+                      {incomingTransfers.length > 0 && (
+                        <button
+                          onClick={() => setDeptShowTransferMap(prev => ({ ...prev, [selectedSlicer]: !prev[selectedSlicer] }))}
+                          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-black bg-white hover:bg-amber-100 text-amber-950 border border-amber-300 shadow-2xs transition-colors cursor-pointer"
+                        >
+                          <Inbox className="w-4 h-4" />
+                          <span>{deptShowTransferMap[selectedSlicer] ? 'Hide Requests' : `View ${incomingTransfers.length} Incoming Cases`}</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {incomingTransfers.length > 0 && deptShowTransferMap[selectedSlicer] && (
+                      <div className="mt-4 overflow-x-auto rounded-xl border border-amber-300 bg-white shadow-2xs max-h-80 overflow-y-auto">
+                        <table className="w-full text-left text-xs whitespace-nowrap">
+                          <thead className="bg-amber-900 text-white font-bold sticky top-0 z-10">
+                            <tr>
+                              <th className="py-2.5 px-3">S.No</th>
+                              <th className="py-2.5 px-3">Student Name</th>
+                              <th className="py-2.5 px-3">EMIS ID</th>
+                              <th className="py-2.5 px-3">Currently Assigned Dept</th>
+                              <th className="py-2.5 px-3">Taluk</th>
+                              <th className="py-2.5 px-3">Block</th>
+                              <th className="py-2.5 px-3">School</th>
+                              <th className="py-2.5 px-3">Dropout Reason</th>
+                              <th className="py-2.5 px-3">Present Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-amber-100 text-slate-800">
+                            {incomingTransfers.map((st, idx) => (
+                              <tr key={`inc-${selectedSlicer}-${st.emisId || st.sNo}-${idx}`} className="hover:bg-amber-50/60 transition-colors">
+                                <td className="py-2 px-3 font-bold text-slate-600">{idx + 1}</td>
+                                <td className="py-2 px-3 font-black text-slate-900">{st.studentName}</td>
+                                <td className="py-2 px-3 font-mono text-slate-700">{st.emisId || '-'}</td>
+                                <td className="py-2 px-3">
+                                  <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-800 font-bold border border-slate-300">
+                                    {st.lineDept}
+                                  </span>
+                                </td>
+                                <td className="py-2 px-3 font-bold text-slate-800">{st.taluk}</td>
+                                <td className="py-2 px-3">{st.block}</td>
+                                <td className="py-2 px-3 max-w-xs truncate">{st.school}</td>
+                                <td className="py-2 px-3 max-w-xs truncate">{st.dropoutReason || '-'}</td>
+                                <td className="py-2 px-3 font-bold">{st.status}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               {/* 4 Summary Boxes: Uniform light grey boxes and #1e3a5f headings */}
               {(() => {
                 const currentDept = computedDepartments.find(d => d.name === selectedSlicer);
@@ -2693,13 +3324,15 @@ export default function App() {
                     </div>
 
                     <div className="p-5 sm:p-6 pt-0">
-                      {/* Table with ALL Columns and Clean Headers */}
+                      {/* Table with Frozen Student Name on Laptop and All Columns */}
                       <div className="overflow-x-auto rounded-xl border-2 border-slate-300 max-h-[32rem] overflow-y-auto bg-white">
                         <table className="w-full text-left text-sm whitespace-nowrap">
                           <thead className="bg-[#1e3a5f] text-white font-black border-b-2 border-slate-400 sticky top-0 z-10">
                             <tr>
-                              <th className="py-3 px-3.5">S.No</th>
-                              <th className="py-3 px-3.5">Student Name</th>
+                              <th className="py-3 px-3.5 md:sticky md:left-0 md:z-30 bg-[#1e3a5f] w-12 text-center">S.No</th>
+                              <th className="py-3 px-3.5 md:sticky md:left-12 md:z-30 bg-[#1e3a5f] md:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.18)] min-w-44">
+                                Student Name
+                              </th>
                               <th className="py-3 px-3.5">EMIS ID</th>
                               <th className="py-3 px-3.5">Division</th>
                               <th className="py-3 px-3.5">Taluk</th>
@@ -2711,28 +3344,38 @@ export default function App() {
                               <th className="py-3 px-3.5">Address</th>
                               <th className="py-3 px-3.5">Contact No</th>
                               <th className="py-3 px-3.5">Repeater</th>
-                              <th className="py-3 px-3.5 min-w-32 bg-rose-100/70 text-rose-950 font-black border-l border-r border-rose-300">
+                              <th className="py-3 px-3.5 min-w-32 bg-rose-900 text-white font-black border-l border-r border-rose-800">
                                 Counselling
                               </th>
-                              <th className="py-3 px-3.5 min-w-56 bg-sky-100/70 text-sky-950 font-black border-l border-r border-sky-300">
+                              <th className="py-3 px-3.5 min-w-44 bg-blue-900 text-white font-black border-l border-r border-blue-800">
+                                Counselling By (Col S)
+                              </th>
+                              <th className="py-3 px-3.5 min-w-44 bg-teal-900 text-white font-black border-l border-r border-teal-800">
+                                Transfer Request (Col Q)
+                              </th>
+                              <th className="py-3 px-3.5 min-w-56 bg-sky-900 text-white font-black border-l border-r border-sky-800">
                                 Dropout Reason
                               </th>
-                              <th className="py-3 px-3.5 min-w-48 bg-amber-100/70 text-amber-950 font-black border-l border-r border-amber-300">
+                              <th className="py-3 px-3.5 min-w-48 bg-amber-900 text-white font-black border-l border-r border-amber-800">
                                 Present Status
                               </th>
-                            <th className="py-3 px-3.5 min-w-56 bg-indigo-100/70 text-indigo-950 font-black border-l border-r border-indigo-300">
-                              Remarks
-                            </th>
-                          </tr>
-                        </thead>
+                              <th className="py-3 px-3.5 min-w-56 bg-indigo-900 text-white font-black border-l border-r border-indigo-800">
+                                Remarks
+                              </th>
+                            </tr>
+                          </thead>
                         <tbody className="divide-y divide-slate-200 font-medium text-slate-800">
                           {filteredStudents.map((st, idx) => {
                             const key = st.emisId || String(st.sNo);
                             const counsellingVal = (st.counsellingRequired === 'Yes' || st.isCounsellingNeeded) ? 'Yes' : 'No';
                             return (
-                              <tr key={`st-${key}-${idx}`} className="hover:bg-slate-50 transition-colors">
-                                <td className="py-2.5 px-3.5 font-bold text-slate-600">{st.sNo}</td>
-                                <td className="py-2.5 px-3.5 font-black text-slate-900">{st.studentName}</td>
+                              <tr key={`st-${key}-${idx}`} className="hover:bg-slate-50 transition-colors group">
+                                <td className="py-2.5 px-3.5 font-bold text-slate-600 md:sticky md:left-0 md:z-20 bg-white group-hover:bg-slate-50 text-center">
+                                  {st.sNo}
+                                </td>
+                                <td className="py-2.5 px-3.5 font-black text-slate-900 md:sticky md:left-12 md:z-20 bg-white group-hover:bg-slate-50 md:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.12)]">
+                                  {st.studentName}
+                                </td>
                                 <td className="py-2.5 px-3.5 text-slate-700 font-bold">{st.emisId || '-'}</td>
                                 <td className="py-2.5 px-3.5 text-slate-700">{st.division}</td>
                                 <td className="py-2.5 px-3.5 font-bold text-slate-800">{st.taluk}</td>
@@ -2769,6 +3412,33 @@ export default function App() {
                                   >
                                     <option value="Yes">Yes</option>
                                     <option value="No">No</option>
+                                  </select>
+                                </td>
+
+                                {/* EDITABLE COUNSELLING BY (COLUMN S) */}
+                                <td className="py-2 px-3 bg-blue-50/50 border-l border-r border-blue-200">
+                                  <input
+                                    type="text"
+                                    value={st.counsellingBy || ''}
+                                    placeholder="Assign counsellor..."
+                                    onChange={(e) => handleCounsellingByChange(key, e.target.value)}
+                                    className="w-full min-w-[160px] text-xs font-bold py-1 px-2 rounded-lg border-2 border-blue-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs placeholder:text-slate-400 placeholder:italic"
+                                    title="Edit Counselling By (Column S in Google Sheet)"
+                                  />
+                                </td>
+
+                                {/* EDITABLE TRANSFER REQUEST DEPARTMENT (COLUMN Q) */}
+                                <td className="py-2 px-3 bg-teal-50/50 border-l border-r border-teal-200">
+                                  <select
+                                    value={st.transferRequestDept || ''}
+                                    onChange={(e) => handleTransferDeptChange(key, e.target.value)}
+                                    className="w-full min-w-[150px] text-xs font-bold py-1 px-2 rounded-lg border-2 border-teal-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-2xs cursor-pointer"
+                                    title="Request to Transfer Case to another Department (Column Q)"
+                                  >
+                                    <option value="">No Transfer</option>
+                                    {deptList.map(d => (
+                                      <option key={d} value={d}>Transfer to {d}</option>
+                                    ))}
                                   </select>
                                 </td>
 

@@ -225,8 +225,10 @@ export interface StudentRecord {
   isRepeater: boolean;
   lineDept: string;
   dropoutReason: string;
+  transferRequestDept: string;
   counsellingRequired: string;
   isCounsellingNeeded: boolean;
+  counsellingBy: string;
   status: string;
   isReEnrolled: boolean;
   isMigrated: boolean;
@@ -433,9 +435,9 @@ export function processSheetCSV(csvText: string, month: string): DashboardPayloa
   // Col C (2): Taluk Name
   // Col D (3): Block Name
   // Col E (4): School Name
-  // Col F (5): Category
-  // Col G (6): EMIS_ID
-  // Col H (7): Student Name
+  // Col F (5): Student Name (Replaced/moved to Col F)
+  // Col G (6): Category (Replaced/moved to Col G)
+  // Col H (7): EMIS_ID (Replaced/moved to Col H)
   // Col I (8): Gender
   // Col J (9): Std
   // Col K (10): Sec
@@ -444,18 +446,20 @@ export function processSheetCSV(csvText: string, month: string): DashboardPayloa
   // Col N (13): Repeater or Not
   // Col O (14): Line Department
   // Col P (15): Dropout Reason
-  // Col Q (16): CounsellingRequired
-  // Col R (17): Present Status
-  // Col S (18): Remarks / Notes
+  // Col Q (16): Request to Transfer Department (NEW Col Q)
+  // Col R (17): CounsellingRequired (Replaced/moved to Col R)
+  // Col S (18): Counselling By (NEW Col S)
+  // Col T (19): Present Status (Replaced/moved to Col T)
+  // Col U (20): Department / Counsellors Remarks (Replaced/moved to Col U)
 
   const sNoIdx = getColIdx(['s.no', 'sno', 'sl.no', 'tracker s.no', 'potential dropout tracker s.no'], ['tracker', 'serial', 's.no'], 0);
   const divisionIdx = getColIdx(['division name', 'division', 'revenue division'], ['division'], 1);
   const talukIdx = getColIdx(['taluk name', 'taluk', 'revenue taluk'], ['taluk'], 2);
   const blockIdx = getColIdx(['block name', 'educational block', 'block'], ['block'], 3);
   const schoolIdx = getColIdx(['school name', 'school'], ['school'], 4);
-  const categoryIdx = getColIdx(['category', 'school category'], ['category'], 5);
-  const emisIdx = getColIdx(['emis_id', 'emis id', 'emis number', 'emis'], ['emis'], 6);
-  const nameIdx = getColIdx(['student name', 'name of the student', 'student_name'], ['student name', 'student'], 7);
+  const nameIdx = getColIdx(['student name', 'name of the student', 'student_name'], ['student name', 'student'], 5);
+  const categoryIdx = getColIdx(['category', 'school category'], ['category'], 6);
+  const emisIdx = getColIdx(['emis_id', 'emis id', 'emis number', 'emis'], ['emis'], 7);
   const genderIdx = getColIdx(['gender', 'sex'], ['gender'], 8);
   const stdIdx = getColIdx(['std', 'standard', 'class', 'grade'], ['std', 'standard'], 9);
   const secIdx = getColIdx(['sec', 'section'], ['section', 'sec'], 10);
@@ -464,14 +468,16 @@ export function processSheetCSV(csvText: string, month: string): DashboardPayloa
   const repeaterIdx = getColIdx(['repeater or not', 'repeater status', 'repeater'], ['repeater'], 13);
   const lineDeptIdx = getColIdx(['line department', 'line dept'], ['department', 'dept'], 14);
   const dropoutReasonIdx = getColIdx(['dropout reason', 'reason for dropout'], ['reason'], 15);
-  const counsellingIdx = getColIdx(['counsellingrequired', 'counselling required', 'counselling needed', 'counselling'], ['counsel'], 16);
-  const statusIdx = getColIdx(['present status', 'status', 'current status'], ['present status', 're-enrolled'], 17);
-  const remarksIdx = getColIdx(['remarks / notes', 'remarks', 'notes', 'comments'], ['remarks', 'notes'], 18);
+  const transferDeptIdx = getColIdx(['request to transfer department', 'request to transfer', 'transfer department', 'transfer to department', 'transfer dept', 'request to change cases'], ['transfer'], 16);
+  const counsellingIdx = getColIdx(['counsellingrequired', 'counselling required', 'counselling needed', 'counselling\nrequired', 'counselling'], ['counsel'], 17);
+  const counsellingByIdx = getColIdx(['counselling by', 'counselled by', 'counsellor name', 'counsellor', 'counselor'], ['counselling by', 'counselled by', 'counsellor'], 18);
+  const statusIdx = getColIdx(['present status', 'status', 'current status'], ['present status', 're-enrolled', 'status'], 19);
+  const remarksIdx = getColIdx(['department / counsellors remarks', 'department remarks', 'remarks / notes', 'remarks', 'notes', 'comments'], ['remarks', 'notes'], 20);
 
   const knownIndices = new Set([
     sNoIdx, divisionIdx, talukIdx, blockIdx, schoolIdx, categoryIdx, emisIdx,
     nameIdx, genderIdx, stdIdx, secIdx, addressIdx, contactIdx, repeaterIdx,
-    lineDeptIdx, dropoutReasonIdx, counsellingIdx, statusIdx, remarksIdx
+    lineDeptIdx, dropoutReasonIdx, transferDeptIdx, counsellingIdx, counsellingByIdx, statusIdx, remarksIdx
   ]);
 
   const students: StudentRecord[] = [];
@@ -661,8 +667,10 @@ export function processSheetCSV(csvText: string, month: string): DashboardPayloa
       isRepeater,
       lineDept: assignedDept,
       dropoutReason: r[dropoutReasonIdx] || '-',
+      transferRequestDept: (r[transferDeptIdx] || '').trim(),
       counsellingRequired: counsellingVal || 'No',
       isCounsellingNeeded,
+      counsellingBy: (r[counsellingByIdx] || '').trim(),
       status: statusVal || 'Status Not Updated',
       isReEnrolled,
       isMigrated,
