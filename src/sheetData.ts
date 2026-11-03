@@ -7,13 +7,15 @@ export const MONTH_TABS: Record<string, string> = {
   'Sep 2026': '419562693',
   'Sept 2026': '419562693',
   'Sep 26': '419562693',
-  'Oct 2026': '683603902',
-  'October 2026': '683603902',
-  'Oct 26': '683603902',
-  'Nov 2026': '683603902', // fallback until user creates tab in sheet
+  'Oct 2026': '161222471',
+  'October 2026': '161222471',
+  'Oct 26': '161222471',
+  'Nov 2026': '1738482331',
+  'November 2026': '1738482331',
+  'Nov 26': '1738482331',
 };
 
-export const AVAILABLE_MONTHS = ['Sep 2026', 'Oct 2026'];
+export const AVAILABLE_MONTHS = ['Sep 2026', 'Oct 2026', 'Nov 2026'];
 
 export async function fetchLiveMonthTabs(): Promise<{ tabs: Record<string, string>; availableMonths: string[] }> {
   try {

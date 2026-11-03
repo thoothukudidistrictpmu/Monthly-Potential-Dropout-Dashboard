@@ -1,5 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { SPREADSHEET_ID, MONTH_TABS, processSheetCSV, fetchLiveCredentials, DEFAULT_DEPARTMENT_CREDENTIALS } from '../src/sheetData.js';
+import { 
+  SPREADSHEET_ID, 
+  MONTH_TABS, 
+  AVAILABLE_MONTHS,
+  processSheetCSV, 
+  fetchLiveCredentials, 
+  DEFAULT_DEPARTMENT_CREDENTIALS,
+  fetchLiveMonthTabs 
+} from '../src/sheetData.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers
@@ -17,24 +25,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const month = (req.query.month as string) || 'Sep 2026';
-  const normalizedMonth = month === 'Sep 26' ? 'Sep 2026' : month === 'Oct 26' ? 'Oct 2026' : month === 'Nov 26' ? 'Nov 2026' : month;
-  const targetGid = MONTH_TABS[normalizedMonth] || MONTH_TABS[month] || MONTH_TABS['Sep 2026'];
+  let normalizedMonth = month;
+  if (/sep/i.test(month)) normalizedMonth = 'Sep 2026';
+  else if (/oct/i.test(month)) normalizedMonth = 'Oct 2026';
+  else if (/nov/i.test(month)) normalizedMonth = 'Nov 2026';
+  else if (/dec/i.test(month)) normalizedMonth = 'Dec 2026';
 
   try {
+    const [{ tabs, availableMonths }, creds] = await Promise.all([
+      fetchLiveMonthTabs().catch(() => ({ tabs: MONTH_TABS, availableMonths: AVAILABLE_MONTHS })),
+      fetchLiveCredentials().catch(() => DEFAULT_DEPARTMENT_CREDENTIALS)
+    ]);
+
+    const targetGid = tabs[normalizedMonth] || tabs[month] || MONTH_TABS[normalizedMonth] || '419562693';
+
     const sheetRes = await fetch(
       `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&gid=${targetGid}`,
       { headers: { 'User-Agent': 'Thoothukudi-Dropout-Dashboard/2.0' } }
     );
 
     if (!sheetRes.ok) {
-      throw new Error(`Google Sheet returned HTTP ${sheetRes.status} for "${normalizedMonth}"`);
+      throw new Error(`Google Sheet returned HTTP ${sheetRes.status} for "${normalizedMonth}" (gid: ${targetGid})`);
     }
 
-    const [csvText, creds] = await Promise.all([
-      sheetRes.text(),
-      fetchLiveCredentials().catch(() => DEFAULT_DEPARTMENT_CREDENTIALS)
-    ]);
+    const csvText = await sheetRes.text();
     const payload = processSheetCSV(csvText, normalizedMonth);
+    payload.availableMonths = availableMonths;
     payload.credentials = creds;
 
     // Cache on Vercel Edge for 60 seconds, stale while revalidate 300 seconds

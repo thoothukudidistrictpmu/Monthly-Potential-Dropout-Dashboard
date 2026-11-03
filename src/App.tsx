@@ -48,6 +48,7 @@ import {
 import { 
   SPREADSHEET_ID, 
   MONTH_TABS, 
+  AVAILABLE_MONTHS,
   processSheetCSV, 
   StudentRecord, 
   DepartmentAbstract,
@@ -312,20 +313,29 @@ export default function App() {
       // 2. Direct Google Sheets published CSV fallback
       if (!fetchedData) {
         let liveTabs = MONTH_TABS;
+        let availableMonths = AVAILABLE_MONTHS;
         try {
           const live = await fetchLiveMonthTabs();
           liveTabs = live.tabs;
+          availableMonths = live.availableMonths;
         } catch {
           // fallback to MONTH_TABS
         }
-        const targetGid = liveTabs[monthToFetch] || MONTH_TABS[monthToFetch] || MONTH_TABS['Sep 2026'];
+
+        let normalizedMonth = monthToFetch;
+        if (/sep/i.test(monthToFetch)) normalizedMonth = 'Sep 2026';
+        else if (/oct/i.test(monthToFetch)) normalizedMonth = 'Oct 2026';
+        else if (/nov/i.test(monthToFetch)) normalizedMonth = 'Nov 2026';
+
+        const targetGid = liveTabs[normalizedMonth] || liveTabs[monthToFetch] || MONTH_TABS[normalizedMonth] || MONTH_TABS[monthToFetch] || '419562693';
         const directUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&gid=${targetGid}`;
         const sheetRes = await fetch(directUrl);
         if (!sheetRes.ok) {
           throw new Error(`Google Sheet returned HTTP ${sheetRes.status} for sheet "${monthToFetch}".`);
         }
         const csvText = await sheetRes.text();
-        fetchedData = processSheetCSV(csvText, monthToFetch);
+        fetchedData = processSheetCSV(csvText, normalizedMonth);
+        fetchedData.availableMonths = availableMonths;
       }
 
       if (fetchedData.credentials) {
