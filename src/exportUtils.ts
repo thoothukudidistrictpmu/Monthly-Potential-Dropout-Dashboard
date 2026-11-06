@@ -31,6 +31,7 @@ export function exportStudentsToExcel(students: StudentRecord[], filename: strin
     'Gender': s.gender,
     'Standard': s.std,
     'Section': s.sec,
+    'Absent Days': s.absentDays || '-',
     'Address': s.address,
     'Contact No': s.contactNo,
     'Repeater or Not': s.repeaterStatus,
@@ -39,6 +40,8 @@ export function exportStudentsToExcel(students: StudentRecord[], filename: strin
     'Request to Transfer Department': s.transferRequestDept || '-',
     'Counselling Required': s.counsellingRequired || (s.isCounsellingNeeded ? 'Yes' : 'No'),
     'Counselling By': s.counsellingBy || 'Not assigned',
+    'Counsellor Name': s.counsellorName || '-',
+    'Counselling Given Date': s.counsellingDate || '-',
     'Present Status': s.status,
     'Remarks / Notes': s.remarks || '-',
   }));
@@ -106,6 +109,7 @@ export function exportDivisionToExcel(division: DivisionExportData, students: St
     'Category': s.category,
     'Class': s.std,
     'Section': s.sec,
+    'Absent Days': s.absentDays || '-',
     'Gender': s.gender,
     'Contact No': s.contactNo,
     'Repeater': s.repeaterStatus,
@@ -114,6 +118,8 @@ export function exportDivisionToExcel(division: DivisionExportData, students: St
     'Request to Transfer Department': s.transferRequestDept || '-',
     'Counselling Required': s.counsellingRequired || (s.isCounsellingNeeded ? 'Yes' : 'No'),
     'Counselling By': s.counsellingBy || 'Not assigned',
+    'Counsellor Name': s.counsellorName || '-',
+    'Counselling Given Date': s.counsellingDate || '-',
     'Present Status': s.status,
     'Remarks / Notes': s.remarks || '-',
   }));
@@ -147,12 +153,15 @@ export function exportDivisionToWord(division: DivisionExportData, students: Stu
       <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;">${s.taluk}</td>
       <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;">${s.school}</td>
       <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;">Std ${s.std} ${s.sec ? `(${s.sec})` : ''}</td>
+      <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;">${s.absentDays || '-'}</td>
       <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;">${s.gender}</td>
       <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;">${s.lineDept}</td>
       <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;">${s.dropoutReason || '-'}</td>
       <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;font-weight:bold;color:${s.transferRequestDept ? '#0369a1' : '#64748b'};">${s.transferRequestDept || '-'}</td>
       <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;">${s.counsellingRequired || (s.isCounsellingNeeded ? 'Yes' : 'No')}</td>
       <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;font-weight:bold;">${s.counsellingBy || '-'}</td>
+      <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;">${s.counsellorName || '-'}</td>
+      <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;">${s.counsellingDate || '-'}</td>
       <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;font-weight:bold;color:#047857;">${s.status}</td>
       <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;">${s.remarks || '-'}</td>
     </tr>
@@ -220,12 +229,15 @@ export function exportDivisionToWord(division: DivisionExportData, students: Stu
             <th>Taluk</th>
             <th>School</th>
             <th>Class</th>
+            <th>Absent Days</th>
             <th>Gender</th>
             <th>Line Dept</th>
             <th>Dropout Reason</th>
             <th>Transfer Req</th>
             <th>Counselling</th>
             <th>Counselling By</th>
+            <th>Counsellor Name</th>
+            <th>Counselling Date</th>
             <th>Status</th>
             <th>Remarks</th>
           </tr>
@@ -277,12 +289,15 @@ export function exportStudentsToWord(students: StudentRecord[], title: string) {
       <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;">${s.block}</td>
       <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;">${s.school}</td>
       <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;">Std ${s.std} ${s.sec ? `(${s.sec})` : ''}</td>
+      <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;">${s.absentDays || '-'}</td>
       <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;">${s.gender}</td>
       <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;">${s.lineDept}</td>
       <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;">${s.dropoutReason || '-'}</td>
       <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;font-weight:bold;color:${s.transferRequestDept ? '#0369a1' : '#64748b'};">${s.transferRequestDept || '-'}</td>
       <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;font-weight:bold;color:${(s.counsellingRequired === 'Yes' || s.isCounsellingNeeded) ? '#be123c' : '#334155'};">${s.counsellingRequired || (s.isCounsellingNeeded ? 'Yes' : 'No')}</td>
       <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;font-weight:bold;">${s.counsellingBy || '-'}</td>
+      <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;">${s.counsellorName || '-'}</td>
+      <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;">${s.counsellingDate || '-'}</td>
       <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;font-weight:bold;color:#047857;">${s.status}</td>
       <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;">${s.remarks || '-'}</td>
     </tr>
@@ -314,12 +329,15 @@ export function exportStudentsToWord(students: StudentRecord[], title: string) {
             <th>Block</th>
             <th>School</th>
             <th>Class</th>
+            <th>Absent Days</th>
             <th>Gender</th>
             <th>Line Dept</th>
             <th>Dropout Reason</th>
             <th>Transfer Req</th>
             <th>Counselling</th>
             <th>Counselling By</th>
+            <th>Counsellor Name</th>
+            <th>Counselling Date</th>
             <th>Present Status</th>
             <th>Remarks</th>
           </tr>

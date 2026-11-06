@@ -143,7 +143,15 @@ const CLASSIC_CHART_COLORS = [
 // Standard present status dropdown options for department officials
 const PRESENT_STATUS_OPTIONS = [
   'Status Not Updated',
+  'Re - Enrolled in  school',
   'Re-enrolled',
+  'Dropped out',
+  'Migrated to other district',
+  'Migrated to other state',
+  'Migrated to other block',
+  'Medical Treatment',
+  'Counselling ongoing',
+  'Follow - up ongoing',
   'Counselling in Progress',
   'Willing to Rejoin',
   'Not Willing to Rejoin',
@@ -174,6 +182,8 @@ export default function App() {
   const [editedRemarks, setEditedRemarks] = useState<Record<string, string>>({});
   const [editedTransferDepts, setEditedTransferDepts] = useState<Record<string, string>>({});
   const [editedCounsellingBy, setEditedCounsellingBy] = useState<Record<string, string>>({});
+  const [editedCounsellorName, setEditedCounsellorName] = useState<Record<string, string>>({});
+  const [editedCounsellingDate, setEditedCounsellingDate] = useState<Record<string, string>>({});
   const [deptShowTransferMap, setDeptShowTransferMap] = useState<Record<string, boolean>>({});
   const [statusSaveNotice, setStatusSaveNotice] = useState<string | null>(null);
 
@@ -264,6 +274,16 @@ export default function App() {
       const savedCounselBy = localStorage.getItem(counselByKey);
       if (savedCounselBy) setEditedCounsellingBy(JSON.parse(savedCounselBy));
       else setEditedCounsellingBy({});
+
+      const counsellorNameKey = `thoothukudi_counsellor_name_${selectedMonth}`;
+      const savedCounsellorName = localStorage.getItem(counsellorNameKey);
+      if (savedCounsellorName) setEditedCounsellorName(JSON.parse(savedCounsellorName));
+      else setEditedCounsellorName({});
+
+      const counsellingDateKey = `thoothukudi_counselling_date_${selectedMonth}`;
+      const savedCounsellingDate = localStorage.getItem(counsellingDateKey);
+      if (savedCounsellingDate) setEditedCounsellingDate(JSON.parse(savedCounsellingDate));
+      else setEditedCounsellingDate({});
     } catch {
       // Ignore localStorage errors
     }
@@ -440,6 +460,34 @@ export default function App() {
     setTimeout(() => setStatusSaveNotice(null), 3000);
   };
 
+  // Handle updating counsellor name (Column U)
+  const handleCounsellorNameChange = (studentKey: string, newName: string) => {
+    const updated = { ...editedCounsellorName, [studentKey]: newName };
+    setEditedCounsellorName(updated);
+    try {
+      const storageKey = `thoothukudi_counsellor_name_${selectedMonth}`;
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Could not save counsellor name to localStorage', e);
+    }
+    setStatusSaveNotice(newName ? `Counsellor name: ${newName}` : `Counsellor name cleared`);
+    setTimeout(() => setStatusSaveNotice(null), 2500);
+  };
+
+  // Handle updating counselling date (Column V)
+  const handleCounsellingDateChange = (studentKey: string, newDate: string) => {
+    const updated = { ...editedCounsellingDate, [studentKey]: newDate };
+    setEditedCounsellingDate(updated);
+    try {
+      const storageKey = `thoothukudi_counselling_date_${selectedMonth}`;
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Could not save counselling date to localStorage', e);
+    }
+    setStatusSaveNotice(newDate ? `Counselling date: ${newDate}` : `Counselling date cleared`);
+    setTimeout(() => setStatusSaveNotice(null), 2500);
+  };
+
   // Merge loaded students with department official edits (Status, Dropout Reason, Counselling, Remarks, Transfers, Counsellor)
   const getMergedStudents = (studentsList: StudentRecord[] = []): StudentRecord[] => {
     return studentsList.map(st => {
@@ -452,9 +500,20 @@ export default function App() {
       const customRemarks = editedRemarks[key] !== undefined ? editedRemarks[key] : st.remarks;
       const customTransferDept = editedTransferDepts[key] !== undefined ? editedTransferDepts[key] : (st.transferRequestDept || '');
       const customCounsellingBy = editedCounsellingBy[key] !== undefined ? editedCounsellingBy[key] : (st.counsellingBy || '');
+      const customCounsellorName = editedCounsellorName[key] !== undefined ? editedCounsellorName[key] : (st.counsellorName || '');
+      const customCounsellingDate = editedCounsellingDate[key] !== undefined ? editedCounsellingDate[key] : (st.counsellingDate || '');
 
       const lower = (customStatus || '').toLowerCase();
-      const isReEnrolled = lower.includes('re-enroll') || lower.includes('reenroll') || lower.includes('readmit');
+      const clean = lower.replace(/[\s\-_]+/g, '');
+      const isReEnrolled = 
+        clean.includes('reenroll') || 
+        clean.includes('readmit') || 
+        clean.includes('rejoin') ||
+        lower.includes('re-enroll') ||
+        lower.includes('re - enroll') ||
+        lower.includes('re enrolled') ||
+        lower.includes('reenrolled') ||
+        lower.includes('readmitted');
       const isMigrated = lower.includes('migrat');
       const isStatusNotUpdated = lower === 'status not updated' || lower === 'not updated' || !customStatus.trim();
       const isCounsellingNeeded = (customCounselling || '').toLowerCase().trim() === 'yes';
@@ -467,6 +526,8 @@ export default function App() {
         counsellingRequired: customCounselling,
         isCounsellingNeeded,
         counsellingBy: customCounsellingBy,
+        counsellorName: customCounsellorName,
+        counsellingDate: customCounsellingDate,
         remarks: customRemarks,
         isReEnrolled,
         isMigrated,
@@ -2328,6 +2389,7 @@ export default function App() {
                             <th className="py-3 px-3.5">Block</th>
                             <th className="py-3 px-3.5">School</th>
                             <th className="py-3 px-3.5">Class</th>
+                            <th className="py-3 px-3.5">Absent Days</th>
                             <th className="py-3 px-3.5">Gender</th>
                             <th className="py-3 px-3.5">Contact No</th>
                             <th className="py-3 px-3.5">Repeater</th>
@@ -2335,10 +2397,16 @@ export default function App() {
                               Counselling
                             </th>
                             <th className="py-3 px-3.5 min-w-44 bg-blue-900 text-white font-black border-l border-r border-blue-800">
-                              Counselling By (Col S)
+                              Counselling By
+                            </th>
+                            <th className="py-3 px-3.5 min-w-44 bg-indigo-900 text-white font-black border-l border-r border-indigo-800">
+                              Counsellor Name
+                            </th>
+                            <th className="py-3 px-3.5 min-w-36 bg-violet-900 text-white font-black border-l border-r border-violet-800">
+                              Counselling Date
                             </th>
                             <th className="py-3 px-3.5 min-w-44 bg-teal-900 text-white font-black border-l border-r border-teal-800">
-                              Transfer Request (Col Q)
+                              Transfer Request
                             </th>
                             <th className="py-3 px-3.5 min-w-48">Dropout Reason</th>
                             <th className="py-3 px-3.5 min-w-44">Present Status</th>
@@ -2371,6 +2439,9 @@ export default function App() {
                               <td className="py-3 px-3.5 text-center font-bold text-slate-800">
                                 {st.std ? `Std ${st.std}` : '—'}
                               </td>
+                              <td className="py-3 px-3.5 text-center font-bold text-slate-800 font-mono">
+                                {st.absentDays || '—'}
+                              </td>
                               <td className="py-3 px-3.5 font-semibold text-slate-700">{st.gender || '—'}</td>
                               <td className="py-3 px-3.5 font-mono text-slate-700">{st.contactNo || '—'}</td>
                               <td className="py-3 px-3.5 text-center">
@@ -2388,7 +2459,7 @@ export default function App() {
                                 </span>
                               </td>
 
-                              {/* Editable Counselling By (Column S) */}
+                              {/* Editable Counselling By (Column T) */}
                               <td className="py-2 px-3 bg-blue-50/50 border-l border-r border-blue-200">
                                 <input
                                   type="text"
@@ -2396,17 +2467,41 @@ export default function App() {
                                   placeholder="Assign counsellor..."
                                   onChange={(e) => handleCounsellingByChange(key, e.target.value)}
                                   className="w-full min-w-[160px] text-xs font-bold py-1 px-2 rounded-lg border-2 border-blue-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs placeholder:text-slate-400 placeholder:italic"
-                                  title="Edit Counselling By (Column S in Google Sheet)"
+                                  title="Edit Counselling By (Column T in Google Sheet)"
                                 />
                               </td>
 
-                              {/* Editable Transfer Request Department (Column Q) */}
+                              {/* Editable Counsellor Name (Column U) */}
+                              <td className="py-2 px-3 bg-indigo-50/50 border-l border-r border-indigo-200">
+                                <input
+                                  type="text"
+                                  value={st.counsellorName || ''}
+                                  placeholder="Counsellor name..."
+                                  onChange={(e) => handleCounsellorNameChange(key, e.target.value)}
+                                  className="w-full min-w-[150px] text-xs font-bold py-1 px-2 rounded-lg border-2 border-indigo-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-2xs placeholder:text-slate-400 placeholder:italic"
+                                  title="Counsellor Name (Column U in Google Sheet)"
+                                />
+                              </td>
+
+                              {/* Editable Counselling Date (Column V) */}
+                              <td className="py-2 px-3 bg-violet-50/50 border-l border-r border-violet-200">
+                                <input
+                                  type="text"
+                                  value={st.counsellingDate || ''}
+                                  placeholder="Date..."
+                                  onChange={(e) => handleCounsellingDateChange(key, e.target.value)}
+                                  className="w-full min-w-[120px] text-xs font-bold py-1 px-2 rounded-lg border-2 border-violet-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-500 shadow-2xs placeholder:text-slate-400 placeholder:italic"
+                                  title="Counselling Given Date (Column V in Google Sheet)"
+                                />
+                              </td>
+
+                              {/* Editable Transfer Request Department (Column R) */}
                               <td className="py-2 px-3 bg-teal-50/50 border-l border-r border-teal-200">
                                 <select
                                   value={st.transferRequestDept || ''}
                                   onChange={(e) => handleTransferDeptChange(key, e.target.value)}
                                   className="w-full min-w-[150px] text-xs font-bold py-1 px-2 rounded-lg border-2 border-teal-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-2xs cursor-pointer"
-                                  title="Request to Transfer Case to another Department (Column Q)"
+                                  title="Request to Transfer Case to another Department"
                                 >
                                   <option value="">No Transfer</option>
                                   {deptList.map(d => (
@@ -2437,7 +2532,7 @@ export default function App() {
                         })}
                         {filteredCounselling.length === 0 && (
                           <tr>
-                            <td colSpan={18} className="py-12 text-center text-slate-500 font-bold">
+                            <td colSpan={21} className="py-12 text-center text-slate-500 font-bold">
                               No counselling cases match the selected filters.
                             </td>
                           </tr>
@@ -2880,16 +2975,23 @@ export default function App() {
                             <th className="py-3 px-3.5">Block</th>
                             <th className="py-3 px-3.5">School</th>
                             <th className="py-3 px-3.5">Class</th>
+                            <th className="py-3 px-3.5">Absent Days</th>
                             <th className="py-3 px-3.5">Gender</th>
                             <th className="py-3 px-3.5">Repeater</th>
                             <th className="py-3 px-3.5 min-w-32 bg-rose-900 text-white font-black border-l border-r border-rose-800">
                               Counselling
                             </th>
                             <th className="py-3 px-3.5 min-w-44 bg-blue-900 text-white font-black border-l border-r border-blue-800">
-                              Counselling By (Col S)
+                              Counselling By
+                            </th>
+                            <th className="py-3 px-3.5 min-w-44 bg-indigo-900 text-white font-black border-l border-r border-indigo-800">
+                              Counsellor Name
+                            </th>
+                            <th className="py-3 px-3.5 min-w-36 bg-violet-900 text-white font-black border-l border-r border-violet-800">
+                              Counselling Date
                             </th>
                             <th className="py-3 px-3.5 min-w-44 bg-teal-900 text-white font-black border-l border-r border-teal-800">
-                              Transfer Request (Col Q)
+                              Transfer Request
                             </th>
                             <th className="py-3 px-3.5 min-w-56 bg-sky-900 text-white font-black border-l border-r border-sky-800">
                               Dropout Reason
@@ -2923,6 +3025,9 @@ export default function App() {
                                 <td className="py-2.5 px-3.5 text-slate-800 font-bold">
                                   Std {st.std} {st.sec ? `(${st.sec})` : ''}
                                 </td>
+                                <td className="py-2.5 px-3.5 text-slate-800 font-bold font-mono text-center">
+                                  {st.absentDays || '-'}
+                                </td>
                                 <td className="py-2.5 px-3.5 text-slate-700">{st.gender}</td>
                                 <td className="py-2.5 px-3.5">
                                   <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
@@ -2951,7 +3056,7 @@ export default function App() {
                                   </select>
                                 </td>
 
-                                {/* EDITABLE COUNSELLING BY (COLUMN S) */}
+                                {/* EDITABLE COUNSELLING BY (COLUMN T) */}
                                 <td className="py-2 px-3 bg-blue-50/50 border-l border-r border-blue-200">
                                   <input
                                     type="text"
@@ -2959,17 +3064,41 @@ export default function App() {
                                     placeholder="Assign counsellor..."
                                     onChange={(e) => handleCounsellingByChange(key, e.target.value)}
                                     className="w-full min-w-[160px] text-xs font-bold py-1 px-2 rounded-lg border-2 border-blue-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs placeholder:text-slate-400 placeholder:italic"
-                                    title="Edit Counselling By (Column S in Google Sheet)"
+                                    title="Edit Counselling By (Column T in Google Sheet)"
                                   />
                                 </td>
 
-                                {/* EDITABLE TRANSFER REQUEST DEPARTMENT (COLUMN Q) */}
+                                {/* EDITABLE COUNSELLOR NAME (COLUMN U) */}
+                                <td className="py-2 px-3 bg-indigo-50/50 border-l border-r border-indigo-200">
+                                  <input
+                                    type="text"
+                                    value={st.counsellorName || ''}
+                                    placeholder="Counsellor name..."
+                                    onChange={(e) => handleCounsellorNameChange(key, e.target.value)}
+                                    className="w-full min-w-[150px] text-xs font-bold py-1 px-2 rounded-lg border-2 border-indigo-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-2xs placeholder:text-slate-400 placeholder:italic"
+                                    title="Counsellor Name (Column U in Google Sheet)"
+                                  />
+                                </td>
+
+                                {/* EDITABLE COUNSELLING DATE (COLUMN V) */}
+                                <td className="py-2 px-3 bg-violet-50/50 border-l border-r border-violet-200">
+                                  <input
+                                    type="text"
+                                    value={st.counsellingDate || ''}
+                                    placeholder="Date..."
+                                    onChange={(e) => handleCounsellingDateChange(key, e.target.value)}
+                                    className="w-full min-w-[120px] text-xs font-bold py-1 px-2 rounded-lg border-2 border-violet-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-500 shadow-2xs placeholder:text-slate-400 placeholder:italic"
+                                    title="Counselling Given Date (Column V in Google Sheet)"
+                                  />
+                                </td>
+
+                                {/* EDITABLE TRANSFER REQUEST DEPARTMENT (COLUMN R) */}
                                 <td className="py-2 px-3 bg-teal-50/50 border-l border-r border-teal-200">
                                   <select
                                     value={st.transferRequestDept || ''}
                                     onChange={(e) => handleTransferDeptChange(key, e.target.value)}
                                     className="w-full min-w-[150px] text-xs font-bold py-1 px-2 rounded-lg border-2 border-teal-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-2xs cursor-pointer"
-                                    title="Request to Transfer Case to another Department (Column Q)"
+                                    title="Request to Transfer Case to another Department"
                                   >
                                     <option value="">No Transfer</option>
                                     {deptList.map(d => (
@@ -3351,6 +3480,7 @@ export default function App() {
                               <th className="py-3 px-3.5">Category</th>
                               <th className="py-3 px-3.5">Gender</th>
                               <th className="py-3 px-3.5">Class</th>
+                              <th className="py-3 px-3.5">Absent Days</th>
                               <th className="py-3 px-3.5">Address</th>
                               <th className="py-3 px-3.5">Contact No</th>
                               <th className="py-3 px-3.5">Repeater</th>
@@ -3358,10 +3488,16 @@ export default function App() {
                                 Counselling
                               </th>
                               <th className="py-3 px-3.5 min-w-44 bg-blue-900 text-white font-black border-l border-r border-blue-800">
-                                Counselling By (Col S)
+                                Counselling By
+                              </th>
+                              <th className="py-3 px-3.5 min-w-44 bg-indigo-900 text-white font-black border-l border-r border-indigo-800">
+                                Counsellor Name
+                              </th>
+                              <th className="py-3 px-3.5 min-w-36 bg-violet-900 text-white font-black border-l border-r border-violet-800">
+                                Counselling Date
                               </th>
                               <th className="py-3 px-3.5 min-w-44 bg-teal-900 text-white font-black border-l border-r border-teal-800">
-                                Transfer Request (Col Q)
+                                Transfer Request
                               </th>
                               <th className="py-3 px-3.5 min-w-56 bg-sky-900 text-white font-black border-l border-r border-sky-800">
                                 Dropout Reason
@@ -3396,6 +3532,9 @@ export default function App() {
                                 <td className="py-2.5 px-3.5 text-slate-800 font-bold">
                                   Std {st.std} {st.sec ? `(${st.sec})` : ''}
                                 </td>
+                                <td className="py-2.5 px-3.5 text-slate-800 font-bold font-mono text-center">
+                                  {st.absentDays || '-'}
+                                </td>
                                 <td className="py-2.5 px-3.5 text-slate-600 max-w-xs truncate">{st.address || '-'}</td>
                                 <td className="py-2.5 px-3.5 text-slate-800 font-bold">{st.contactNo || '-'}</td>
                                 <td className="py-2.5 px-3.5">
@@ -3425,7 +3564,7 @@ export default function App() {
                                   </select>
                                 </td>
 
-                                {/* EDITABLE COUNSELLING BY (COLUMN S) */}
+                                {/* EDITABLE COUNSELLING BY (COLUMN T) */}
                                 <td className="py-2 px-3 bg-blue-50/50 border-l border-r border-blue-200">
                                   <input
                                     type="text"
@@ -3433,17 +3572,41 @@ export default function App() {
                                     placeholder="Assign counsellor..."
                                     onChange={(e) => handleCounsellingByChange(key, e.target.value)}
                                     className="w-full min-w-[160px] text-xs font-bold py-1 px-2 rounded-lg border-2 border-blue-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs placeholder:text-slate-400 placeholder:italic"
-                                    title="Edit Counselling By (Column S in Google Sheet)"
+                                    title="Edit Counselling By (Column T in Google Sheet)"
                                   />
                                 </td>
 
-                                {/* EDITABLE TRANSFER REQUEST DEPARTMENT (COLUMN Q) */}
+                                {/* EDITABLE COUNSELLOR NAME (COLUMN U) */}
+                                <td className="py-2 px-3 bg-indigo-50/50 border-l border-r border-indigo-200">
+                                  <input
+                                    type="text"
+                                    value={st.counsellorName || ''}
+                                    placeholder="Counsellor name..."
+                                    onChange={(e) => handleCounsellorNameChange(key, e.target.value)}
+                                    className="w-full min-w-[150px] text-xs font-bold py-1 px-2 rounded-lg border-2 border-indigo-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-2xs placeholder:text-slate-400 placeholder:italic"
+                                    title="Counsellor Name (Column U in Google Sheet)"
+                                  />
+                                </td>
+
+                                {/* EDITABLE COUNSELLING DATE (COLUMN V) */}
+                                <td className="py-2 px-3 bg-violet-50/50 border-l border-r border-violet-200">
+                                  <input
+                                    type="text"
+                                    value={st.counsellingDate || ''}
+                                    placeholder="Date..."
+                                    onChange={(e) => handleCounsellingDateChange(key, e.target.value)}
+                                    className="w-full min-w-[120px] text-xs font-bold py-1 px-2 rounded-lg border-2 border-violet-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-500 shadow-2xs placeholder:text-slate-400 placeholder:italic"
+                                    title="Counselling Given Date (Column V in Google Sheet)"
+                                  />
+                                </td>
+
+                                {/* EDITABLE TRANSFER REQUEST DEPARTMENT (COLUMN R) */}
                                 <td className="py-2 px-3 bg-teal-50/50 border-l border-r border-teal-200">
                                   <select
                                     value={st.transferRequestDept || ''}
                                     onChange={(e) => handleTransferDeptChange(key, e.target.value)}
                                     className="w-full min-w-[150px] text-xs font-bold py-1 px-2 rounded-lg border-2 border-teal-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-2xs cursor-pointer"
-                                    title="Request to Transfer Case to another Department (Column Q)"
+                                    title="Request to Transfer Case to another Department"
                                   >
                                     <option value="">No Transfer</option>
                                     {deptList.map(d => (

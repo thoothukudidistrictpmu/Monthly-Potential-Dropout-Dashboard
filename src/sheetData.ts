@@ -221,6 +221,7 @@ export interface StudentRecord {
   gender: string;
   std: string;
   sec: string;
+  absentDays: string;
   address: string;
   contactNo: string;
   repeaterStatus: string;
@@ -231,6 +232,8 @@ export interface StudentRecord {
   counsellingRequired: string;
   isCounsellingNeeded: boolean;
   counsellingBy: string;
+  counsellorName: string;
+  counsellingDate: string;
   status: string;
   isReEnrolled: boolean;
   isMigrated: boolean;
@@ -437,22 +440,25 @@ export function processSheetCSV(csvText: string, month: string): DashboardPayloa
   // Col C (2): Taluk Name
   // Col D (3): Block Name
   // Col E (4): School Name
-  // Col F (5): Student Name (Replaced/moved to Col F)
-  // Col G (6): Category (Replaced/moved to Col G)
-  // Col H (7): EMIS_ID (Replaced/moved to Col H)
-  // Col I (8): Gender
+  // Col F (5): Student Name
+  // Col G (6): Category
+  // Col H (7): EMIS_ID
+  // Col I (8): Gender ("M" / "F")
   // Col J (9): Std
   // Col K (10): Sec
-  // Col L (11): Address
-  // Col M (12): Contact No
-  // Col N (13): Repeater or Not
-  // Col O (14): Line Department
-  // Col P (15): Dropout Reason
-  // Col Q (16): Request to Transfer Department (NEW Col Q)
-  // Col R (17): CounsellingRequired (Replaced/moved to Col R)
-  // Col S (18): Counselling By (NEW Col S)
-  // Col T (19): Present Status (Replaced/moved to Col T)
-  // Col U (20): Department / Counsellors Remarks (Replaced/moved to Col U)
+  // Col L (11): Absent Days
+  // Col M (12): Address
+  // Col N (13): Contact No
+  // Col O (14): Repeater or Not
+  // Col P (15): Line Department
+  // Col Q (16): Dropout Reason
+  // Col R (17): Request to Transfer Department
+  // Col S (18): Counselling Required
+  // Col T (19): Counselling By
+  // Col U (20): Counsellor Name (NEW Col U)
+  // Col V (21): Counselling given date (NEW Col V)
+  // Col W (22): Present Status (NEW Col W - Re-enrolled in school, Dropped out, Migrated, etc.)
+  // Col X (23): Department / Counsellors Remarks (NEW Col X)
 
   const sNoIdx = getColIdx(['s.no', 'sno', 'sl.no', 'tracker s.no', 'potential dropout tracker s.no'], ['tracker', 'serial', 's.no'], 0);
   const divisionIdx = getColIdx(['division name', 'division', 'revenue division'], ['division'], 1);
@@ -465,21 +471,25 @@ export function processSheetCSV(csvText: string, month: string): DashboardPayloa
   const genderIdx = getColIdx(['gender', 'sex'], ['gender'], 8);
   const stdIdx = getColIdx(['std', 'standard', 'class', 'grade'], ['std', 'standard'], 9);
   const secIdx = getColIdx(['sec', 'section'], ['section', 'sec'], 10);
-  const addressIdx = getColIdx(['address', 'residential address'], ['address'], 11);
-  const contactIdx = getColIdx(['contact no', 'contact number', 'phone', 'mobile'], ['contact', 'phone'], 12);
-  const repeaterIdx = getColIdx(['repeater or not', 'repeater status', 'repeater'], ['repeater'], 13);
-  const lineDeptIdx = getColIdx(['line department', 'line dept'], ['department', 'dept'], 14);
-  const dropoutReasonIdx = getColIdx(['dropout reason', 'reason for dropout'], ['reason'], 15);
-  const transferDeptIdx = getColIdx(['request to transfer department', 'request to transfer', 'transfer department', 'transfer to department', 'transfer dept', 'request to change cases'], ['transfer'], 16);
-  const counsellingIdx = getColIdx(['counsellingrequired', 'counselling required', 'counselling needed', 'counselling\nrequired', 'counselling'], ['counsel'], 17);
-  const counsellingByIdx = getColIdx(['counselling by', 'counselled by', 'counsellor name', 'counsellor', 'counselor'], ['counselling by', 'counselled by', 'counsellor'], 18);
-  const statusIdx = getColIdx(['present status', 'status', 'current status'], ['present status', 're-enrolled', 'status'], 19);
-  const remarksIdx = getColIdx(['department / counsellors remarks', 'department remarks', 'remarks / notes', 'remarks', 'notes', 'comments'], ['remarks', 'notes'], 20);
+  const absentDaysIdx = getColIdx(['absent days', 'absent_days', 'days absent', 'absent'], ['absent'], 11);
+  const addressIdx = getColIdx(['address', 'residential address'], ['address'], 12);
+  const contactIdx = getColIdx(['contact no', 'contact number', 'phone', 'mobile'], ['contact', 'phone'], 13);
+  const repeaterIdx = getColIdx(['repeater or not', 'repeater status', 'repeater'], ['repeater'], 14);
+  const lineDeptIdx = getColIdx(['line department', 'line dept'], ['department', 'dept'], 15);
+  const dropoutReasonIdx = getColIdx(['dropout reason', 'reason for dropout'], ['dropout reason', 'reason'], 16);
+  const transferDeptIdx = getColIdx(['request to transfer department', 'request to transfer', 'transfer department', 'transfer to department', 'transfer dept', 'request to change cases'], ['transfer'], 17);
+  const counsellingIdx = getColIdx(['counselling required', 'counsellingrequired', 'counselling needed', 'counselling\nrequired', 'counselling'], ['counselling required', 'counsellingrequired'], 18);
+  const counsellingByIdx = getColIdx(['counselling by', 'counselled by'], ['counselling by'], 19);
+  const counsellorNameIdx = getColIdx(['counsellor name', 'counsellor', 'counselor name', 'counselor'], ['counsellor name', 'counsellor'], 20);
+  const counsellingDateIdx = getColIdx(['counselling given date', 'counselling date', 'counseling date', 'date of counselling', 'given date'], ['counselling given date', 'given date', 'counselling date'], 21);
+  const statusIdx = getColIdx(['present status', 'status', 'current status'], ['present status', 'status'], 22);
+  const remarksIdx = getColIdx(['department / counsellors remarks', 'department remarks', 'remarks / notes', 'remarks', 'notes', 'comments'], ['remarks', 'notes'], 23);
 
   const knownIndices = new Set([
     sNoIdx, divisionIdx, talukIdx, blockIdx, schoolIdx, categoryIdx, emisIdx,
-    nameIdx, genderIdx, stdIdx, secIdx, addressIdx, contactIdx, repeaterIdx,
-    lineDeptIdx, dropoutReasonIdx, transferDeptIdx, counsellingIdx, counsellingByIdx, statusIdx, remarksIdx
+    nameIdx, genderIdx, stdIdx, secIdx, absentDaysIdx, addressIdx, contactIdx, repeaterIdx,
+    lineDeptIdx, dropoutReasonIdx, transferDeptIdx, counsellingIdx, counsellingByIdx,
+    counsellorNameIdx, counsellingDateIdx, statusIdx, remarksIdx
   ]);
 
   const students: StudentRecord[] = [];
@@ -524,9 +534,19 @@ export function processSheetCSV(csvText: string, month: string): DashboardPayloa
     const stdNum = parseInt(rawStd, 10);
     const stdKey = stdNum ? `Class ${stdNum}` : rawStd ? `Class ${rawStd}` : 'Other';
     
-    // Gender check for class-wise boys vs girls breakdown
-    const genderRaw = (r[genderIdx] || '').trim().toLowerCase();
-    const isGirl = genderRaw === 'female' || genderRaw === 'girl' || genderRaw === 'f';
+    // Gender check: Take M as Male and F as Female
+    const rawGender = (r[genderIdx] || '').trim();
+    let gender = rawGender;
+    const gUpper = rawGender.toUpperCase();
+    if (gUpper === 'M' || gUpper === 'MALE' || gUpper === 'BOY') {
+      gender = 'Male';
+    } else if (gUpper === 'F' || gUpper === 'FEMALE' || gUpper === 'GIRL') {
+      gender = 'Female';
+    } else if (!gender) {
+      gender = '-';
+    }
+
+    const isGirl = gender === 'Female';
     if (!classCounts[stdKey]) {
       classCounts[stdKey] = { total: 0, boys: 0, girls: 0 };
     }
@@ -537,25 +557,30 @@ export function processSheetCSV(csvText: string, month: string): DashboardPayloa
       classCounts[stdKey].boys++;
     }
 
-    // Repeater or Not (Col N / repeaterIdx)
+    // Repeater or Not (Col O / repeaterIdx)
     const repeaterVal = (r[repeaterIdx] || '').trim();
     const nLower = repeaterVal.toLowerCase();
     const isRepeater = nLower === 'repeater' || (nLower.includes('repeater') && !nLower.includes('not'));
     if (isRepeater) totalRepeaters++;
 
-    // Present Status / Re-enrolled (Col R / statusIdx)
+    // Present Status / Re-enrolled (Col W / statusIdx)
     const statusVal = (r[statusIdx] || '').trim();
     const rLower = statusVal.toLowerCase();
+    const cleanStatus = rLower.replace(/[\s\-_]+/g, '');
     const remarksVal = (r[remarksIdx] || '').toLowerCase();
     
-    const isReEnrolled = rLower === 're-enrolled' ||
-      rLower === 'reenrolled' ||
-      rLower === 're-enroll' ||
-      rLower === 'reenroll' ||
+    // Check for re-enrolled status taking details directly from Col W
+    const isReEnrolled = 
+      cleanStatus.includes('reenroll') || 
+      cleanStatus.includes('readmit') || 
+      cleanStatus.includes('rejoin') ||
       rLower.includes('re-enroll') ||
-      rLower.includes('reenroll') ||
-      rLower.includes('readmitted') ||
-      rLower.includes('readmit');
+      rLower.includes('re - enroll') ||
+      rLower.includes('re -enrolled') ||
+      rLower.includes('re- enrolled') ||
+      rLower.includes('re enrolled') ||
+      rLower.includes('reenrolled') ||
+      rLower.includes('readmitted');
 
     if (isReEnrolled || remarksVal.includes('readmit') || remarksVal.includes('re-enroll')) {
       totalReadmitted++;
@@ -576,7 +601,7 @@ export function processSheetCSV(csvText: string, month: string): DashboardPayloa
       totalStatusNotUpdated++;
     }
 
-    // Counselling Needed (Col Q / counsellingIdx)
+    // Counselling Needed (Col S / counsellingIdx)
     const counsellingVal = (r[counsellingIdx] || '').trim();
     const qLower = counsellingVal.toLowerCase();
     const isCounsellingNeeded = qLower === 'yes' || 
@@ -589,7 +614,7 @@ export function processSheetCSV(csvText: string, month: string): DashboardPayloa
       totalCounsellingNeeded++;
     }
 
-    // Line Department (Col O / lineDeptIdx)
+    // Line Department (Col P / lineDeptIdx)
     const lineDeptRaw = (r[lineDeptIdx] || '').trim();
     let assignedDept = 'Unassigned';
     if (lineDeptRaw) {
@@ -660,9 +685,10 @@ export function processSheetCSV(csvText: string, month: string): DashboardPayloa
       category: r[categoryIdx] || 'School',
       emisId: r[emisIdx] || '',
       studentName,
-      gender: r[genderIdx] || '-',
+      gender,
       std: rawStd || '-',
       sec: r[secIdx] || '-',
+      absentDays: r[absentDaysIdx] || '-',
       address: r[addressIdx] || '-',
       contactNo: r[contactIdx] || '-',
       repeaterStatus: repeaterVal || 'Not updated',
@@ -673,6 +699,8 @@ export function processSheetCSV(csvText: string, month: string): DashboardPayloa
       counsellingRequired: counsellingVal || 'No',
       isCounsellingNeeded,
       counsellingBy: (r[counsellingByIdx] || '').trim(),
+      counsellorName: (r[counsellorNameIdx] || '').trim(),
+      counsellingDate: (r[counsellingDateIdx] || '').trim(),
       status: statusVal || 'Status Not Updated',
       isReEnrolled,
       isMigrated,

@@ -81,7 +81,7 @@ async function fetchSpreadsheetData(month = 'Sep 2026', forceRefresh = false) {
   if (!targetGid) {
     // Tab doesn't exist in sheet yet, return empty payload for that month
     const creds = await getOrFetchCredentials();
-    const emptyPayload = processSheetCSV('"S.No","Division Name","Taluk Name","Block Name","School Name","Student Name","Category","EMIS_ID","Gender","Std","Sec","Address ","Contact No","Repeater or Not","Line Department","Dropout Reason","Request to Transfer Department","CounsellingRequired","Counselling By","Present Status","Department / Counsellors Remarks"\n', normalizedMonth);
+    const emptyPayload = processSheetCSV('"S.No","Division Name","Taluk Name","Block Name","School Name","Student Name","Category","EMIS_ID","Gender","Std","Sec","Absent Days","Address ","Contact No","Repeater or Not","Line Department","Dropout Reason","Request to Transfer Department","Counselling Required","Counselling By","Counsellor Name","Counselling given date","Present Status","Department / Counsellors Remarks"\n', normalizedMonth);
     emptyPayload.availableMonths = availableMonths;
     emptyPayload.credentials = creds;
 
