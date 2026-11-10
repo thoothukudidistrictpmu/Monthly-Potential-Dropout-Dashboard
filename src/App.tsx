@@ -44,7 +44,9 @@ import {
   Inbox,
   ArrowRightLeft,
   Download,
-  LayoutDashboard
+  LayoutDashboard,
+  School,
+  BarChart3
 } from 'lucide-react';
 import { 
   SPREADSHEET_ID, 
@@ -100,6 +102,20 @@ const DEPT_BAR_COLORS = [
   '#2563eb', // Revenue (Royal Blue)
   '#059669', // Differently Abled (Emerald Green)
   '#4f46e5', // Police / SJPU (Deep Indigo)
+];
+
+// Distinct gradient alert palette for Top 10 Schools with Highest Dropouts bar chart
+const SCHOOL_BAR_COLORS = [
+  '#be123c', // 1: Crimson Red (Highest Hotspot)
+  '#dc2626', // 2: Bright Red
+  '#ea580c', // 3: Orange
+  '#d97706', // 4: Amber Gold
+  '#b45309', // 5: Dark Amber
+  '#0284c7', // 6: Sky Blue
+  '#2563eb', // 7: Royal Blue
+  '#4f46e5', // 8: Deep Indigo
+  '#7c3aed', // 9: Purple
+  '#059669', // 10: Emerald Green
 ];
 
 // Slicers: Overview, Division, Line Department Overview, Counselling, and 8 line departments
@@ -177,6 +193,7 @@ export default function App() {
   const [counsellingDeptFilter, setCounsellingDeptFilter] = useState<string>('All');
   const [counsellingDivFilter, setCounsellingDivFilter] = useState<string>('All');
   const [counsellingCounsellorFilter, setCounsellingCounsellorFilter] = useState<string>('All');
+  const [schoolChartLayout, setSchoolChartLayout] = useState<'horizontal' | 'vertical'>('horizontal');
   
   // Department-edited status, dropout reason, counselling, remarks, transfer requests and counselling by (keyed by student EMIS or sNo)
   const [editedStatuses, setEditedStatuses] = useState<Record<string, string>>({});
@@ -685,12 +702,103 @@ export default function App() {
     students: tStudents,
   })).sort((a, b) => b.potentialDropout - a.potentialDropout);
 
-  // Custom Chart Tooltip (displays Total, Boys count, and Girls count directly in the hover box for class-wise bars)
+  // Top 10 Schools with Highest Potential Dropouts (for Overview bar chart)
+  const schoolStatsMap: Record<string, {
+    name: string;
+    fullName: string;
+    count: number;
+    value: number;
+    block: string;
+    taluk: string;
+    division: string;
+    repeaters: number;
+    reEnrolled: number;
+    counsellingNeeded: number;
+    migrated: number;
+    isSchool: boolean;
+  }> = {};
+
+  allStudents.forEach(s => {
+    const rawSchool = (s.school || '').trim();
+    if (!rawSchool) return;
+    if (!schoolStatsMap[rawSchool]) {
+      schoolStatsMap[rawSchool] = {
+        name: rawSchool,
+        fullName: rawSchool,
+        count: 0,
+        value: 0,
+        block: s.block || '',
+        taluk: s.taluk || '',
+        division: s.division || '',
+        repeaters: 0,
+        reEnrolled: 0,
+        counsellingNeeded: 0,
+        migrated: 0,
+        isSchool: true,
+      };
+    }
+    schoolStatsMap[rawSchool].count++;
+    schoolStatsMap[rawSchool].value++;
+    if (s.isRepeater) schoolStatsMap[rawSchool].repeaters++;
+    if (s.isReEnrolled) schoolStatsMap[rawSchool].reEnrolled++;
+    if (s.isCounsellingNeeded) schoolStatsMap[rawSchool].counsellingNeeded++;
+    if (s.isMigrated) schoolStatsMap[rawSchool].migrated++;
+  });
+
+  const top10Schools = Object.values(schoolStatsMap)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+
+  // Custom Chart Tooltip (displays Total, Boys count, and Girls count for class bars; School info for school bars)
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const p = payload[0];
       const dataObj = p.payload || {};
       const itemName = dataObj.name || label || p.name || '';
+
+      // Dedicated rich tooltip for Top 10 School bars
+      if (dataObj.isSchool) {
+        const totalCount = p.value ?? dataObj.count ?? 0;
+        return (
+          <div className="bg-slate-900 text-white px-4 py-3 rounded-2xl border-2 border-slate-700 shadow-2xl text-xs space-y-2 min-w-[240px] max-w-xs z-50">
+            <div className="border-b border-slate-700/80 pb-1.5">
+              <div className="text-[10px] uppercase font-bold text-rose-400 tracking-wider flex items-center justify-between">
+                <span>School Hotspot</span>
+                <span>Rank #{top10Schools.findIndex(s => s.name === (dataObj.name || itemName)) + 1}</span>
+              </div>
+              <div className="font-black text-slate-100 text-sm tracking-tight leading-snug mt-0.5">
+                {dataObj.fullName || itemName}
+              </div>
+              {(dataObj.block || dataObj.taluk) && (
+                <div className="text-[11px] text-slate-400 mt-1">
+                  {[dataObj.block && `Block: ${dataObj.block}`, dataObj.taluk && `Taluk: ${dataObj.taluk}`].filter(Boolean).join(' • ')}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-baseline justify-between pt-0.5">
+              <span className="text-slate-300 font-semibold text-xs">Potential Dropouts:</span>
+              <span className="font-black text-rose-400 text-base font-mono">{totalCount}</span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-1.5 pt-1.5 border-t border-slate-700/80 text-center text-[10px]">
+              <div className="bg-emerald-950/70 border border-emerald-500/40 rounded-xl p-1.5">
+                <div className="text-emerald-300 font-bold">Re-Enrolled</div>
+                <div className="font-black text-emerald-100 text-sm font-mono">{dataObj.reEnrolled ?? 0}</div>
+              </div>
+              <div className="bg-purple-950/70 border border-purple-500/40 rounded-xl p-1.5">
+                <div className="text-purple-300 font-bold">Repeaters</div>
+                <div className="font-black text-purple-100 text-sm font-mono">{dataObj.repeaters ?? 0}</div>
+              </div>
+              <div className="bg-rose-950/70 border border-rose-500/40 rounded-lg p-1.5">
+                <div className="text-rose-300 font-bold">Counselling</div>
+                <div className="font-black text-rose-100 text-sm font-mono">{dataObj.counsellingNeeded ?? 0}</div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
       const matchedClass = computedClassStats.find(c => 
         c.name.toLowerCase() === itemName.toLowerCase() || 
         c.name.replace('Class ', '').trim() === itemName.replace('Class ', '').trim()
@@ -1443,6 +1551,137 @@ export default function App() {
                       {computedClassStats.length} Classes Tracked
                     </span>
                   </div>
+                </div>
+              </div>
+
+              {/* Fourth Section (In the Last) — Top 10 Schools with Highest Potential Dropouts */}
+              <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm overflow-hidden">
+                <div className="bg-[#1e3a5f] text-white px-5 py-3.5 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <School className="w-5 h-5 text-slate-200" />
+                    <h3 className="text-base sm:text-lg font-black text-white tracking-tight">
+                      Top 10 Schools with Highest Dropouts
+                    </h3>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs sm:text-sm font-bold px-3 py-1 rounded-full bg-white/20 text-white border border-white/30">
+                      Top 10 Priority Hotspots
+                    </span>
+                    <span className="text-xs sm:text-sm font-black px-3 py-1 rounded-full bg-rose-600 text-white border border-rose-400 shadow-2xs">
+                      Total: {top10Schools.reduce((acc, s) => acc + s.count, 0)} Dropouts
+                      {summary.potentialDropout > 0 && ` (${((top10Schools.reduce((acc, s) => acc + s.count, 0) / summary.potentialDropout) * 100).toFixed(0)}% of District)`}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="p-5 space-y-4">
+                  {top10Schools.length === 0 ? (
+                    <div className="py-12 text-center text-slate-500 font-bold">
+                      No school records available for {selectedMonth}.
+                    </div>
+                  ) : (
+                    <>
+                      {/* Bar Chart Container */}
+                      <div className={schoolChartLayout === 'horizontal' ? 'h-80 sm:h-96' : 'h-72 sm:h-80'}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          {schoolChartLayout === 'horizontal' ? (
+                            <BarChart
+                              layout="vertical"
+                              data={top10Schools}
+                              margin={{ top: 15, right: 35, left: 15, bottom: 10 }}
+                            >
+                              <XAxis
+                                type="number"
+                                stroke="#64748b"
+                                tick={{ fill: '#475569', fontSize: 10 }}
+                                allowDecimals={false}
+                                tickLine={false}
+                              />
+                              <YAxis
+                                type="category"
+                                dataKey="name"
+                                width={190}
+                                stroke="#64748b"
+                                tick={{ fill: '#1e293b', fontSize: 11, fontWeight: 700 }}
+                                tickLine={false}
+                                tickFormatter={(val) => (val && val.length > 25 ? `${val.substring(0, 23)}...` : val)}
+                              />
+                              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(30, 58, 95, 0.08)' }} />
+                              <Bar
+                                dataKey="count"
+                                radius={[0, 6, 6, 0]}
+                                label={{ position: 'right', fill: '#0f172a', fontSize: 11, fontWeight: 800 }}
+                              >
+                                {top10Schools.map((_, index) => (
+                                  <Cell
+                                    key={`top-school-cell-${index}`}
+                                    fill={SCHOOL_BAR_COLORS[index % SCHOOL_BAR_COLORS.length]}
+                                  />
+                                ))}
+                              </Bar>
+                            </BarChart>
+                          ) : (
+                            <BarChart
+                              data={top10Schools}
+                              margin={{ top: 20, right: 10, left: -20, bottom: 50 }}
+                            >
+                              <XAxis
+                                dataKey="name"
+                                stroke="#64748b"
+                                tick={{ fill: '#1e293b', fontSize: 10, fontWeight: 700 }}
+                                interval={0}
+                                angle={-30}
+                                textAnchor="end"
+                                height={55}
+                                tickLine={false}
+                                tickFormatter={(val) => (val && val.length > 20 ? `${val.substring(0, 18)}...` : val)}
+                              />
+                              <YAxis
+                                stroke="#64748b"
+                                tick={{ fill: '#475569', fontSize: 10 }}
+                                tickLine={false}
+                                allowDecimals={false}
+                              />
+                              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(30, 58, 95, 0.08)' }} />
+                              <Bar
+                                dataKey="count"
+                                radius={[4, 4, 0, 0]}
+                                label={{ position: 'top', fill: '#0f172a', fontSize: 11, fontWeight: 700 }}
+                              >
+                                {top10Schools.map((_, index) => (
+                                  <Cell
+                                    key={`top-school-cell-v-${index}`}
+                                    fill={SCHOOL_BAR_COLORS[index % SCHOOL_BAR_COLORS.length]}
+                                  />
+                                ))}
+                              </Bar>
+                            </BarChart>
+                          )}
+                        </ResponsiveContainer>
+                      </div>
+
+                      {/* Subtitle / Legend note & View Orientation Toggle */}
+                      <div className="pt-3 border-t-2 border-slate-300 flex flex-wrap items-center justify-between gap-2.5 text-xs">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <span className="flex items-center gap-1.5 font-bold text-slate-800">
+                            <span className="w-3 h-3 rounded-sm bg-rose-600 inline-block shadow-2xs"></span>
+                            Priority Institutions for Intensive Dropout Tracking & Re-Enrollment Interventions
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setSchoolChartLayout(schoolChartLayout === 'horizontal' ? 'vertical' : 'horizontal')}
+                            className="text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 px-3 py-1 rounded-lg border border-slate-300 shadow-2xs cursor-pointer flex items-center gap-1.5 transition-colors"
+                            title="Toggle chart orientation between horizontal bars and vertical columns"
+                          >
+                            <BarChart3 className="w-3.5 h-3.5 text-slate-600" />
+                            <span>View as {schoolChartLayout === 'horizontal' ? 'Vertical Columns' : 'Horizontal Bars'}</span>
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
