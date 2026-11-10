@@ -43,7 +43,8 @@ import {
   AlertCircle,
   Inbox,
   ArrowRightLeft,
-  Download
+  Download,
+  LayoutDashboard
 } from 'lucide-react';
 import { 
   SPREADSHEET_ID, 
@@ -67,7 +68,9 @@ import {
   exportStudentsToDocs, 
   exportAbstractToExcel,
   exportDivisionToExcel,
-  exportDivisionToWord
+  exportDivisionToWord,
+  exportOverviewToExcel,
+  exportOverviewToWord
 } from './exportUtils';
 
 // Distinct vibrant colors for Block-Wise Potential Dropout bar chart alone
@@ -1101,6 +1104,42 @@ export default function App() {
           {selectedSlicer === 'Overview' && (
             <div className="space-y-6">
               
+              {/* Overview Header & Comprehensive Download Options (Excel & Word) */}
+              <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="bg-[#1e3a5f] text-white p-4 sm:p-5 flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-lg sm:text-xl font-black text-white tracking-tight flex items-center gap-2">
+                      <LayoutDashboard className="w-5 h-5 text-slate-200" />
+                      <span>District Overview & Analytics — {selectedMonth}</span>
+                    </h2>
+                    <p className="text-xs text-slate-200 font-medium mt-0.5">
+                      Download comprehensive report with all dropout lists and breakdown counts in separate sheets
+                    </p>
+                  </div>
+
+                  {/* Comprehensive Export Options */}
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <button
+                      onClick={() => exportOverviewToExcel(allStudents, computedDepartments, selectedMonth)}
+                      className="inline-flex items-center gap-2 px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-white/20 hover:bg-white/30 text-white shadow-xs border border-white/30 transition-all active:scale-95 cursor-pointer"
+                      title="Download multi-sheet Excel file with all dropout lists and breakdown counts"
+                    >
+                      <FileSpreadsheet className="w-4 h-4" />
+                      <span>Excel (.xlsx)</span>
+                    </button>
+
+                    <button
+                      onClick={() => exportOverviewToWord(allStudents, computedDepartments, selectedMonth)}
+                      className="inline-flex items-center gap-2 px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-white/20 hover:bg-white/30 text-white shadow-xs border border-white/30 transition-all active:scale-95 cursor-pointer"
+                      title="Download comprehensive Word document with all dropout lists, counts, and sections"
+                    >
+                      <FileText className="w-4 h-4" />
+                      <span>Word (.doc)</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               {/* Top Row — 5 Colourful & Professional Uniform Summary Cards (Two Column Grid on Mobile) */}
               <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
                 
