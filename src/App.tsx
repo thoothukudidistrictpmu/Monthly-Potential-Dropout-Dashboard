@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   BarChart, 
   Bar, 
@@ -63,6 +63,7 @@ import {
 import { Background3D } from './components/Background3D';
 import { TamilNaduLogo } from './components/TamilNaduLogo';
 import { DepartmentLoginForm } from './components/DepartmentLoginForm';
+import { CounsellorSlicerView } from './components/CounsellorSlicerView';
 import { PWAInstallButton } from './components/PWAInstallButton';
 import { 
   exportStudentsToExcel, 
@@ -118,12 +119,23 @@ const SCHOOL_BAR_COLORS = [
   '#059669', // 10: Emerald Green
 ];
 
-// Slicers: Overview, Division, Line Department Overview, Counselling, and 8 line departments
+// Slicers: Overview, Division, Line Department Overview, Counselling Overview, 3 Counsellors, and 8 line departments
+export const COUNSELLOR_SLICERS = [
+  'DCPO Counsellors',
+  'ICTC Counsellors',
+  'PAD Counsellors',
+] as const;
+
+export type CounsellorSlicerType = typeof COUNSELLOR_SLICERS[number];
+
 const SLICERS = [
   'Overview',
   'Division',
   'Line Department Overview',
-  'Counselling',
+  'Counselling Overview',
+  'DCPO Counsellors',
+  'ICTC Counsellors',
+  'PAD Counsellors',
   'Health Department',
   'Labour Department',
   'DCPO',
@@ -136,12 +148,15 @@ const SLICERS = [
 
 type SlicerType = typeof SLICERS[number];
 
-// Classic styling configuration for departments & overview
+// Classic styling configuration for departments, counsellors & overview
 const DEPT_META: Record<string, { icon: React.ElementType; color: string; badge: string; bg: string }> = {
   'Overview': { icon: Layers, color: '#1e3a5f', badge: 'bg-slate-100 text-slate-800 border border-slate-300', bg: 'from-slate-800 to-slate-900' },
   'Division': { icon: Building2, color: '#0f766e', badge: 'bg-teal-50 text-teal-800 border border-teal-200', bg: 'from-teal-800 to-slate-900' },
   'Line Department Overview': { icon: Layers, color: '#1e3a8a', badge: 'bg-blue-50 text-blue-800 border border-blue-200', bg: 'from-blue-900 to-indigo-950' },
-  'Counselling': { icon: HelpCircle, color: '#e11d48', badge: 'bg-rose-50 text-rose-800 border border-rose-300', bg: 'from-rose-800 to-rose-950' },
+  'Counselling Overview': { icon: HelpCircle, color: '#e11d48', badge: 'bg-rose-50 text-rose-800 border border-rose-300', bg: 'from-rose-800 to-rose-950' },
+  'DCPO Counsellors': { icon: ShieldAlert, color: '#4338ca', badge: 'bg-indigo-50 text-indigo-800 border border-indigo-200', bg: 'from-indigo-900 to-slate-900' },
+  'ICTC Counsellors': { icon: HeartPulse, color: '#047857', badge: 'bg-emerald-50 text-emerald-800 border border-emerald-200', bg: 'from-emerald-800 to-teal-950' },
+  'PAD Counsellors': { icon: UserCheck, color: '#b45309', badge: 'bg-amber-50 text-amber-800 border border-amber-200', bg: 'from-amber-800 to-yellow-950' },
   'Health Department': { icon: HeartPulse, color: '#047857', badge: 'bg-emerald-50 text-emerald-800 border border-emerald-200', bg: 'from-emerald-800 to-teal-950' },
   'Labour Department': { icon: Briefcase, color: '#b45309', badge: 'bg-amber-50 text-amber-800 border border-amber-200', bg: 'from-amber-800 to-yellow-950' },
   'DCPO': { icon: ShieldAlert, color: '#4338ca', badge: 'bg-indigo-50 text-indigo-800 border border-indigo-200', bg: 'from-indigo-900 to-slate-900' },
@@ -180,10 +195,17 @@ const PRESENT_STATUS_OPTIONS = [
   'Open - Pending Verification'
 ];
 
+// Standard Counselling By options sourced directly from the tracking sheet (Column T)
+export const STANDARD_COUNSELLING_BY_OPTIONS = [
+  'ICTC Counsellors',
+  'PAD Counsellors',
+  'DCPO Counsellors',
+];
+
 export default function App() {
   const [selectedSlicer, setSelectedSlicer] = useState<SlicerType>('Overview');
   const [mobileSlicersOpen, setMobileSlicersOpen] = useState<boolean>(false);
-  const [selectedMonth, setSelectedMonth] = useState<string>('Sep 2026');
+  const [selectedMonth, setSelectedMonth] = useState<string>('Oct 2026');
   const [deptSearch, setDeptSearch] = useState<string>('');
   const [divisionFilter, setDivisionFilter] = useState<string>('All');
   const [divisionSearch, setDivisionSearch] = useState<string>('');
@@ -200,6 +222,8 @@ export default function App() {
   const [editedDropoutReasons, setEditedDropoutReasons] = useState<Record<string, string>>({});
   const [editedCounselling, setEditedCounselling] = useState<Record<string, string>>({});
   const [editedRemarks, setEditedRemarks] = useState<Record<string, string>>({});
+  const [editedBrteRemarks, setEditedBrteRemarks] = useState<Record<string, string>>({});
+  const [editedDeptRemarks, setEditedDeptRemarks] = useState<Record<string, string>>({});
   const [editedTransferDepts, setEditedTransferDepts] = useState<Record<string, string>>({});
   const [editedCounsellingBy, setEditedCounsellingBy] = useState<Record<string, string>>({});
   const [editedCounsellorName, setEditedCounsellorName] = useState<Record<string, string>>({});
@@ -284,6 +308,16 @@ export default function App() {
       const savedRemarks = localStorage.getItem(remarksKey);
       if (savedRemarks) setEditedRemarks(JSON.parse(savedRemarks));
       else setEditedRemarks({});
+
+      const brteKey = `thoothukudi_brte_remarks_${selectedMonth}`;
+      const savedBrte = localStorage.getItem(brteKey);
+      if (savedBrte) setEditedBrteRemarks(JSON.parse(savedBrte));
+      else setEditedBrteRemarks({});
+
+      const deptRemarksKey = `thoothukudi_dept_remarks_${selectedMonth}`;
+      const savedDeptRemarks = localStorage.getItem(deptRemarksKey);
+      if (savedDeptRemarks) setEditedDeptRemarks(JSON.parse(savedDeptRemarks));
+      else setEditedDeptRemarks({});
 
       const transferKey = `thoothukudi_transfers_${selectedMonth}`;
       const savedTransfers = localStorage.getItem(transferKey);
@@ -499,12 +533,42 @@ export default function App() {
     const updated = { ...editedCounsellingDate, [studentKey]: newDate };
     setEditedCounsellingDate(updated);
     try {
-      const storageKey = `thoothukudi_counselling_date_${selectedMonth}`;
+      const storageKey = `thoothukudi_counsel_date_${selectedMonth}`;
       localStorage.setItem(storageKey, JSON.stringify(updated));
     } catch (e) {
       console.warn('Could not save counselling date to localStorage', e);
     }
     setStatusSaveNotice(newDate ? `Counselling date: ${newDate}` : `Counselling date cleared`);
+    setTimeout(() => setStatusSaveNotice(null), 2500);
+  };
+
+  // Handle updating BRTE / HM Remarks (Case Study) [Column X]
+  const handleBrteRemarksChange = (studentKey: string, newRemarks: string) => {
+    const updated = { ...editedBrteRemarks, [studentKey]: newRemarks };
+    setEditedBrteRemarks(updated);
+    try {
+      const storageKey = `thoothukudi_brte_remarks_${selectedMonth}`;
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Could not save BRTE remarks to localStorage', e);
+    }
+    setStatusSaveNotice('BRTE / HM Remarks (Col X) saved');
+    setTimeout(() => setStatusSaveNotice(null), 2500);
+  };
+
+  // Handle updating Department / Counsellors Remarks [Column Y]
+  const handleDeptRemarksChange = (studentKey: string, newRemarks: string) => {
+    const updated = { ...editedDeptRemarks, [studentKey]: newRemarks };
+    setEditedDeptRemarks(updated);
+    setEditedRemarks(updated);
+    try {
+      const storageKey = `thoothukudi_dept_remarks_${selectedMonth}`;
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+      localStorage.setItem(`thoothukudi_remarks_${selectedMonth}`, JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Could not save Department remarks to localStorage', e);
+    }
+    setStatusSaveNotice('Department / Counsellors Remarks (Col Y) saved');
     setTimeout(() => setStatusSaveNotice(null), 2500);
   };
 
@@ -518,6 +582,8 @@ export default function App() {
         ? editedCounselling[key] 
         : (st.counsellingRequired || (st.isCounsellingNeeded ? 'Yes' : 'No'));
       const customRemarks = editedRemarks[key] !== undefined ? editedRemarks[key] : st.remarks;
+      const customBrteRemarks = editedBrteRemarks[key] !== undefined ? editedBrteRemarks[key] : (st.brteRemarks || '');
+      const customDeptRemarks = editedDeptRemarks[key] !== undefined ? editedDeptRemarks[key] : (st.deptRemarks || st.remarks || '');
       const customTransferDept = editedTransferDepts[key] !== undefined ? editedTransferDepts[key] : (st.transferRequestDept || '');
       const customCounsellingBy = editedCounsellingBy[key] !== undefined ? editedCounsellingBy[key] : (st.counsellingBy || '');
       const customCounsellorName = editedCounsellorName[key] !== undefined ? editedCounsellorName[key] : (st.counsellorName || '');
@@ -548,7 +614,9 @@ export default function App() {
         counsellingBy: customCounsellingBy,
         counsellorName: customCounsellorName,
         counsellingDate: customCounsellingDate,
-        remarks: customRemarks,
+        brteRemarks: customBrteRemarks,
+        deptRemarks: customDeptRemarks,
+        remarks: customDeptRemarks || customBrteRemarks || customRemarks || '',
         isReEnrolled,
         isMigrated,
         isStatusNotUpdated,
@@ -558,6 +626,18 @@ export default function App() {
 
   const rawStudents: StudentRecord[] = data?.students || [];
   const allStudents = getMergedStudents(rawStudents);
+
+  // Dynamically extract counselling by options from tracker sheet plus standard agencies
+  const dynamicCounsellingByOptions = useMemo(() => {
+    const options = new Set<string>(STANDARD_COUNSELLING_BY_OPTIONS);
+    allStudents.forEach(s => {
+      const by = (s.counsellingBy || '').trim();
+      if (by && by.toLowerCase() !== 'counselling by' && by.toLowerCase() !== 'counselling_by') {
+        options.add(by);
+      }
+    });
+    return Array.from(options);
+  }, [allStudents]);
 
   // Recalculate summary metrics dynamically to reflect department official edits
   const totalRepeaters = allStudents.filter(s => s.isRepeater).length;
@@ -930,7 +1010,7 @@ export default function App() {
                 </div>
                 <div>
                   <h3 className="text-sm sm:text-base font-black text-white leading-tight">
-                    All Slicers (12)
+                    All Slicers ({SLICERS.length})
                   </h3>
                   <p className="text-[11px] text-slate-200 font-bold">{selectedMonth} • Thoothukudi</p>
                 </div>
@@ -951,7 +1031,13 @@ export default function App() {
                 const isSelected = selectedSlicer === slicer;
                 const meta = DEPT_META[slicer] || DEPT_META['Overview'];
                 const IconComponent = meta.icon;
-                const isLineDept = slicer !== 'Overview' && slicer !== 'Division' && slicer !== 'Line Department Overview' && slicer !== 'Counselling';
+                const isLineDept = slicer !== 'Overview' && 
+                                   slicer !== 'Division' && 
+                                   slicer !== 'Line Department Overview' && 
+                                   slicer !== 'Counselling Overview' &&
+                                   slicer !== 'DCPO Counsellors' &&
+                                   slicer !== 'ICTC Counsellors' &&
+                                   slicer !== 'PAD Counsellors';
                 const isAuthed = !!authenticatedDepts[slicer];
 
                 return (
@@ -979,7 +1065,7 @@ export default function App() {
                         <IconComponent className="w-4 h-4" />
                       </div>
                       <span className="tracking-tight font-black leading-snug whitespace-normal break-words text-xs sm:text-sm">
-                        {slicer}
+                        {slicer === 'Overview' ? `Overview (${selectedMonth})` : slicer}
                       </span>
                     </div>
 
@@ -1123,7 +1209,13 @@ export default function App() {
                 const isSelected = selectedSlicer === slicer;
                 const meta = DEPT_META[slicer] || DEPT_META['Overview'];
                 const IconComponent = meta.icon;
-                const isLineDept = slicer !== 'Overview' && slicer !== 'Division' && slicer !== 'Line Department Overview' && slicer !== 'Counselling';
+                const isLineDept = slicer !== 'Overview' && 
+                                   slicer !== 'Division' && 
+                                   slicer !== 'Line Department Overview' && 
+                                   slicer !== 'Counselling Overview' &&
+                                   slicer !== 'DCPO Counsellors' &&
+                                   slicer !== 'ICTC Counsellors' &&
+                                   slicer !== 'PAD Counsellors';
                 const isAuthed = !!authenticatedDepts[slicer];
 
                 return (
@@ -1146,7 +1238,9 @@ export default function App() {
                       >
                         <IconComponent className="w-4 h-4" />
                       </div>
-                      <span className="tracking-tight truncate">{slicer}</span>
+                      <span className="tracking-tight truncate">
+                        {slicer === 'Overview' ? `Overview (${selectedMonth})` : slicer}
+                      </span>
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0 ml-1">
@@ -1220,9 +1314,6 @@ export default function App() {
                       <LayoutDashboard className="w-5 h-5 text-slate-200" />
                       <span>District Overview & Analytics — {selectedMonth}</span>
                     </h2>
-                    <p className="text-xs text-slate-200 font-medium mt-0.5">
-                      Download comprehensive report with all dropout lists and breakdown counts in separate sheets
-                    </p>
                   </div>
 
                   {/* Comprehensive Export Options */}
@@ -1248,123 +1339,152 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Top Row — 5 Colourful & Professional Uniform Summary Cards (Two Column Grid on Mobile) */}
-              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-                
-                {/* Box 1: Potential Dropout */}
-                <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
-                  <div className="bg-[#1e3a5f] text-white px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between">
-                    <span className="text-xs sm:text-sm font-black tracking-wider uppercase text-white truncate">
-                      Potential Dropout
-                    </span>
-                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/15 text-white flex items-center justify-center shrink-0">
-                      <Users className="w-4 h-4" />
-                    </div>
-                  </div>
-                  <div className="p-3.5 sm:p-5 flex flex-col justify-between flex-1">
-                    <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
-                      {summary.potentialDropout}
-                    </div>
-                    <div className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-slate-700 font-bold pt-2 sm:pt-2.5 border-t border-slate-300 flex justify-between items-center">
-                      <span>Identified</span>
-                      <span className="font-black text-slate-900">100%</span>
-                    </div>
-                  </div>
-                </div>
+              {/* Top Row — 6 Colourful & Professional Summary Cards with Line Department & Last Box Purple Repeaters */}
+              {(() => {
+                const lineDeptDropoutsCount = allStudents.filter(s => s.lineDept && s.lineDept !== 'Unassigned' && s.lineDept !== '-').length;
 
-                {/* Box 2: Re - Enrolled */}
-                <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
-                  <div className="bg-[#1e3a5f] text-white px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between">
-                    <span className="text-xs sm:text-sm font-black tracking-wider uppercase text-white truncate">
-                      Re - Enrolled
-                    </span>
-                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/15 text-white flex items-center justify-center shrink-0">
-                      <GraduationCap className="w-4 h-4" />
+                return (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+                    
+                    {/* Box 1: Potential Dropout */}
+                    <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
+                      <div className="bg-[#1e3a5f] text-white px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between">
+                        <span className="text-xs sm:text-sm font-black tracking-wider uppercase text-white truncate">
+                          Potential Dropout
+                        </span>
+                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/15 text-white flex items-center justify-center shrink-0">
+                          <Users className="w-4 h-4" />
+                        </div>
+                      </div>
+                      <div className="p-3.5 sm:p-5 flex flex-col justify-between flex-1">
+                        <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
+                          {summary.potentialDropout}
+                        </div>
+                        <div className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-slate-700 font-bold pt-2 sm:pt-2.5 border-t border-slate-300 flex justify-between items-center">
+                          <span>Identified</span>
+                          <span className="font-black text-slate-900">100%</span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="p-3.5 sm:p-5 flex flex-col justify-between flex-1">
-                    <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
-                      {summary.reEnrolled}
-                    </div>
-                    <div className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-slate-700 font-bold pt-2 sm:pt-2.5 border-t border-slate-300 flex justify-between items-center">
-                      <span>Rejoined</span>
-                      <span className="font-black text-slate-900">
-                        {summary.potentialDropout > 0 ? ((summary.reEnrolled / summary.potentialDropout) * 100).toFixed(0) : 0}%
-                      </span>
-                    </div>
-                  </div>
-                </div>
 
-                {/* Box 3: Migrated */}
-                <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
-                  <div className="bg-[#1e3a5f] text-white px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between">
-                    <span className="text-xs sm:text-sm font-black tracking-wider uppercase text-white truncate">
-                      Migrated
-                    </span>
-                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/15 text-white flex items-center justify-center shrink-0">
-                      <MapPin className="w-4 h-4" />
+                    {/* Box 2: Line Department (Total dropouts in Line Department) */}
+                    <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
+                      <div className="bg-[#1e3a5f] text-white px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between">
+                        <span className="text-xs sm:text-sm font-black tracking-wider uppercase text-white truncate">
+                          Line Department
+                        </span>
+                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/15 text-white flex items-center justify-center shrink-0">
+                          <Briefcase className="w-4 h-4" />
+                        </div>
+                      </div>
+                      <div className="p-3.5 sm:p-5 flex flex-col justify-between flex-1">
+                        <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
+                          {lineDeptDropoutsCount}
+                        </div>
+                        <div className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-slate-700 font-bold pt-2 sm:pt-2.5 border-t border-slate-300 flex justify-between items-center">
+                          <span>Allocated Cases</span>
+                          <span className="font-black text-slate-900">
+                            {summary.potentialDropout > 0 ? ((lineDeptDropoutsCount / summary.potentialDropout) * 100).toFixed(0) : 0}%
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="p-3.5 sm:p-5 flex flex-col justify-between flex-1">
-                    <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
-                      {summary.migrated}
-                    </div>
-                    <div className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-slate-700 font-bold pt-2 sm:pt-2.5 border-t border-slate-300 flex justify-between items-center">
-                      <span>Relocated</span>
-                      <span className="font-black text-slate-900">
-                        {summary.potentialDropout > 0 ? ((summary.migrated / summary.potentialDropout) * 100).toFixed(0) : 0}%
-                      </span>
-                    </div>
-                  </div>
-                </div>
 
-                {/* Box 4: Repeaters */}
-                <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
-                  <div className="bg-[#1e3a5f] text-white px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between">
-                    <span className="text-xs sm:text-sm font-black tracking-wider uppercase text-white truncate">
-                      Repeaters
-                    </span>
-                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/15 text-white flex items-center justify-center shrink-0">
-                      <RotateCcw className="w-4 h-4" />
+                    {/* Box 3: Re - Enrolled */}
+                    <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
+                      <div className="bg-[#1e3a5f] text-white px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between">
+                        <span className="text-xs sm:text-sm font-black tracking-wider uppercase text-white truncate">
+                          Re - Enrolled
+                        </span>
+                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/15 text-white flex items-center justify-center shrink-0">
+                          <GraduationCap className="w-4 h-4" />
+                        </div>
+                      </div>
+                      <div className="p-3.5 sm:p-5 flex flex-col justify-between flex-1">
+                        <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
+                          {summary.reEnrolled}
+                        </div>
+                        <div className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-slate-700 font-bold pt-2 sm:pt-2.5 border-t border-slate-300 flex justify-between items-center">
+                          <span>Rejoined</span>
+                          <span className="font-black text-slate-900">
+                            {summary.potentialDropout > 0 ? ((summary.reEnrolled / summary.potentialDropout) * 100).toFixed(0) : 0}%
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="p-3.5 sm:p-5 flex flex-col justify-between flex-1">
-                    <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
-                      {summary.repeaters}
-                    </div>
-                    <div className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-slate-700 font-bold pt-2 sm:pt-2.5 border-t border-slate-300 flex justify-between items-center">
-                      <span>Repeaters</span>
-                      <span className="font-black text-slate-900">
-                        {summary.potentialDropout > 0 ? ((summary.repeaters / summary.potentialDropout) * 100).toFixed(0) : 0}%
-                      </span>
-                    </div>
-                  </div>
-                </div>
 
-                {/* Box 5: Counselling Needed */}
-                <div className="col-span-2 sm:col-span-1 lg:col-span-1 bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
-                  <div className="bg-[#1e3a5f] text-white px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between">
-                    <span className="text-xs sm:text-sm font-black tracking-wider uppercase text-white truncate">
-                      Counselling Needed
-                    </span>
-                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/15 text-white flex items-center justify-center shrink-0">
-                      <HelpCircle className="w-4 h-4" />
+                    {/* Box 4: Migrated */}
+                    <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
+                      <div className="bg-[#1e3a5f] text-white px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between">
+                        <span className="text-xs sm:text-sm font-black tracking-wider uppercase text-white truncate">
+                          Migrated
+                        </span>
+                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/15 text-white flex items-center justify-center shrink-0">
+                          <MapPin className="w-4 h-4" />
+                        </div>
+                      </div>
+                      <div className="p-3.5 sm:p-5 flex flex-col justify-between flex-1">
+                        <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
+                          {summary.migrated}
+                        </div>
+                        <div className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-slate-700 font-bold pt-2 sm:pt-2.5 border-t border-slate-300 flex justify-between items-center">
+                          <span>Relocated</span>
+                          <span className="font-black text-slate-900">
+                            {summary.potentialDropout > 0 ? ((summary.migrated / summary.potentialDropout) * 100).toFixed(0) : 0}%
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="p-3.5 sm:p-5 flex flex-col justify-between flex-1">
-                    <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
-                      {summary.counsellingNeeded}
-                    </div>
-                    <div className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-slate-700 font-bold pt-2 sm:pt-2.5 border-t border-slate-300 flex justify-between items-center">
-                      <span>Requires Counselling</span>
-                      <span className="font-black text-slate-900">
-                        {summary.potentialDropout > 0 ? ((summary.counsellingNeeded / summary.potentialDropout) * 100).toFixed(0) : 0}%
-                      </span>
-                    </div>
-                  </div>
-                </div>
 
-              </div>
+                    {/* Box 5: Counselling Needed */}
+                    <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
+                      <div className="bg-[#1e3a5f] text-white px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between">
+                        <span className="text-xs sm:text-sm font-black tracking-wider uppercase text-white truncate">
+                          Counselling Needed
+                        </span>
+                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/15 text-white flex items-center justify-center shrink-0">
+                          <HelpCircle className="w-4 h-4" />
+                        </div>
+                      </div>
+                      <div className="p-3.5 sm:p-5 flex flex-col justify-between flex-1">
+                        <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
+                          {summary.counsellingNeeded}
+                        </div>
+                        <div className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-slate-700 font-bold pt-2 sm:pt-2.5 border-t border-slate-300 flex justify-between items-center">
+                          <span>Requires Counselling</span>
+                          <span className="font-black text-slate-900">
+                            {summary.potentialDropout > 0 ? ((summary.counsellingNeeded / summary.potentialDropout) * 100).toFixed(0) : 0}%
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Box 6: Repeaters (Placed in LAST box with distinct Purple styling as requested) */}
+                    <div className="bg-purple-50/70 border-2 border-purple-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
+                      <div className="bg-purple-900 text-white px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between">
+                        <span className="text-xs sm:text-sm font-black tracking-wider uppercase text-white truncate">
+                          Repeaters
+                        </span>
+                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/20 text-white flex items-center justify-center shrink-0">
+                          <RotateCcw className="w-4 h-4" />
+                        </div>
+                      </div>
+                      <div className="p-3.5 sm:p-5 flex flex-col justify-between flex-1">
+                        <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-purple-950 font-mono tracking-tight mt-1">
+                          {summary.repeaters}
+                        </div>
+                        <div className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-purple-900 font-bold pt-2 sm:pt-2.5 border-t border-purple-200 flex justify-between items-center">
+                          <span>Repeaters Caseload</span>
+                          <span className="font-black text-purple-950">
+                            {summary.potentialDropout > 0 ? ((summary.repeaters / summary.potentialDropout) * 100).toFixed(0) : 0}%
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                );
+              })()}
 
               {/* Middle Section — Two Bar Charts with colorful headings and uniform light grey boxes */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -2184,38 +2304,28 @@ export default function App() {
           )}
 
           {/* ======================================================== */}
-          {/* 4. COUNSELLING SLICER VIEW (ALL DEPARTMENT YES CASES) */}
+          {/* 4. COUNSELLING OVERVIEW SLICER VIEW (ALL DEPARTMENT YES CASES) */}
           {/* ======================================================== */}
-          {selectedSlicer === 'Counselling' && (() => {
+          {selectedSlicer === 'Counselling Overview' && (() => {
             const allCounsellingStudents = allStudents.filter(
               s => s.isCounsellingNeeded || (s.counsellingRequired || '').toLowerCase().trim() === 'yes'
             );
 
-            // Extract distinct counsellors entered in Column S of Google Sheet
+            // Extract distinct counsellors entered in Column T of Google Sheet
             const rawCounsellorsInSheet = Array.from(
               new Set(
                 allCounsellingStudents
                   .map(s => (s.counsellingBy || '').trim())
                   .filter(Boolean)
               )
+            ).filter(val => val.toLowerCase() !== 'counselling by');
+
+            const distinctCounsellors: string[] = Array.from(
+              new Set([
+                ...rawCounsellorsInSheet,
+                ...STANDARD_COUNSELLING_BY_OPTIONS,
+              ])
             );
-
-            const defaultCounsellorNames = [
-              'Counsellor 1 (Kovilpatti)',
-              'Counsellor 2 (Thoothukudi)',
-              'Counsellor 3 (Tiruchendur)',
-            ];
-
-            const distinctCounsellors: string[] = [
-              rawCounsellorsInSheet[0] || defaultCounsellorNames[0],
-              rawCounsellorsInSheet[1] || defaultCounsellorNames[1],
-              rawCounsellorsInSheet[2] || defaultCounsellorNames[2],
-            ];
-            if (rawCounsellorsInSheet.length > 3) {
-              for (let i = 3; i < rawCounsellorsInSheet.length; i++) {
-                distinctCounsellors.push(rawCounsellorsInSheet[i]);
-              }
-            }
 
             const filteredCounselling = allCounsellingStudents.filter(st => {
               const matchDept = counsellingDeptFilter === 'All' || st.lineDept === counsellingDeptFilter;
@@ -2257,7 +2367,7 @@ export default function App() {
                     <div>
                       <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2.5">
                         <HelpCircle className="w-6 h-6 text-slate-200" />
-                        <span>Counselling Students Tracking</span>
+                        <span>Counselling Overview &amp; Caseload Tracking</span>
                       </h2>
                     </div>
 
@@ -2686,9 +2796,18 @@ export default function App() {
                             <th className="py-3 px-3.5 min-w-44 bg-teal-900 text-white font-black border-l border-r border-teal-800">
                               Transfer Request
                             </th>
-                            <th className="py-3 px-3.5 min-w-48">Dropout Reason</th>
-                            <th className="py-3 px-3.5 min-w-44">Present Status</th>
-                            <th className="py-3 px-3.5 min-w-48">Remarks</th>
+                            <th className="py-3 px-3.5 min-w-48 bg-sky-900 text-white font-black border-l border-r border-sky-800">
+                              Dropout Reason
+                            </th>
+                            <th className="py-3 px-3.5 min-w-44 bg-amber-900 text-white font-black border-l border-r border-amber-800">
+                              Present Status
+                            </th>
+                            <th className="py-3 px-3.5 min-w-56 bg-amber-900 text-white font-black border-l border-r border-amber-800">
+                              BRTE / HM Remarks (Case Study) [Col X]
+                            </th>
+                            <th className="py-3 px-3.5 min-w-56 bg-emerald-900 text-white font-black border-l border-r border-emerald-800">
+                              Dept / Counsellors Remarks [Col Y]
+                            </th>
                           </tr>
                         </thead>
                       <tbody className="divide-y divide-slate-200 font-medium text-slate-800">
@@ -2737,16 +2856,24 @@ export default function App() {
                                 </span>
                               </td>
 
-                              {/* Editable Counselling By (Column T) */}
+                              {/* Editable Counselling By (Column T) Dropdown */}
                               <td className="py-2 px-3 bg-blue-50/50 border-l border-r border-blue-200">
-                                <input
-                                  type="text"
+                                <select
                                   value={st.counsellingBy || ''}
-                                  placeholder="Assign counsellor..."
                                   onChange={(e) => handleCounsellingByChange(key, e.target.value)}
-                                  className="w-full min-w-[160px] text-xs font-bold py-1 px-2 rounded-lg border-2 border-blue-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs placeholder:text-slate-400 placeholder:italic"
-                                  title="Edit Counselling By (Column T in Google Sheet)"
-                                />
+                                  className="w-full min-w-[170px] text-xs font-bold py-1.5 px-2.5 rounded-lg border-2 border-blue-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs cursor-pointer"
+                                  title="Counselling By (Sourced from Tracker Sheet Column T)"
+                                >
+                                  <option value="">Not Assigned</option>
+                                  {dynamicCounsellingByOptions.map((opt) => (
+                                    <option key={opt} value={opt}>
+                                      {opt}
+                                    </option>
+                                  ))}
+                                  {st.counsellingBy && !dynamicCounsellingByOptions.includes(st.counsellingBy) && (
+                                    <option value={st.counsellingBy}>{st.counsellingBy}</option>
+                                  )}
+                                </select>
                               </td>
 
                               {/* Editable Counsellor Name (Column U) */}
@@ -2788,29 +2915,66 @@ export default function App() {
                                 </select>
                               </td>
 
-                              <td className="py-3 px-3.5 text-slate-700 max-w-xs truncate" title={st.dropoutReason}>
-                                {st.dropoutReason || '—'}
+                              {/* Editable Dropout Reason */}
+                              <td className="py-2 px-3 bg-sky-50/40 border-l border-r border-sky-200">
+                                <input
+                                  type="text"
+                                  value={st.dropoutReason || ''}
+                                  placeholder="Dropout reason..."
+                                  onChange={(e) => handleDropoutReasonChange(key, e.target.value)}
+                                  className="w-full min-w-[150px] text-xs font-bold py-1.5 px-2.5 rounded-lg border-2 border-sky-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 shadow-2xs placeholder:text-slate-400 placeholder:italic"
+                                  title="Dropout Reason"
+                                />
                               </td>
-                              <td className="py-3 px-3.5">
-                                <span className={`px-2.5 py-1 rounded-md text-xs font-bold border ${
-                                  st.isReEnrolled
-                                    ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
-                                    : st.isMigrated
-                                    ? 'bg-amber-100 text-amber-900 border-amber-300'
-                                    : 'bg-slate-100 text-slate-800 border-slate-300'
-                                }`}>
-                                  {st.status || 'Status Not Updated'}
-                                </span>
+
+                              {/* Editable Present Status */}
+                              <td className="py-2 px-3 bg-amber-50/50 border-l border-r border-amber-200">
+                                <select
+                                  value={st.status || ''}
+                                  onChange={(e) => handleStatusChange(key, e.target.value)}
+                                  className="w-full min-w-[140px] text-xs font-bold py-1.5 px-2.5 rounded-lg border-2 border-amber-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-2xs cursor-pointer"
+                                  title="Present Status (Column W in Google Sheet)"
+                                >
+                                  {PRESENT_STATUS_OPTIONS.map((opt) => (
+                                    <option key={opt} value={opt}>
+                                      {opt}
+                                    </option>
+                                  ))}
+                                  {!PRESENT_STATUS_OPTIONS.includes(st.status) && (
+                                    <option value={st.status}>{st.status}</option>
+                                  )}
+                                </select>
                               </td>
-                              <td className="py-3 px-3.5 text-slate-700 max-w-xs truncate" title={st.remarks}>
-                                {st.remarks || '—'}
+
+                              {/* Editable BRTE / HM Remarks (Case Study) [Column X] */}
+                              <td className="py-2 px-3 bg-amber-50/50 border-l border-r border-amber-200">
+                                <input
+                                  type="text"
+                                  value={st.brteRemarks || ''}
+                                  placeholder="BRTE / HM Case Study..."
+                                  onChange={(e) => handleBrteRemarksChange(key, e.target.value)}
+                                  className="w-full min-w-[180px] text-xs font-bold py-1.5 px-2.5 rounded-lg border-2 border-amber-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-2xs placeholder:text-slate-400 placeholder:italic"
+                                  title="BRTE / HM Remarks Case Study (Column X in Google Sheet)"
+                                />
+                              </td>
+
+                              {/* Editable Department / Counsellors Remarks [Column Y] */}
+                              <td className="py-2 px-3 bg-emerald-50/50 border-l border-r border-emerald-200">
+                                <input
+                                  type="text"
+                                  value={st.deptRemarks || st.remarks || ''}
+                                  placeholder="Dept / Counsellor Remarks..."
+                                  onChange={(e) => handleDeptRemarksChange(key, e.target.value)}
+                                  className="w-full min-w-[180px] text-xs font-bold py-1.5 px-2.5 rounded-lg border-2 border-emerald-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs placeholder:text-slate-400 placeholder:italic"
+                                  title="Department / Counsellors Remarks (Column Y in Google Sheet)"
+                                />
                               </td>
                             </tr>
                           );
                         })}
                         {filteredCounselling.length === 0 && (
                           <tr>
-                            <td colSpan={21} className="py-12 text-center text-slate-500 font-bold">
+                            <td colSpan={22} className="py-12 text-center text-slate-500 font-bold">
                               No counselling cases match the selected filters.
                             </td>
                           </tr>
@@ -2823,6 +2987,31 @@ export default function App() {
               </div>
             );
           })()}
+
+          {/* ======================================================== */}
+          {/* COUNSELLOR SPECIFIC SLICERS (DCPO / ICTC / PAD) */}
+          {/* ======================================================== */}
+          {(selectedSlicer === 'DCPO Counsellors' || selectedSlicer === 'ICTC Counsellors' || selectedSlicer === 'PAD Counsellors') && (
+            <CounsellorSlicerView
+              agencyName={selectedSlicer}
+              allStudents={allStudents}
+              deptList={deptList}
+              dynamicCounsellingByOptions={dynamicCounsellingByOptions}
+              selectedMonth={selectedMonth}
+              presentStatusOptions={PRESENT_STATUS_OPTIONS}
+              handleCounsellingChange={handleCounsellingChange}
+              handleCounsellingByChange={handleCounsellingByChange}
+              handleCounsellorNameChange={handleCounsellorNameChange}
+              handleCounsellingDateChange={handleCounsellingDateChange}
+              handleTransferDeptChange={handleTransferDeptChange}
+              handleDropoutReasonChange={handleDropoutReasonChange}
+              handleStatusChange={handleStatusChange}
+              handleBrteRemarksChange={handleBrteRemarksChange}
+              handleDeptRemarksChange={handleDeptRemarksChange}
+              exportStudentsToExcel={exportStudentsToExcel}
+              exportStudentsToWord={exportStudentsToWord}
+            />
+          )}
 
           {/* ======================================================== */}
           {/* 4. REVENUE DEPARTMENT (TALUK-WISE SOURCED FROM COL C) */}
@@ -3198,6 +3387,8 @@ export default function App() {
                     st.studentName.toLowerCase().includes(revenueSearch.toLowerCase()) ||
                     st.school.toLowerCase().includes(revenueSearch.toLowerCase()) ||
                     st.block.toLowerCase().includes(revenueSearch.toLowerCase()) ||
+                    (st.counsellingBy && st.counsellingBy.toLowerCase().includes(revenueSearch.toLowerCase())) ||
+                    (st.counsellorName && st.counsellorName.toLowerCase().includes(revenueSearch.toLowerCase())) ||
                     (st.emisId && st.emisId.includes(revenueSearch));
                   return matchTaluk && matchSearch;
                 });
@@ -3278,8 +3469,11 @@ export default function App() {
                               Present Status
                             </th>
                             <th className="py-3 px-3.5">Contact No</th>
-                            <th className="py-3 px-3.5 min-w-56 bg-indigo-900 text-white font-black border-l border-r border-indigo-800">
-                              Remarks
+                            <th className="py-3 px-3.5 min-w-56 bg-amber-900 text-white font-black border-l border-r border-amber-800">
+                              BRTE / HM Remarks (Case Study) [Col X]
+                            </th>
+                            <th className="py-3 px-3.5 min-w-56 bg-emerald-900 text-white font-black border-l border-r border-emerald-800">
+                              Dept / Counsellors Remarks [Col Y]
                             </th>
                           </tr>
                         </thead>
@@ -3334,16 +3528,24 @@ export default function App() {
                                   </select>
                                 </td>
 
-                                {/* EDITABLE COUNSELLING BY (COLUMN T) */}
+                                {/* EDITABLE COUNSELLING BY (COLUMN T) DROPDOWN */}
                                 <td className="py-2 px-3 bg-blue-50/50 border-l border-r border-blue-200">
-                                  <input
-                                    type="text"
+                                  <select
                                     value={st.counsellingBy || ''}
-                                    placeholder="Assign counsellor..."
                                     onChange={(e) => handleCounsellingByChange(key, e.target.value)}
-                                    className="w-full min-w-[160px] text-xs font-bold py-1 px-2 rounded-lg border-2 border-blue-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs placeholder:text-slate-400 placeholder:italic"
-                                    title="Edit Counselling By (Column T in Google Sheet)"
-                                  />
+                                    className="w-full min-w-[170px] text-xs font-bold py-1.5 px-2.5 rounded-lg border-2 border-blue-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs cursor-pointer"
+                                    title="Counselling By (Sourced from Tracker Sheet Column T)"
+                                  >
+                                    <option value="">Not Assigned</option>
+                                    {dynamicCounsellingByOptions.map((opt) => (
+                                      <option key={opt} value={opt}>
+                                        {opt}
+                                      </option>
+                                    ))}
+                                    {st.counsellingBy && !dynamicCounsellingByOptions.includes(st.counsellingBy) && (
+                                      <option value={st.counsellingBy}>{st.counsellingBy}</option>
+                                    )}
+                                  </select>
                                 </td>
 
                                 {/* EDITABLE COUNSELLOR NAME (COLUMN U) */}
@@ -3417,15 +3619,27 @@ export default function App() {
 
                                 <td className="py-2.5 px-3.5 text-sm text-slate-800 font-bold">{st.contactNo || '-'}</td>
 
-                                {/* EDITABLE REMARKS FOR OFFICIALS */}
-                                <td className="py-2 px-3 bg-indigo-50/40 border-l border-r border-indigo-200">
+                                {/* EDITABLE BRTE / HM REMARKS (COL X) */}
+                                <td className="py-2 px-3 bg-amber-50/50 border-l border-r border-amber-200">
                                   <input
                                     type="text"
-                                    value={st.remarks || ''}
-                                    placeholder="Enter remarks..."
-                                    onChange={(e) => handleRemarksChange(key, e.target.value)}
-                                    className="w-full min-w-[200px] text-sm py-1.5 px-3 rounded-lg border-2 border-indigo-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-2xs font-medium placeholder:text-slate-400 placeholder:italic"
-                                    title="Edit Remarks"
+                                    value={st.brteRemarks || ''}
+                                    placeholder="BRTE / HM Case Study..."
+                                    onChange={(e) => handleBrteRemarksChange(key, e.target.value)}
+                                    className="w-full min-w-[180px] text-sm py-1.5 px-3 rounded-lg border-2 border-amber-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-2xs font-medium placeholder:text-slate-400 placeholder:italic"
+                                    title="BRTE / HM Remarks Case Study (Column X in Google Sheet)"
+                                  />
+                                </td>
+
+                                {/* EDITABLE DEPT REMARKS (COL Y) */}
+                                <td className="py-2 px-3 bg-emerald-50/40 border-l border-r border-emerald-200">
+                                  <input
+                                    type="text"
+                                    value={st.deptRemarks || st.remarks || ''}
+                                    placeholder="Enter department remarks..."
+                                    onChange={(e) => handleDeptRemarksChange(key, e.target.value)}
+                                    className="w-full min-w-[200px] text-sm py-1.5 px-3 rounded-lg border-2 border-emerald-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs font-medium placeholder:text-slate-400 placeholder:italic"
+                                    title="Department / Counsellors Remarks (Column Y in Google Sheet)"
                                   />
                                 </td>
                               </tr>
@@ -3449,7 +3663,10 @@ export default function App() {
           {selectedSlicer !== 'Overview' && 
            selectedSlicer !== 'Division' && 
            selectedSlicer !== 'Line Department Overview' && 
-           selectedSlicer !== 'Counselling' && 
+           selectedSlicer !== 'Counselling Overview' && 
+           selectedSlicer !== 'DCPO Counsellors' && 
+           selectedSlicer !== 'ICTC Counsellors' && 
+           selectedSlicer !== 'PAD Counsellors' && 
            selectedSlicer !== 'Revenue Department' && (
             !authenticatedDepts[selectedSlicer] ? (
               <DepartmentLoginForm
@@ -3715,6 +3932,8 @@ export default function App() {
                   s.block.toLowerCase().includes(deptSearch.toLowerCase()) ||
                   s.school.toLowerCase().includes(deptSearch.toLowerCase()) ||
                   s.taluk.toLowerCase().includes(deptSearch.toLowerCase()) ||
+                  (s.counsellingBy && s.counsellingBy.toLowerCase().includes(deptSearch.toLowerCase())) ||
+                  (s.counsellorName && s.counsellorName.toLowerCase().includes(deptSearch.toLowerCase())) ||
                   (s.emisId && s.emisId.includes(deptSearch))
                 );
 
@@ -3783,8 +4002,11 @@ export default function App() {
                               <th className="py-3 px-3.5 min-w-48 bg-amber-900 text-white font-black border-l border-r border-amber-800">
                                 Present Status
                               </th>
-                              <th className="py-3 px-3.5 min-w-56 bg-indigo-900 text-white font-black border-l border-r border-indigo-800">
-                                Remarks
+                              <th className="py-3 px-3.5 min-w-56 bg-amber-900 text-white font-black border-l border-r border-amber-800">
+                                BRTE / HM Remarks (Case Study) [Col X]
+                              </th>
+                              <th className="py-3 px-3.5 min-w-56 bg-emerald-900 text-white font-black border-l border-r border-emerald-800">
+                                Dept / Counsellors Remarks [Col Y]
                               </th>
                             </tr>
                           </thead>
@@ -3842,16 +4064,24 @@ export default function App() {
                                   </select>
                                 </td>
 
-                                {/* EDITABLE COUNSELLING BY (COLUMN T) */}
+                                {/* EDITABLE COUNSELLING BY (COLUMN T) DROPDOWN */}
                                 <td className="py-2 px-3 bg-blue-50/50 border-l border-r border-blue-200">
-                                  <input
-                                    type="text"
+                                  <select
                                     value={st.counsellingBy || ''}
-                                    placeholder="Assign counsellor..."
                                     onChange={(e) => handleCounsellingByChange(key, e.target.value)}
-                                    className="w-full min-w-[160px] text-xs font-bold py-1 px-2 rounded-lg border-2 border-blue-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs placeholder:text-slate-400 placeholder:italic"
-                                    title="Edit Counselling By (Column T in Google Sheet)"
-                                  />
+                                    className="w-full min-w-[170px] text-xs font-bold py-1.5 px-2.5 rounded-lg border-2 border-blue-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs cursor-pointer"
+                                    title="Counselling By (Sourced from Tracker Sheet Column T)"
+                                  >
+                                    <option value="">Not Assigned</option>
+                                    {dynamicCounsellingByOptions.map((opt) => (
+                                      <option key={opt} value={opt}>
+                                        {opt}
+                                      </option>
+                                    ))}
+                                    {st.counsellingBy && !dynamicCounsellingByOptions.includes(st.counsellingBy) && (
+                                      <option value={st.counsellingBy}>{st.counsellingBy}</option>
+                                    )}
+                                  </select>
                                 </td>
 
                                 {/* EDITABLE COUNSELLOR NAME (COLUMN U) */}
@@ -3923,15 +4153,27 @@ export default function App() {
                                   </select>
                                 </td>
 
-                                {/* EDITABLE REMARKS FOR OFFICIALS */}
-                                <td className="py-2 px-3 bg-indigo-50/40 border-l border-r border-indigo-200">
+                                {/* EDITABLE BRTE / HM REMARKS (COL X) */}
+                                <td className="py-2 px-3 bg-amber-50/50 border-l border-r border-amber-200">
                                   <input
                                     type="text"
-                                    value={st.remarks || ''}
+                                    value={st.brteRemarks || ''}
+                                    placeholder="BRTE / HM Case Study..."
+                                    onChange={(e) => handleBrteRemarksChange(key, e.target.value)}
+                                    className="w-full min-w-[180px] text-sm py-1.5 px-3 rounded-lg border-2 border-amber-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-2xs font-medium placeholder:text-slate-400 placeholder:italic"
+                                    title="BRTE / HM Remarks Case Study (Column X in Google Sheet)"
+                                  />
+                                </td>
+
+                                {/* EDITABLE DEPT REMARKS (COL Y) */}
+                                <td className="py-2 px-3 bg-emerald-50/40 border-l border-r border-emerald-200">
+                                  <input
+                                    type="text"
+                                    value={st.deptRemarks || st.remarks || ''}
                                     placeholder="Enter department remarks..."
-                                    onChange={(e) => handleRemarksChange(key, e.target.value)}
-                                    className="w-full min-w-[200px] text-sm py-1.5 px-3 rounded-lg border-2 border-indigo-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-2xs font-medium placeholder:text-slate-400 placeholder:italic"
-                                    title="Edit Remarks"
+                                    onChange={(e) => handleDeptRemarksChange(key, e.target.value)}
+                                    className="w-full min-w-[200px] text-sm py-1.5 px-3 rounded-lg border-2 border-emerald-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs font-medium placeholder:text-slate-400 placeholder:italic"
+                                    title="Department / Counsellors Remarks (Column Y in Google Sheet)"
                                   />
                                 </td>
                               </tr>

@@ -43,7 +43,8 @@ export function exportStudentsToExcel(students: StudentRecord[], filename: strin
     'Counsellor Name': s.counsellorName || '-',
     'Counselling Given Date': s.counsellingDate || '-',
     'Present Status': s.status,
-    'Remarks / Notes': s.remarks || '-',
+    'BRTE / HM Remarks (Case Study) [Col X]': s.brteRemarks || '-',
+    'Department / Counsellors Remarks [Col Y]': s.deptRemarks || s.remarks || '-',
   }));
 
   const worksheet = XLSX.utils.json_to_sheet(exportData);
@@ -121,7 +122,8 @@ export function exportDivisionToExcel(division: DivisionExportData, students: St
     'Counsellor Name': s.counsellorName || '-',
     'Counselling Given Date': s.counsellingDate || '-',
     'Present Status': s.status,
-    'Remarks / Notes': s.remarks || '-',
+    'BRTE / HM Remarks (Case Study) [Col X]': s.brteRemarks || '-',
+    'Department / Counsellors Remarks [Col Y]': s.deptRemarks || s.remarks || '-',
   }));
   const studentsSheet = XLSX.utils.json_to_sheet(studentRows);
   XLSX.utils.book_append_sheet(workbook, studentsSheet, `${division.name} Students`);
@@ -299,7 +301,8 @@ export function exportStudentsToWord(students: StudentRecord[], title: string) {
       <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;">${s.counsellorName || '-'}</td>
       <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;">${s.counsellingDate || '-'}</td>
       <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;font-weight:bold;color:#047857;">${s.status}</td>
-      <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;">${s.remarks || '-'}</td>
+      <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;">${s.brteRemarks || '-'}</td>
+      <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;">${s.deptRemarks || s.remarks || '-'}</td>
     </tr>
   `).join('');
 
@@ -339,7 +342,8 @@ export function exportStudentsToWord(students: StudentRecord[], title: string) {
             <th>Counsellor Name</th>
             <th>Counselling Date</th>
             <th>Present Status</th>
-            <th>Remarks</th>
+            <th>BRTE / HM Remarks (Case Study)</th>
+            <th>Department Remarks</th>
           </tr>
         </thead>
         <tbody>
@@ -391,7 +395,8 @@ export function formatStudentRecordForExcel(s: StudentRecord, index: number) {
     'Counsellor Name': s.counsellorName || '-',
     'Counselling Given Date': s.counsellingDate || '-',
     'Present Status': s.status,
-    'Remarks / Notes': s.remarks || '-',
+    'BRTE / HM Remarks (Case Study) [Col X]': s.brteRemarks || '-',
+    'Department / Counsellors Remarks [Col Y]': s.deptRemarks || s.remarks || '-',
   };
 }
 
@@ -670,7 +675,8 @@ export function exportOverviewToWord(
         <td style="border:1px solid #cbd5e1;padding:5px;font-size:10px;">${s.lineDept}</td>
         <td style="border:1px solid #cbd5e1;padding:5px;font-size:10px;">${s.dropoutReason || '-'}</td>
         <td style="border:1px solid #cbd5e1;padding:5px;font-size:10px;font-weight:bold;color:${s.isReEnrolled ? '#047857' : s.isMigrated ? '#b45309' : '#1e3a5f'};">${s.status}</td>
-        <td style="border:1px solid #cbd5e1;padding:5px;font-size:10px;">${s.remarks || '-'}</td>
+        <td style="border:1px solid #cbd5e1;padding:5px;font-size:10px;">${s.brteRemarks || '-'}</td>
+        <td style="border:1px solid #cbd5e1;padding:5px;font-size:10px;">${s.deptRemarks || s.remarks || '-'}</td>
       </tr>
     `).join('');
   };
@@ -692,7 +698,8 @@ export function exportOverviewToWord(
         <th style="background-color:#1e3a5f;color:#ffffff;padding:6px;font-size:10px;border:1px solid #1e3a5f;">Line Dept</th>
         <th style="background-color:#1e3a5f;color:#ffffff;padding:6px;font-size:10px;border:1px solid #1e3a5f;">Dropout Reason</th>
         <th style="background-color:#1e3a5f;color:#ffffff;padding:6px;font-size:10px;border:1px solid #1e3a5f;">Present Status</th>
-        <th style="background-color:#1e3a5f;color:#ffffff;padding:6px;font-size:10px;border:1px solid #1e3a5f;">Remarks</th>
+        <th style="background-color:#1e3a5f;color:#ffffff;padding:6px;font-size:10px;border:1px solid #1e3a5f;">BRTE / HM Remarks</th>
+        <th style="background-color:#1e3a5f;color:#ffffff;padding:6px;font-size:10px;border:1px solid #1e3a5f;">Dept Remarks</th>
       </tr>
     </thead>
   `;

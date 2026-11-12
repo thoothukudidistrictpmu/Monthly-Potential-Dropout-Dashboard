@@ -238,6 +238,8 @@ export interface StudentRecord {
   isReEnrolled: boolean;
   isMigrated: boolean;
   isStatusNotUpdated: boolean;
+  brteRemarks: string;
+  deptRemarks: string;
   remarks: string;
   customFields?: Record<string, string>;
 }
@@ -458,7 +460,8 @@ export function processSheetCSV(csvText: string, month: string): DashboardPayloa
   // Col U (20): Counsellor Name (NEW Col U)
   // Col V (21): Counselling given date (NEW Col V)
   // Col W (22): Present Status (NEW Col W - Re-enrolled in school, Dropped out, Migrated, etc.)
-  // Col X (23): Department / Counsellors Remarks (NEW Col X)
+  // Col X (23): BRTE / HM REMARKS ( CASE STUDY )
+  // Col Y (24): Department / Counsellors Remarks
 
   const sNoIdx = getColIdx(['s.no', 'sno', 'sl.no', 'tracker s.no', 'potential dropout tracker s.no'], ['tracker', 'serial', 's.no'], 0);
   const divisionIdx = getColIdx(['division name', 'division', 'revenue division'], ['division'], 1);
@@ -483,13 +486,15 @@ export function processSheetCSV(csvText: string, month: string): DashboardPayloa
   const counsellorNameIdx = getColIdx(['counsellor name', 'counsellor', 'counselor name', 'counselor'], ['counsellor name', 'counsellor'], 20);
   const counsellingDateIdx = getColIdx(['counselling given date', 'counselling date', 'counseling date', 'date of counselling', 'given date'], ['counselling given date', 'given date', 'counselling date'], 21);
   const statusIdx = getColIdx(['present status', 'status', 'current status'], ['present status', 'status'], 22);
-  const remarksIdx = getColIdx(['department / counsellors remarks', 'department remarks', 'remarks / notes', 'remarks', 'notes', 'comments'], ['remarks', 'notes'], 23);
+  const brteRemarksIdx = getColIdx(['brte / hm remarks ( case study)', 'brte / hm remarks (case study)', 'brte / hm remarks', 'brte remarks', 'case study', 'hm remarks'], ['brte', 'case study'], 23);
+  const deptRemarksIdx = getColIdx(['department / counsellors remarks', 'department remarks', 'counsellors remarks', 'counsellor remarks'], ['department / counsellors', 'counsellor remarks', 'counsellors remarks'], 24);
+  const remarksIdx = deptRemarksIdx;
 
   const knownIndices = new Set([
     sNoIdx, divisionIdx, talukIdx, blockIdx, schoolIdx, categoryIdx, emisIdx,
     nameIdx, genderIdx, stdIdx, secIdx, absentDaysIdx, addressIdx, contactIdx, repeaterIdx,
     lineDeptIdx, dropoutReasonIdx, transferDeptIdx, counsellingIdx, counsellingByIdx,
-    counsellorNameIdx, counsellingDateIdx, statusIdx, remarksIdx
+    counsellorNameIdx, counsellingDateIdx, statusIdx, brteRemarksIdx, deptRemarksIdx, remarksIdx
   ]);
 
   const students: StudentRecord[] = [];
@@ -705,7 +710,9 @@ export function processSheetCSV(csvText: string, month: string): DashboardPayloa
       isReEnrolled,
       isMigrated,
       isStatusNotUpdated,
-      remarks: r[remarksIdx] || '',
+      brteRemarks: (r[brteRemarksIdx] || '').trim(),
+      deptRemarks: (r[deptRemarksIdx] || '').trim(),
+      remarks: (r[deptRemarksIdx] || '').trim() || (r[brteRemarksIdx] || '').trim(),
       customFields: Object.keys(customFields).length > 0 ? customFields : undefined,
     });
   }
