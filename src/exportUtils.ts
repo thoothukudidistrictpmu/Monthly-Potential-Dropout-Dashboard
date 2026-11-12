@@ -44,7 +44,7 @@ export function exportStudentsToExcel(students: StudentRecord[], filename: strin
     'Counselling Given Date': s.counsellingDate || '-',
     'Present Status': s.status,
     'BRTE / HM Remarks (Case Study) [Col X]': s.brteRemarks || '-',
-    'Department / Counsellors Remarks [Col Y]': s.deptRemarks || s.remarks || '-',
+    'Department / Counsellors Remarks [Col Y]': s.deptRemarks || '-',
   }));
 
   const worksheet = XLSX.utils.json_to_sheet(exportData);
@@ -123,7 +123,7 @@ export function exportDivisionToExcel(division: DivisionExportData, students: St
     'Counselling Given Date': s.counsellingDate || '-',
     'Present Status': s.status,
     'BRTE / HM Remarks (Case Study) [Col X]': s.brteRemarks || '-',
-    'Department / Counsellors Remarks [Col Y]': s.deptRemarks || s.remarks || '-',
+    'Department / Counsellors Remarks [Col Y]': s.deptRemarks || '-',
   }));
   const studentsSheet = XLSX.utils.json_to_sheet(studentRows);
   XLSX.utils.book_append_sheet(workbook, studentsSheet, `${division.name} Students`);
@@ -302,7 +302,7 @@ export function exportStudentsToWord(students: StudentRecord[], title: string) {
       <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;">${s.counsellingDate || '-'}</td>
       <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;font-weight:bold;color:#047857;">${s.status}</td>
       <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;">${s.brteRemarks || '-'}</td>
-      <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;">${s.deptRemarks || s.remarks || '-'}</td>
+      <td style="border:1px solid #cbd5e1;padding:6px;font-size:11px;">${s.deptRemarks || '-'}</td>
     </tr>
   `).join('');
 
@@ -396,7 +396,7 @@ export function formatStudentRecordForExcel(s: StudentRecord, index: number) {
     'Counselling Given Date': s.counsellingDate || '-',
     'Present Status': s.status,
     'BRTE / HM Remarks (Case Study) [Col X]': s.brteRemarks || '-',
-    'Department / Counsellors Remarks [Col Y]': s.deptRemarks || s.remarks || '-',
+    'Department / Counsellors Remarks [Col Y]': s.deptRemarks || '-',
   };
 }
 
@@ -676,7 +676,7 @@ export function exportOverviewToWord(
         <td style="border:1px solid #cbd5e1;padding:5px;font-size:10px;">${s.dropoutReason || '-'}</td>
         <td style="border:1px solid #cbd5e1;padding:5px;font-size:10px;font-weight:bold;color:${s.isReEnrolled ? '#047857' : s.isMigrated ? '#b45309' : '#1e3a5f'};">${s.status}</td>
         <td style="border:1px solid #cbd5e1;padding:5px;font-size:10px;">${s.brteRemarks || '-'}</td>
-        <td style="border:1px solid #cbd5e1;padding:5px;font-size:10px;">${s.deptRemarks || s.remarks || '-'}</td>
+        <td style="border:1px solid #cbd5e1;padding:5px;font-size:10px;">${s.deptRemarks || '-'}</td>
       </tr>
     `).join('');
   };

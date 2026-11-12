@@ -560,11 +560,9 @@ export default function App() {
   const handleDeptRemarksChange = (studentKey: string, newRemarks: string) => {
     const updated = { ...editedDeptRemarks, [studentKey]: newRemarks };
     setEditedDeptRemarks(updated);
-    setEditedRemarks(updated);
     try {
       const storageKey = `thoothukudi_dept_remarks_${selectedMonth}`;
       localStorage.setItem(storageKey, JSON.stringify(updated));
-      localStorage.setItem(`thoothukudi_remarks_${selectedMonth}`, JSON.stringify(updated));
     } catch (e) {
       console.warn('Could not save Department remarks to localStorage', e);
     }
@@ -581,9 +579,9 @@ export default function App() {
       const customCounselling = editedCounselling[key] !== undefined 
         ? editedCounselling[key] 
         : (st.counsellingRequired || (st.isCounsellingNeeded ? 'Yes' : 'No'));
-      const customRemarks = editedRemarks[key] !== undefined ? editedRemarks[key] : st.remarks;
+      const customRemarks = editedRemarks[key] !== undefined ? editedRemarks[key] : (st.deptRemarks || '');
       const customBrteRemarks = editedBrteRemarks[key] !== undefined ? editedBrteRemarks[key] : (st.brteRemarks || '');
-      const customDeptRemarks = editedDeptRemarks[key] !== undefined ? editedDeptRemarks[key] : (st.deptRemarks || st.remarks || '');
+      const customDeptRemarks = editedDeptRemarks[key] !== undefined ? editedDeptRemarks[key] : (st.deptRemarks || '');
       const customTransferDept = editedTransferDepts[key] !== undefined ? editedTransferDepts[key] : (st.transferRequestDept || '');
       const customCounsellingBy = editedCounsellingBy[key] !== undefined ? editedCounsellingBy[key] : (st.counsellingBy || '');
       const customCounsellorName = editedCounsellorName[key] !== undefined ? editedCounsellorName[key] : (st.counsellorName || '');
@@ -616,7 +614,7 @@ export default function App() {
         counsellingDate: customCounsellingDate,
         brteRemarks: customBrteRemarks,
         deptRemarks: customDeptRemarks,
-        remarks: customDeptRemarks || customBrteRemarks || customRemarks || '',
+        remarks: customDeptRemarks,
         isReEnrolled,
         isMigrated,
         isStatusNotUpdated,
@@ -1436,23 +1434,23 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Box 5: Counselling Needed */}
-                    <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
-                      <div className="bg-[#1e3a5f] text-white px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between">
+                    {/* Box 5: Counselling Needed (Coloured with distinct styling like Repeaters box) */}
+                    <div className="bg-rose-50/70 border-2 border-rose-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
+                      <div className="bg-rose-900 text-white px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between">
                         <span className="text-xs sm:text-sm font-black tracking-wider uppercase text-white truncate">
                           Counselling Needed
                         </span>
-                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/15 text-white flex items-center justify-center shrink-0">
+                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/20 text-white flex items-center justify-center shrink-0">
                           <HelpCircle className="w-4 h-4" />
                         </div>
                       </div>
                       <div className="p-3.5 sm:p-5 flex flex-col justify-between flex-1">
-                        <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
+                        <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-rose-950 font-mono tracking-tight mt-1">
                           {summary.counsellingNeeded}
                         </div>
-                        <div className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-slate-700 font-bold pt-2 sm:pt-2.5 border-t border-slate-300 flex justify-between items-center">
+                        <div className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-rose-900 font-bold pt-2 sm:pt-2.5 border-t border-rose-200 flex justify-between items-center">
                           <span>Requires Counselling</span>
-                          <span className="font-black text-slate-900">
+                          <span className="font-black text-rose-950">
                             {summary.potentialDropout > 0 ? ((summary.counsellingNeeded / summary.potentialDropout) * 100).toFixed(0) : 0}%
                           </span>
                         </div>
@@ -2962,7 +2960,7 @@ export default function App() {
                               <td className="py-2 px-3 bg-emerald-50/50 border-l border-r border-emerald-200">
                                 <input
                                   type="text"
-                                  value={st.deptRemarks || st.remarks || ''}
+                                  value={st.deptRemarks || ''}
                                   placeholder="Dept / Counsellor Remarks..."
                                   onChange={(e) => handleDeptRemarksChange(key, e.target.value)}
                                   className="w-full min-w-[180px] text-xs font-bold py-1.5 px-2.5 rounded-lg border-2 border-emerald-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs placeholder:text-slate-400 placeholder:italic"
@@ -3635,7 +3633,7 @@ export default function App() {
                                 <td className="py-2 px-3 bg-emerald-50/40 border-l border-r border-emerald-200">
                                   <input
                                     type="text"
-                                    value={st.deptRemarks || st.remarks || ''}
+                                    value={st.deptRemarks || ''}
                                     placeholder="Enter department remarks..."
                                     onChange={(e) => handleDeptRemarksChange(key, e.target.value)}
                                     className="w-full min-w-[200px] text-sm py-1.5 px-3 rounded-lg border-2 border-emerald-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs font-medium placeholder:text-slate-400 placeholder:italic"
@@ -4169,7 +4167,7 @@ export default function App() {
                                 <td className="py-2 px-3 bg-emerald-50/40 border-l border-r border-emerald-200">
                                   <input
                                     type="text"
-                                    value={st.deptRemarks || st.remarks || ''}
+                                    value={st.deptRemarks || ''}
                                     placeholder="Enter department remarks..."
                                     onChange={(e) => handleDeptRemarksChange(key, e.target.value)}
                                     className="w-full min-w-[200px] text-sm py-1.5 px-3 rounded-lg border-2 border-emerald-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs font-medium placeholder:text-slate-400 placeholder:italic"

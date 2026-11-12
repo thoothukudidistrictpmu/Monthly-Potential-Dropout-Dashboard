@@ -166,8 +166,8 @@ export function CounsellorSlicerView({
         </div>
       </div>
 
-      {/* KPI Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      {/* KPI Summary Cards - 3 Key Indicators */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Total Caseload */}
         <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl overflow-hidden shadow-2xs text-center flex flex-col justify-between">
           <div className="bg-[#1e3a5f] text-white px-3 py-2 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5">
@@ -212,22 +212,6 @@ export function CounsellorSlicerView({
             </div>
             <div className="text-xs sm:text-sm text-purple-900 mt-1 font-bold">
               Repeater Caseload
-            </div>
-          </div>
-        </div>
-
-        {/* Absent > 30 Days */}
-        <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl overflow-hidden shadow-2xs text-center flex flex-col justify-between">
-          <div className="bg-rose-900 text-white px-3 py-2 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5">
-            <Clock className="w-3.5 h-3.5" />
-            <span>Absent &gt; 30 Days</span>
-          </div>
-          <div className="p-4">
-            <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-rose-950 font-mono tracking-tight">
-              {highAbsenteeCount}
-            </div>
-            <div className="text-xs sm:text-sm text-rose-800 mt-1 font-bold">
-              Priority Focus
             </div>
           </div>
         </div>
@@ -526,7 +510,7 @@ export function CounsellorSlicerView({
                       <td className="py-2 px-3 bg-indigo-50/50 border-l border-r border-indigo-200">
                         <input
                           type="text"
-                          value={st.deptRemarks || st.remarks || ''}
+                          value={st.deptRemarks || ''}
                           placeholder="Department / counsellor remarks..."
                           onChange={(e) => handleDeptRemarksChange(key, e.target.value)}
                           className="w-full min-w-[220px] text-xs py-1.5 px-2.5 rounded-lg border-2 border-indigo-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-2xs font-medium placeholder:text-slate-400 placeholder:italic"

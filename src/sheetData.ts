@@ -712,7 +712,7 @@ export function processSheetCSV(csvText: string, month: string): DashboardPayloa
       isStatusNotUpdated,
       brteRemarks: (r[brteRemarksIdx] || '').trim(),
       deptRemarks: (r[deptRemarksIdx] || '').trim(),
-      remarks: (r[deptRemarksIdx] || '').trim() || (r[brteRemarksIdx] || '').trim(),
+      remarks: (r[deptRemarksIdx] || '').trim(),
       customFields: Object.keys(customFields).length > 0 ? customFields : undefined,
     });
   }
