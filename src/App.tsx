@@ -1342,144 +1342,149 @@ export default function App() {
                 const lineDeptDropoutsCount = allStudents.filter(s => s.lineDept && s.lineDept !== 'Unassigned' && s.lineDept !== '-').length;
 
                 return (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-                    
-                    {/* Box 1: Potential Dropout */}
-                    <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
-                      <div className="bg-[#1e3a5f] text-white px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between">
-                        <span className="text-xs sm:text-sm font-black tracking-wider uppercase text-white truncate">
-                          Potential Dropout
-                        </span>
-                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/15 text-white flex items-center justify-center shrink-0">
-                          <Users className="w-4 h-4" />
-                        </div>
-                      </div>
-                      <div className="p-3.5 sm:p-5 flex flex-col justify-between flex-1">
-                        <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
-                          {summary.potentialDropout}
-                        </div>
-                        <div className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-slate-700 font-bold pt-2 sm:pt-2.5 border-t border-slate-300 flex justify-between items-center">
-                          <span>Identified</span>
-                          <span className="font-black text-slate-900">100%</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Box 2: Line Department (Total dropouts in Line Department) */}
-                    <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
-                      <div className="bg-[#1e3a5f] text-white px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between">
-                        <span className="text-xs sm:text-sm font-black tracking-wider uppercase text-white truncate">
-                          Line Department
-                        </span>
-                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/15 text-white flex items-center justify-center shrink-0">
-                          <Briefcase className="w-4 h-4" />
-                        </div>
-                      </div>
-                      <div className="p-3.5 sm:p-5 flex flex-col justify-between flex-1">
-                        <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
-                          {lineDeptDropoutsCount}
-                        </div>
-                        <div className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-slate-700 font-bold pt-2 sm:pt-2.5 border-t border-slate-300 flex justify-between items-center">
-                          <span>Allocated Cases</span>
-                          <span className="font-black text-slate-900">
-                            {summary.potentialDropout > 0 ? ((lineDeptDropoutsCount / summary.potentialDropout) * 100).toFixed(0) : 0}%
+                  <div className="space-y-3 sm:space-y-4">
+                    {/* First Line — 4 Core Overview Cards */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                      
+                      {/* Box 1: Potential Dropout */}
+                      <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
+                        <div className="bg-[#1e3a5f] text-white px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between">
+                          <span className="text-xs sm:text-sm font-black tracking-wider uppercase text-white">
+                            Potential Dropout
                           </span>
+                          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/15 text-white flex items-center justify-center shrink-0">
+                            <Users className="w-4 h-4" />
+                          </div>
+                        </div>
+                        <div className="p-3.5 sm:p-5 flex flex-col justify-between flex-1">
+                          <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
+                            {summary.potentialDropout}
+                          </div>
+                          <div className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-slate-700 font-bold pt-2 sm:pt-2.5 border-t border-slate-300 flex justify-between items-center">
+                            <span>Identified</span>
+                            <span className="font-black text-slate-900">100%</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Box 3: Re - Enrolled */}
-                    <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
-                      <div className="bg-[#1e3a5f] text-white px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between">
-                        <span className="text-xs sm:text-sm font-black tracking-wider uppercase text-white truncate">
-                          Re - Enrolled
-                        </span>
-                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/15 text-white flex items-center justify-center shrink-0">
-                          <GraduationCap className="w-4 h-4" />
-                        </div>
-                      </div>
-                      <div className="p-3.5 sm:p-5 flex flex-col justify-between flex-1">
-                        <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
-                          {summary.reEnrolled}
-                        </div>
-                        <div className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-slate-700 font-bold pt-2 sm:pt-2.5 border-t border-slate-300 flex justify-between items-center">
-                          <span>Rejoined</span>
-                          <span className="font-black text-slate-900">
-                            {summary.potentialDropout > 0 ? ((summary.reEnrolled / summary.potentialDropout) * 100).toFixed(0) : 0}%
+                      {/* Box 2: Line Department (Total dropouts in Line Department) */}
+                      <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
+                        <div className="bg-[#1e3a5f] text-white px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between">
+                          <span className="text-xs sm:text-sm font-black tracking-wider uppercase text-white">
+                            Line Department
                           </span>
+                          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/15 text-white flex items-center justify-center shrink-0">
+                            <Briefcase className="w-4 h-4" />
+                          </div>
+                        </div>
+                        <div className="p-3.5 sm:p-5 flex flex-col justify-between flex-1">
+                          <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
+                            {lineDeptDropoutsCount}
+                          </div>
+                          <div className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-slate-700 font-bold pt-2 sm:pt-2.5 border-t border-slate-300 flex justify-between items-center">
+                            <span>Allocated Cases</span>
+                            <span className="font-black text-slate-900">
+                              {summary.potentialDropout > 0 ? ((lineDeptDropoutsCount / summary.potentialDropout) * 100).toFixed(0) : 0}%
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Box 4: Migrated */}
-                    <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
-                      <div className="bg-[#1e3a5f] text-white px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between">
-                        <span className="text-xs sm:text-sm font-black tracking-wider uppercase text-white truncate">
-                          Migrated
-                        </span>
-                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/15 text-white flex items-center justify-center shrink-0">
-                          <MapPin className="w-4 h-4" />
-                        </div>
-                      </div>
-                      <div className="p-3.5 sm:p-5 flex flex-col justify-between flex-1">
-                        <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
-                          {summary.migrated}
-                        </div>
-                        <div className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-slate-700 font-bold pt-2 sm:pt-2.5 border-t border-slate-300 flex justify-between items-center">
-                          <span>Relocated</span>
-                          <span className="font-black text-slate-900">
-                            {summary.potentialDropout > 0 ? ((summary.migrated / summary.potentialDropout) * 100).toFixed(0) : 0}%
+                      {/* Box 3: Re - Enrolled */}
+                      <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
+                        <div className="bg-[#1e3a5f] text-white px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between">
+                          <span className="text-xs sm:text-sm font-black tracking-wider uppercase text-white">
+                            Re - Enrolled
                           </span>
+                          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/15 text-white flex items-center justify-center shrink-0">
+                            <GraduationCap className="w-4 h-4" />
+                          </div>
+                        </div>
+                        <div className="p-3.5 sm:p-5 flex flex-col justify-between flex-1">
+                          <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
+                            {summary.reEnrolled}
+                          </div>
+                          <div className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-slate-700 font-bold pt-2 sm:pt-2.5 border-t border-slate-300 flex justify-between items-center">
+                            <span>Rejoined</span>
+                            <span className="font-black text-slate-900">
+                              {summary.potentialDropout > 0 ? ((summary.reEnrolled / summary.potentialDropout) * 100).toFixed(0) : 0}%
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Box 5: Counselling Needed (Coloured with distinct styling like Repeaters box) */}
-                    <div className="bg-rose-50/70 border-2 border-rose-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
-                      <div className="bg-rose-900 text-white px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between">
-                        <span className="text-xs sm:text-sm font-black tracking-wider uppercase text-white truncate">
-                          Counselling Needed
-                        </span>
-                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/20 text-white flex items-center justify-center shrink-0">
-                          <HelpCircle className="w-4 h-4" />
-                        </div>
-                      </div>
-                      <div className="p-3.5 sm:p-5 flex flex-col justify-between flex-1">
-                        <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-rose-950 font-mono tracking-tight mt-1">
-                          {summary.counsellingNeeded}
-                        </div>
-                        <div className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-rose-900 font-bold pt-2 sm:pt-2.5 border-t border-rose-200 flex justify-between items-center">
-                          <span>Requires Counselling</span>
-                          <span className="font-black text-rose-950">
-                            {summary.potentialDropout > 0 ? ((summary.counsellingNeeded / summary.potentialDropout) * 100).toFixed(0) : 0}%
+                      {/* Box 4: Migrated */}
+                      <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
+                        <div className="bg-[#1e3a5f] text-white px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between">
+                          <span className="text-xs sm:text-sm font-black tracking-wider uppercase text-white">
+                            Migrated
                           </span>
+                          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/15 text-white flex items-center justify-center shrink-0">
+                            <MapPin className="w-4 h-4" />
+                          </div>
+                        </div>
+                        <div className="p-3.5 sm:p-5 flex flex-col justify-between flex-1">
+                          <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
+                            {summary.migrated}
+                          </div>
+                          <div className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-slate-700 font-bold pt-2 sm:pt-2.5 border-t border-slate-300 flex justify-between items-center">
+                            <span>Relocated</span>
+                            <span className="font-black text-slate-900">
+                              {summary.potentialDropout > 0 ? ((summary.migrated / summary.potentialDropout) * 100).toFixed(0) : 0}%
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Box 6: Repeaters (Placed in LAST box with distinct Purple styling as requested) */}
-                    <div className="bg-purple-50/70 border-2 border-purple-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
-                      <div className="bg-purple-900 text-white px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between">
-                        <span className="text-xs sm:text-sm font-black tracking-wider uppercase text-white truncate">
-                          Repeaters
-                        </span>
-                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/20 text-white flex items-center justify-center shrink-0">
-                          <RotateCcw className="w-4 h-4" />
-                        </div>
-                      </div>
-                      <div className="p-3.5 sm:p-5 flex flex-col justify-between flex-1">
-                        <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-purple-950 font-mono tracking-tight mt-1">
-                          {summary.repeaters}
-                        </div>
-                        <div className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-purple-900 font-bold pt-2 sm:pt-2.5 border-t border-purple-200 flex justify-between items-center">
-                          <span>Repeaters Caseload</span>
-                          <span className="font-black text-purple-950">
-                            {summary.potentialDropout > 0 ? ((summary.repeaters / summary.potentialDropout) * 100).toFixed(0) : 0}%
+                    {/* Second Line — Last Two Focus Boxes (Counselling Needed & Repeaters) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                      {/* Box 5: Counselling Needed */}
+                      <div className="bg-rose-50/70 border-2 border-rose-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
+                        <div className="bg-rose-900 text-white px-4 sm:px-5 py-2.5 sm:py-3 flex items-center justify-between">
+                          <span className="text-xs sm:text-sm md:text-base font-black tracking-wider uppercase text-white">
+                            Counselling Needed
                           </span>
+                          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/20 text-white flex items-center justify-center shrink-0">
+                            <HelpCircle className="w-4 h-4" />
+                          </div>
+                        </div>
+                        <div className="p-4 sm:p-5 flex flex-col justify-between flex-1">
+                          <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-rose-950 font-mono tracking-tight mt-1">
+                            {summary.counsellingNeeded}
+                          </div>
+                          <div className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-rose-900 font-bold pt-2 sm:pt-2.5 border-t border-rose-200 flex justify-between items-center">
+                            <span>Requires Counselling Intervention</span>
+                            <span className="font-black text-rose-950">
+                              {summary.potentialDropout > 0 ? ((summary.counsellingNeeded / summary.potentialDropout) * 100).toFixed(0) : 0}%
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Box 6: Repeaters */}
+                      <div className="bg-purple-50/70 border-2 border-purple-300 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
+                        <div className="bg-purple-900 text-white px-4 sm:px-5 py-2.5 sm:py-3 flex items-center justify-between">
+                          <span className="text-xs sm:text-sm md:text-base font-black tracking-wider uppercase text-white">
+                            Repeaters
+                          </span>
+                          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/20 text-white flex items-center justify-center shrink-0">
+                            <RotateCcw className="w-4 h-4" />
+                          </div>
+                        </div>
+                        <div className="p-4 sm:p-5 flex flex-col justify-between flex-1">
+                          <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-purple-950 font-mono tracking-tight mt-1">
+                            {summary.repeaters}
+                          </div>
+                          <div className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-purple-900 font-bold pt-2 sm:pt-2.5 border-t border-purple-200 flex justify-between items-center">
+                            <span>Repeaters Caseload</span>
+                            <span className="font-black text-purple-950">
+                              {summary.potentialDropout > 0 ? ((summary.repeaters / summary.potentialDropout) * 100).toFixed(0) : 0}%
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
-
                   </div>
                 );
               })()}
