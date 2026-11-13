@@ -151,6 +151,99 @@ app.get('/api/credentials', async (_req, res) => {
   }
 });
 
+app.get('/api/sheet-sync', async (req, res) => {
+  const webhookUrl =
+    (req.query.webhookUrl as string) ||
+    process.env.GOOGLE_APPS_SCRIPT_URL ||
+    process.env.VITE_APPS_SCRIPT_URL ||
+    '';
+
+  if (!webhookUrl) {
+    return res.json({
+      configured: false,
+      hasEnvUrl: Boolean(process.env.GOOGLE_APPS_SCRIPT_URL || process.env.VITE_APPS_SCRIPT_URL),
+    });
+  }
+
+  try {
+    const testRes = await fetch(webhookUrl, { method: 'GET', redirect: 'follow' });
+    const text = await testRes.text();
+    let parsed: any = null;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      return res.status(502).json({
+        ok: false,
+        error: 'Apps Script did not return valid JSON. Make sure "Who has access" is set to "Anyone" and use the /exec Web App URL.',
+        rawPreview: text.slice(0, 200),
+      });
+    }
+    return res.json({ configured: true, ...parsed });
+  } catch (err: any) {
+    return res.status(502).json({ ok: false, error: err?.message || 'Failed to connect to Apps Script' });
+  }
+});
+
+app.post('/api/sheet-sync', async (req, res) => {
+  const webhookUrl =
+    (req.body?.webhookUrl as string) ||
+    process.env.GOOGLE_APPS_SCRIPT_URL ||
+    process.env.VITE_APPS_SCRIPT_URL ||
+    '';
+
+  if (!webhookUrl) {
+    return res.status(400).json({
+      success: false,
+      configured: false,
+      error: 'Google Apps Script Web App URL is not configured.',
+    });
+  }
+
+  try {
+    const { webhookUrl: _ignored, ...payload } = req.body || {};
+    const scriptRes = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload),
+      redirect: 'follow',
+    });
+
+    const text = await scriptRes.text();
+    let parsed: any = null;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      return res.status(502).json({
+        success: false,
+        error: 'Apps Script returned non-JSON response. Verify deployment access is "Anyone".',
+        rawPreview: text.slice(0, 200),
+      });
+    }
+
+    // Clear in-memory server cache for updated month(s) so next fetch pulls fresh sheet data
+    if (parsed?.success) {
+      const month = payload.month as string | undefined;
+      if (month) {
+        let normalizedMonth = month;
+        if (/sep/i.test(month)) normalizedMonth = 'Sep 2026';
+        else if (/oct/i.test(month)) normalizedMonth = 'Oct 2026';
+        else if (/nov/i.test(month)) normalizedMonth = 'Nov 2026';
+        delete cacheStore[normalizedMonth];
+      } else {
+        Object.keys(cacheStore).forEach((k) => delete cacheStore[k]);
+      }
+    }
+
+    return res.json(parsed);
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      error: err?.message || 'Failed to sync update to Google Sheet',
+    });
+  }
+});
+
+
 
 async function startServer() {
   const isProd = process.env.NODE_ENV === 'production';

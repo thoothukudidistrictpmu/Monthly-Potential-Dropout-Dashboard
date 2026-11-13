@@ -344,10 +344,10 @@ export function CounsellorSlicerView({
                   <th className="py-3 px-3.5 min-w-48 bg-amber-900 text-white font-black border-l border-r border-amber-800">
                     Present Status
                   </th>
-                  <th className="py-3 px-3.5 min-w-64 bg-cyan-900 text-white font-black border-l border-r border-cyan-800">
+                  <th className="py-3 px-3.5 min-w-64 bg-cyan-900 text-white font-black border-l border-r border-cyan-800 whitespace-normal text-center">
                     BRTE / HM Remarks (Case Study) [Col X]
                   </th>
-                  <th className="py-3 px-3.5 min-w-64 bg-indigo-900 text-white font-black border-l border-r border-indigo-800">
+                  <th className="py-3 px-3.5 min-w-64 bg-indigo-900 text-white font-black border-l border-r border-indigo-800 whitespace-normal text-center">
                     Department / Counsellors Remarks [Col Y]
                   </th>
                 </tr>
@@ -494,27 +494,27 @@ export function CounsellorSlicerView({
                         </select>
                       </td>
 
-                      {/* EDITABLE BRTE / HM REMARKS (CASE STUDY) [COLUMN X] */}
-                      <td className="py-2 px-3 bg-cyan-50/50 border-l border-r border-cyan-200">
-                        <input
-                          type="text"
+                      {/* EDITABLE BRTE / HM REMARKS (CASE STUDY) [COLUMN X] - WRAP TEXT */}
+                      <td className="py-2 px-3 bg-cyan-50/50 border-l border-r border-cyan-200 whitespace-normal break-words align-top">
+                        <textarea
+                          rows={2}
                           value={st.brteRemarks || ''}
                           placeholder="BRTE / HM case study remarks..."
                           onChange={(e) => handleBrteRemarksChange(key, e.target.value)}
-                          className="w-full min-w-[220px] text-xs py-1.5 px-2.5 rounded-lg border-2 border-cyan-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-500 shadow-2xs font-medium placeholder:text-slate-400 placeholder:italic"
-                          title="BRTE / HM Remarks (Case Study) [Column X in Google Sheet]"
+                          className="w-full min-w-[220px] max-w-sm text-xs py-1.5 px-2.5 rounded-lg border-2 border-cyan-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-500 shadow-2xs font-medium placeholder:text-slate-400 placeholder:italic resize-y whitespace-pre-wrap break-words leading-relaxed"
+                          title="BRTE / HM Remarks (Case Study) [Column X in Google Sheet] — Wrap Text"
                         />
                       </td>
 
-                      {/* EDITABLE DEPARTMENT / COUNSELLORS REMARKS [COLUMN Y] */}
-                      <td className="py-2 px-3 bg-indigo-50/50 border-l border-r border-indigo-200">
-                        <input
-                          type="text"
+                      {/* EDITABLE DEPARTMENT / COUNSELLORS REMARKS [COLUMN Y] - WRAP TEXT */}
+                      <td className="py-2 px-3 bg-indigo-50/50 border-l border-r border-indigo-200 whitespace-normal break-words align-top">
+                        <textarea
+                          rows={2}
                           value={st.deptRemarks || ''}
                           placeholder="Department / counsellor remarks..."
                           onChange={(e) => handleDeptRemarksChange(key, e.target.value)}
-                          className="w-full min-w-[220px] text-xs py-1.5 px-2.5 rounded-lg border-2 border-indigo-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-2xs font-medium placeholder:text-slate-400 placeholder:italic"
-                          title="Department / Counsellors Remarks [Column Y in Google Sheet]"
+                          className="w-full min-w-[220px] max-w-sm text-xs py-1.5 px-2.5 rounded-lg border-2 border-indigo-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-2xs font-medium placeholder:text-slate-400 placeholder:italic resize-y whitespace-pre-wrap break-words leading-relaxed"
+                          title="Department / Counsellors Remarks [Column Y in Google Sheet] — Wrap Text"
                         />
                       </td>
                     </tr>

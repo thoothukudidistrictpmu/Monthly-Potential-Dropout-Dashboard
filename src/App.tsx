@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   BarChart, 
   Bar, 
@@ -46,7 +46,8 @@ import {
   Download,
   LayoutDashboard,
   School,
-  BarChart3
+  BarChart3,
+  CloudUpload
 } from 'lucide-react';
 import { 
   SPREADSHEET_ID, 
@@ -65,6 +66,7 @@ import { TamilNaduLogo } from './components/TamilNaduLogo';
 import { DepartmentLoginForm } from './components/DepartmentLoginForm';
 import { CounsellorSlicerView } from './components/CounsellorSlicerView';
 import { PWAInstallButton } from './components/PWAInstallButton';
+import { SheetSyncModal } from './components/SheetSyncModal';
 import { 
   exportStudentsToExcel, 
   exportStudentsToWord, 
@@ -230,6 +232,16 @@ export default function App() {
   const [editedCounsellingDate, setEditedCounsellingDate] = useState<Record<string, string>>({});
   const [deptShowTransferMap, setDeptShowTransferMap] = useState<Record<string, boolean>>({});
   const [statusSaveNotice, setStatusSaveNotice] = useState<string | null>(null);
+  const [sheetSyncUrl, setSheetSyncUrl] = useState<string>(() => {
+    try {
+      return localStorage.getItem('thoothukudi_apps_script_url') || (import.meta as any).env?.VITE_APPS_SCRIPT_URL || '';
+    } catch {
+      return '';
+    }
+  });
+  const [hasEnvSyncUrl, setHasEnvSyncUrl] = useState<boolean>(false);
+  const [syncModalOpen, setSyncModalOpen] = useState<boolean>(false);
+  const syncTimersRef = useRef<Record<string, number>>({});
 
   // Department Credentials (taken live from Google Sheet 'User and Password' tab with fallback)
   const [deptCredentials, setDeptCredentials] = useState<Record<string, DepartmentCredential>>(DEFAULT_DEPARTMENT_CREDENTIALS);
@@ -259,6 +271,14 @@ export default function App() {
     }).catch((err) => {
       console.warn('Error fetching live credentials from sheet:', err);
     });
+
+    // Check if backend already has GOOGLE_APPS_SCRIPT_URL configured in env
+    fetch('/api/sheet-sync')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((info) => {
+        if (info?.hasEnvUrl) setHasEnvSyncUrl(true);
+      })
+      .catch(() => {});
   }, []);
 
   // Department Login and Logout Handlers
@@ -430,6 +450,165 @@ export default function App() {
     fetchData(false);
   }, []);
 
+  const handleSaveWebhookUrl = (url: string) => {
+    setSheetSyncUrl(url);
+    try {
+      if (url) localStorage.setItem('thoothukudi_apps_script_url', url);
+      else localStorage.removeItem('thoothukudi_apps_script_url');
+    } catch {
+      // ignore storage errors
+    }
+  };
+
+  // Sync a single edited field back to Google Sheet via Apps Script Web App
+  const syncFieldToSheet = (
+    studentKey: string,
+    field: string,
+    value: string,
+    label: string,
+    debounceMs = 0
+  ) => {
+    const timerKey = `${selectedMonth}:${studentKey}:${field}`;
+    if (syncTimersRef.current[timerKey]) {
+      window.clearTimeout(syncTimersRef.current[timerKey]);
+    }
+
+    const executeSync = async () => {
+      const targetStudent = (data?.students || []).find(
+        (s: StudentRecord) => (s.emisId || String(s.sNo)) === studentKey
+      );
+      if (!targetStudent) return;
+
+      const activeWebhookUrl = sheetSyncUrl.trim();
+      if (!activeWebhookUrl && !hasEnvSyncUrl) {
+        return; // Local save only until user connects Apps Script Web App URL
+      }
+
+      try {
+        const res = await fetch('/api/sheet-sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            webhookUrl: activeWebhookUrl || undefined,
+            month: selectedMonth,
+            emisId: targetStudent.emisId || '',
+            studentName: targetStudent.studentName || '',
+            sNo: targetStudent.sNo || '',
+            field,
+            value,
+          }),
+        });
+        const json = await res.json();
+        if (json?.success) {
+          setStatusSaveNotice(`${label} synced to Google Sheet`);
+          setTimeout(() => setStatusSaveNotice(null), 2500);
+        } else {
+          setStatusSaveNotice(`Saved locally (Sheet sync: ${json?.error || 'failed'})`);
+          setTimeout(() => setStatusSaveNotice(null), 3500);
+        }
+      } catch {
+        // Fallback: if static host without /api/sheet-sync, fire direct POST with no-cors
+        if (activeWebhookUrl) {
+          try {
+            await fetch(activeWebhookUrl, {
+              method: 'POST',
+              mode: 'no-cors',
+              headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+              body: JSON.stringify({
+                month: selectedMonth,
+                emisId: targetStudent.emisId || '',
+                studentName: targetStudent.studentName || '',
+                sNo: targetStudent.sNo || '',
+                field,
+                value,
+              }),
+            });
+            setStatusSaveNotice(`${label} sent to Google Sheet`);
+            setTimeout(() => setStatusSaveNotice(null), 2500);
+          } catch {
+            // Keep local save
+          }
+        }
+      }
+    };
+
+    if (debounceMs > 0) {
+      syncTimersRef.current[timerKey] = window.setTimeout(executeSync, debounceMs);
+    } else {
+      void executeSync();
+    }
+  };
+
+  // Batch sync all localStorage edits for the active month to Google Sheet
+  const syncAllLocalEditsToSheet = async (): Promise<{ updated: number; error?: string }> => {
+    const activeWebhookUrl = sheetSyncUrl.trim();
+    if (!activeWebhookUrl && !hasEnvSyncUrl) {
+      return { updated: 0, error: 'Please save your Apps Script Web App URL first.' };
+    }
+
+    const keys = new Set<string>([
+      ...Object.keys(editedStatuses),
+      ...Object.keys(editedDropoutReasons),
+      ...Object.keys(editedCounselling),
+      ...Object.keys(editedBrteRemarks),
+      ...Object.keys(editedDeptRemarks),
+      ...Object.keys(editedTransferDepts),
+      ...Object.keys(editedCounsellingBy),
+      ...Object.keys(editedCounsellorName),
+      ...Object.keys(editedCounsellingDate),
+    ]);
+
+    const updates: any[] = [];
+    keys.forEach((studentKey) => {
+      const st = (data?.students || []).find(
+        (s: StudentRecord) => (s.emisId || String(s.sNo)) === studentKey
+      );
+      if (!st) return;
+
+      const fields: Record<string, string> = {};
+      if (editedStatuses[studentKey] !== undefined) fields.status = editedStatuses[studentKey];
+      if (editedDropoutReasons[studentKey] !== undefined) fields.dropoutReason = editedDropoutReasons[studentKey];
+      if (editedCounselling[studentKey] !== undefined) fields.counsellingRequired = editedCounselling[studentKey];
+      if (editedBrteRemarks[studentKey] !== undefined) fields.brteRemarks = editedBrteRemarks[studentKey];
+      if (editedDeptRemarks[studentKey] !== undefined) fields.deptRemarks = editedDeptRemarks[studentKey];
+      if (editedTransferDepts[studentKey] !== undefined) fields.transferRequestDept = editedTransferDepts[studentKey];
+      if (editedCounsellingBy[studentKey] !== undefined) fields.counsellingBy = editedCounsellingBy[studentKey];
+      if (editedCounsellorName[studentKey] !== undefined) fields.counsellorName = editedCounsellorName[studentKey];
+      if (editedCounsellingDate[studentKey] !== undefined) fields.counsellingDate = editedCounsellingDate[studentKey];
+
+      if (Object.keys(fields).length > 0) {
+        updates.push({
+          month: selectedMonth,
+          emisId: st.emisId || '',
+          studentName: st.studentName || '',
+          sNo: st.sNo || '',
+          fields,
+        });
+      }
+    });
+
+    if (updates.length === 0) {
+      return { updated: 0, error: 'No pending local edits found for this month.' };
+    }
+
+    try {
+      const res = await fetch('/api/sheet-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ webhookUrl: activeWebhookUrl || undefined, updates }),
+      });
+      const json = await res.json();
+      if (json?.success) {
+        setStatusSaveNotice(`Synced ${json.updatedCount || updates.length} records to Google Sheet`);
+        setTimeout(() => setStatusSaveNotice(null), 3000);
+        return { updated: json.updatedCount || updates.length };
+      }
+      return { updated: json?.updatedCount || 0, error: json?.error || 'Some records failed to sync.' };
+    } catch (err: any) {
+      return { updated: 0, error: err?.message || 'Failed to reach sync endpoint.' };
+    }
+  };
+
   // Handle editing of Present Status by department officials
   const handleStatusChange = (studentKey: string, newStatus: string) => {
     const updated = { ...editedStatuses, [studentKey]: newStatus };
@@ -442,6 +621,7 @@ export default function App() {
     }
     setStatusSaveNotice(`Present Status updated`);
     setTimeout(() => setStatusSaveNotice(null), 2500);
+    syncFieldToSheet(studentKey, 'status', newStatus, 'Present Status', 0);
   };
 
   // Handle editing of Dropout Reason by department officials
@@ -456,6 +636,7 @@ export default function App() {
     }
     setStatusSaveNotice(`Dropout Reason saved`);
     setTimeout(() => setStatusSaveNotice(null), 2500);
+    syncFieldToSheet(studentKey, 'dropoutReason', newReason, 'Dropout Reason', 800);
   };
 
   // Handle editing of Counselling Needed (Yes / No) by department officials
@@ -470,6 +651,7 @@ export default function App() {
     }
     setStatusSaveNotice(`Counselling status updated (${newCounselling})`);
     setTimeout(() => setStatusSaveNotice(null), 2500);
+    syncFieldToSheet(studentKey, 'counsellingRequired', newCounselling, 'Counselling Required', 0);
   };
 
   // Handle editing of Remarks by department officials
@@ -484,6 +666,7 @@ export default function App() {
     }
     setStatusSaveNotice(`Remarks saved`);
     setTimeout(() => setStatusSaveNotice(null), 2500);
+    syncFieldToSheet(studentKey, 'deptRemarks', newRemarks, 'Department Remarks', 800);
   };
 
   // Handle request to transfer cases between departments (Column Q)
@@ -498,6 +681,7 @@ export default function App() {
     }
     setStatusSaveNotice(newDept ? `Case transfer request submitted to ${newDept}` : `Transfer request cleared`);
     setTimeout(() => setStatusSaveNotice(null), 3000);
+    syncFieldToSheet(studentKey, 'transferRequestDept', newDept, 'Transfer Request', 0);
   };
 
   // Handle updating counsellor assigned (Column S)
@@ -512,6 +696,7 @@ export default function App() {
     }
     setStatusSaveNotice(newCounsellor ? `Counsellor assigned: ${newCounsellor}` : `Counsellor assignment cleared`);
     setTimeout(() => setStatusSaveNotice(null), 3000);
+    syncFieldToSheet(studentKey, 'counsellingBy', newCounsellor, 'Counselling By', 0);
   };
 
   // Handle updating counsellor name (Column U)
@@ -526,6 +711,7 @@ export default function App() {
     }
     setStatusSaveNotice(newName ? `Counsellor name: ${newName}` : `Counsellor name cleared`);
     setTimeout(() => setStatusSaveNotice(null), 2500);
+    syncFieldToSheet(studentKey, 'counsellorName', newName, 'Counsellor Name', 800);
   };
 
   // Handle updating counselling date (Column V)
@@ -540,6 +726,7 @@ export default function App() {
     }
     setStatusSaveNotice(newDate ? `Counselling date: ${newDate}` : `Counselling date cleared`);
     setTimeout(() => setStatusSaveNotice(null), 2500);
+    syncFieldToSheet(studentKey, 'counsellingDate', newDate, 'Counselling Date', 800);
   };
 
   // Handle updating BRTE / HM Remarks (Case Study) [Column X]
@@ -554,6 +741,7 @@ export default function App() {
     }
     setStatusSaveNotice('BRTE / HM Remarks (Col X) saved');
     setTimeout(() => setStatusSaveNotice(null), 2500);
+    syncFieldToSheet(studentKey, 'brteRemarks', newRemarks, 'BRTE / HM Remarks (Col X)', 800);
   };
 
   // Handle updating Department / Counsellors Remarks [Column Y]
@@ -568,6 +756,7 @@ export default function App() {
     }
     setStatusSaveNotice('Department / Counsellors Remarks (Col Y) saved');
     setTimeout(() => setStatusSaveNotice(null), 2500);
+    syncFieldToSheet(studentKey, 'deptRemarks', newRemarks, 'Dept Remarks (Col Y)', 800);
   };
 
   // Merge loaded students with department official edits (Status, Dropout Reason, Counselling, Remarks, Transfers, Counsellor)
@@ -1164,6 +1353,21 @@ export default function App() {
 
             {/* Install App Button */}
             <PWAInstallButton />
+
+            {/* Apps Script Sheet Sync Setup Button */}
+            <button
+              onClick={() => setSyncModalOpen(true)}
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-bold bg-white/15 hover:bg-white/25 text-white border border-white/30 shadow-md transition-all cursor-pointer"
+              title="Configure Google Apps Script live write-back to Google Sheet"
+            >
+              <CloudUpload className="w-4 h-4 text-white" />
+              <span className="hidden sm:inline">Sheet Sync</span>
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  sheetSyncUrl || hasEnvSyncUrl ? 'bg-emerald-400' : 'bg-amber-300'
+                }`}
+              />
+            </button>
 
             {/* Refresh Button */}
             <button
@@ -2805,10 +3009,10 @@ export default function App() {
                             <th className="py-3 px-3.5 min-w-44 bg-amber-900 text-white font-black border-l border-r border-amber-800">
                               Present Status
                             </th>
-                            <th className="py-3 px-3.5 min-w-56 bg-amber-900 text-white font-black border-l border-r border-amber-800">
+                            <th className="py-3 px-3.5 min-w-56 bg-amber-900 text-white font-black border-l border-r border-amber-800 whitespace-normal text-center">
                               BRTE / HM Remarks (Case Study) [Col X]
                             </th>
-                            <th className="py-3 px-3.5 min-w-56 bg-emerald-900 text-white font-black border-l border-r border-emerald-800">
+                            <th className="py-3 px-3.5 min-w-56 bg-emerald-900 text-white font-black border-l border-r border-emerald-800 whitespace-normal text-center">
                               Dept / Counsellors Remarks [Col Y]
                             </th>
                           </tr>
@@ -2949,27 +3153,27 @@ export default function App() {
                                 </select>
                               </td>
 
-                              {/* Editable BRTE / HM Remarks (Case Study) [Column X] */}
-                              <td className="py-2 px-3 bg-amber-50/50 border-l border-r border-amber-200">
-                                <input
-                                  type="text"
+                              {/* Editable BRTE / HM Remarks (Case Study) [Column X] - Wrap Text */}
+                              <td className="py-2 px-3 bg-amber-50/50 border-l border-r border-amber-200 whitespace-normal break-words align-top">
+                                <textarea
+                                  rows={2}
                                   value={st.brteRemarks || ''}
                                   placeholder="BRTE / HM Case Study..."
                                   onChange={(e) => handleBrteRemarksChange(key, e.target.value)}
-                                  className="w-full min-w-[180px] text-xs font-bold py-1.5 px-2.5 rounded-lg border-2 border-amber-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-2xs placeholder:text-slate-400 placeholder:italic"
-                                  title="BRTE / HM Remarks Case Study (Column X in Google Sheet)"
+                                  className="w-full min-w-[200px] max-w-sm text-xs font-semibold py-1.5 px-2.5 rounded-lg border-2 border-amber-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-2xs placeholder:text-slate-400 placeholder:italic resize-y whitespace-pre-wrap break-words leading-relaxed"
+                                  title="BRTE / HM Remarks Case Study (Column X in Google Sheet) — Wrap Text"
                                 />
                               </td>
 
-                              {/* Editable Department / Counsellors Remarks [Column Y] */}
-                              <td className="py-2 px-3 bg-emerald-50/50 border-l border-r border-emerald-200">
-                                <input
-                                  type="text"
+                              {/* Editable Department / Counsellors Remarks [Column Y] - Wrap Text */}
+                              <td className="py-2 px-3 bg-emerald-50/50 border-l border-r border-emerald-200 whitespace-normal break-words align-top">
+                                <textarea
+                                  rows={2}
                                   value={st.deptRemarks || ''}
                                   placeholder="Dept / Counsellor Remarks..."
                                   onChange={(e) => handleDeptRemarksChange(key, e.target.value)}
-                                  className="w-full min-w-[180px] text-xs font-bold py-1.5 px-2.5 rounded-lg border-2 border-emerald-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs placeholder:text-slate-400 placeholder:italic"
-                                  title="Department / Counsellors Remarks (Column Y in Google Sheet)"
+                                  className="w-full min-w-[200px] max-w-sm text-xs font-semibold py-1.5 px-2.5 rounded-lg border-2 border-emerald-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs placeholder:text-slate-400 placeholder:italic resize-y whitespace-pre-wrap break-words leading-relaxed"
+                                  title="Department / Counsellors Remarks (Column Y in Google Sheet) — Wrap Text"
                                 />
                               </td>
                             </tr>
@@ -3384,21 +3588,35 @@ export default function App() {
 
               {/* Taluk-Wise Student Directory with ALL Columns and Editable Fields */}
               {(() => {
-                const filteredTalukStudents = revenueStudents.filter((st) => {
-                  const matchTaluk = revenueTalukFilter === 'All' || st.taluk === revenueTalukFilter;
-                  const matchSearch = !revenueSearch ||
-                    st.studentName.toLowerCase().includes(revenueSearch.toLowerCase()) ||
-                    st.school.toLowerCase().includes(revenueSearch.toLowerCase()) ||
-                    st.block.toLowerCase().includes(revenueSearch.toLowerCase()) ||
-                    (st.counsellingBy && st.counsellingBy.toLowerCase().includes(revenueSearch.toLowerCase())) ||
-                    (st.counsellorName && st.counsellorName.toLowerCase().includes(revenueSearch.toLowerCase())) ||
-                    (st.emisId && st.emisId.includes(revenueSearch));
-                  return matchTaluk && matchSearch;
-                });
+                const distinctRevenueTaluks = Array.from(
+                  new Set(revenueStudents.map(s => (s.taluk || '').trim()).filter(Boolean))
+                ).sort((a, b) => a.localeCompare(b));
+
+                const filteredTalukStudents = revenueStudents
+                  .filter((st) => {
+                    const matchTaluk = revenueTalukFilter === 'All' || st.taluk === revenueTalukFilter;
+                    const matchSearch = !revenueSearch ||
+                      st.studentName.toLowerCase().includes(revenueSearch.toLowerCase()) ||
+                      st.school.toLowerCase().includes(revenueSearch.toLowerCase()) ||
+                      st.block.toLowerCase().includes(revenueSearch.toLowerCase()) ||
+                      st.taluk.toLowerCase().includes(revenueSearch.toLowerCase()) ||
+                      (st.counsellingBy && st.counsellingBy.toLowerCase().includes(revenueSearch.toLowerCase())) ||
+                      (st.counsellorName && st.counsellorName.toLowerCase().includes(revenueSearch.toLowerCase())) ||
+                      (st.emisId && st.emisId.includes(revenueSearch));
+                    return matchTaluk && matchSearch;
+                  })
+                  .sort((a, b) => {
+                    // Alphabetic order of the Taluk name
+                    const talukA = (a.taluk || '').trim();
+                    const talukB = (b.taluk || '').trim();
+                    const talukCmp = talukA.localeCompare(talukB);
+                    if (talukCmp !== 0) return talukCmp;
+                    return (a.studentName || '').localeCompare(b.studentName || '');
+                  });
 
                 return (
                   <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl shadow-sm overflow-hidden space-y-4">
-                    <div className="bg-[#1e3a5f] text-white px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="bg-[#1e3a5f] text-white px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
                       <div>
                         <h3 className="text-lg font-black text-white tracking-tight flex items-center gap-2">
                           <Users className="w-5 h-5 text-slate-200" />
@@ -3407,25 +3625,54 @@ export default function App() {
                             {revenueTalukFilter !== 'All' && ` — ${revenueTalukFilter}`}
                           </span>
                         </h3>
+                        <p className="text-xs text-slate-300 font-medium mt-0.5">
+                          Sorted alphabetically by Taluk Name
+                        </p>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2.5">
+                        {/* Taluk-Wise Filter Dropdown */}
+                        <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-300 shadow-2xs">
+                          <MapPin className="w-3.5 h-3.5 text-teal-800 shrink-0" />
+                          <label htmlFor="revenue-taluk-select" className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                            Taluk:
+                          </label>
+                          <select
+                            id="revenue-taluk-select"
+                            value={revenueTalukFilter}
+                            onChange={(e) => setRevenueTalukFilter(e.target.value)}
+                            className="text-xs sm:text-sm font-bold text-slate-900 bg-transparent focus:outline-none cursor-pointer pr-1"
+                            title="Filter students by Taluk"
+                          >
+                            <option value="All">All Taluks ({revenueStudents.length})</option>
+                            {distinctRevenueTaluks.map(t => {
+                              const count = revenueStudents.filter(s => (s.taluk || '').trim() === t).length;
+                              return (
+                                <option key={t} value={t}>
+                                  {t} ({count})
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
+
                         {revenueTalukFilter !== 'All' && (
                           <button
                             onClick={() => setRevenueTalukFilter('All')}
-                            className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 shadow-2xs cursor-pointer"
+                            className="px-3 py-1.5 rounded-xl text-xs font-bold bg-white/20 hover:bg-white/30 text-white border border-white/30 shadow-2xs cursor-pointer transition-colors"
                           >
-                            Reset Taluk Filter
+                            Reset Taluk
                           </button>
                         )}
+
                         <div className="relative">
                           <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
                           <input
                             type="text"
-                            placeholder="Filter name, EMIS, school..."
+                            placeholder="Filter taluk, name, school..."
                             value={revenueSearch}
                             onChange={(e) => setRevenueSearch(e.target.value)}
-                            className="text-xs sm:text-sm pl-9 pr-3 py-1.5 rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400 w-full sm:w-56 font-medium"
+                            className="text-xs sm:text-sm pl-9 pr-3 py-1.5 rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400 w-full sm:w-60 font-medium shadow-2xs"
                           />
                         </div>
                       </div>
@@ -3472,10 +3719,10 @@ export default function App() {
                               Present Status
                             </th>
                             <th className="py-3 px-3.5">Contact No</th>
-                            <th className="py-3 px-3.5 min-w-56 bg-amber-900 text-white font-black border-l border-r border-amber-800">
+                            <th className="py-3 px-3.5 min-w-56 bg-amber-900 text-white font-black border-l border-r border-amber-800 whitespace-normal text-center">
                               BRTE / HM Remarks (Case Study) [Col X]
                             </th>
-                            <th className="py-3 px-3.5 min-w-56 bg-emerald-900 text-white font-black border-l border-r border-emerald-800">
+                            <th className="py-3 px-3.5 min-w-56 bg-emerald-900 text-white font-black border-l border-r border-emerald-800 whitespace-normal text-center">
                               Dept / Counsellors Remarks [Col Y]
                             </th>
                           </tr>
@@ -3622,27 +3869,27 @@ export default function App() {
 
                                 <td className="py-2.5 px-3.5 text-sm text-slate-800 font-bold">{st.contactNo || '-'}</td>
 
-                                {/* EDITABLE BRTE / HM REMARKS (COL X) */}
-                                <td className="py-2 px-3 bg-amber-50/50 border-l border-r border-amber-200">
-                                  <input
-                                    type="text"
+                                {/* EDITABLE BRTE / HM REMARKS (COL X) - WRAP TEXT */}
+                                <td className="py-2 px-3 bg-amber-50/50 border-l border-r border-amber-200 whitespace-normal break-words align-top">
+                                  <textarea
+                                    rows={2}
                                     value={st.brteRemarks || ''}
                                     placeholder="BRTE / HM Case Study..."
                                     onChange={(e) => handleBrteRemarksChange(key, e.target.value)}
-                                    className="w-full min-w-[180px] text-sm py-1.5 px-3 rounded-lg border-2 border-amber-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-2xs font-medium placeholder:text-slate-400 placeholder:italic"
-                                    title="BRTE / HM Remarks Case Study (Column X in Google Sheet)"
+                                    className="w-full min-w-[200px] max-w-sm text-xs font-semibold py-1.5 px-3 rounded-lg border-2 border-amber-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-2xs placeholder:text-slate-400 placeholder:italic resize-y whitespace-pre-wrap break-words leading-relaxed"
+                                    title="BRTE / HM Remarks Case Study (Column X in Google Sheet) — Wrap Text"
                                   />
                                 </td>
 
-                                {/* EDITABLE DEPT REMARKS (COL Y) */}
-                                <td className="py-2 px-3 bg-emerald-50/40 border-l border-r border-emerald-200">
-                                  <input
-                                    type="text"
+                                {/* EDITABLE DEPT REMARKS (COL Y) - WRAP TEXT */}
+                                <td className="py-2 px-3 bg-emerald-50/40 border-l border-r border-emerald-200 whitespace-normal break-words align-top">
+                                  <textarea
+                                    rows={2}
                                     value={st.deptRemarks || ''}
                                     placeholder="Enter department remarks..."
                                     onChange={(e) => handleDeptRemarksChange(key, e.target.value)}
-                                    className="w-full min-w-[200px] text-sm py-1.5 px-3 rounded-lg border-2 border-emerald-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs font-medium placeholder:text-slate-400 placeholder:italic"
-                                    title="Department / Counsellors Remarks (Column Y in Google Sheet)"
+                                    className="w-full min-w-[200px] max-w-sm text-xs font-semibold py-1.5 px-3 rounded-lg border-2 border-emerald-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs placeholder:text-slate-400 placeholder:italic resize-y whitespace-pre-wrap break-words leading-relaxed"
+                                    title="Department / Counsellors Remarks (Column Y in Google Sheet) — Wrap Text"
                                   />
                                 </td>
                               </tr>
@@ -4005,10 +4252,10 @@ export default function App() {
                               <th className="py-3 px-3.5 min-w-48 bg-amber-900 text-white font-black border-l border-r border-amber-800">
                                 Present Status
                               </th>
-                              <th className="py-3 px-3.5 min-w-56 bg-amber-900 text-white font-black border-l border-r border-amber-800">
+                              <th className="py-3 px-3.5 min-w-56 bg-amber-900 text-white font-black border-l border-r border-amber-800 whitespace-normal text-center">
                                 BRTE / HM Remarks (Case Study) [Col X]
                               </th>
-                              <th className="py-3 px-3.5 min-w-56 bg-emerald-900 text-white font-black border-l border-r border-emerald-800">
+                              <th className="py-3 px-3.5 min-w-56 bg-emerald-900 text-white font-black border-l border-r border-emerald-800 whitespace-normal text-center">
                                 Dept / Counsellors Remarks [Col Y]
                               </th>
                             </tr>
@@ -4156,27 +4403,27 @@ export default function App() {
                                   </select>
                                 </td>
 
-                                {/* EDITABLE BRTE / HM REMARKS (COL X) */}
-                                <td className="py-2 px-3 bg-amber-50/50 border-l border-r border-amber-200">
-                                  <input
-                                    type="text"
+                                {/* EDITABLE BRTE / HM REMARKS (COL X) - WRAP TEXT */}
+                                <td className="py-2 px-3 bg-amber-50/50 border-l border-r border-amber-200 whitespace-normal break-words align-top">
+                                  <textarea
+                                    rows={2}
                                     value={st.brteRemarks || ''}
                                     placeholder="BRTE / HM Case Study..."
                                     onChange={(e) => handleBrteRemarksChange(key, e.target.value)}
-                                    className="w-full min-w-[180px] text-sm py-1.5 px-3 rounded-lg border-2 border-amber-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-2xs font-medium placeholder:text-slate-400 placeholder:italic"
-                                    title="BRTE / HM Remarks Case Study (Column X in Google Sheet)"
+                                    className="w-full min-w-[200px] max-w-sm text-xs font-semibold py-1.5 px-3 rounded-lg border-2 border-amber-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-2xs placeholder:text-slate-400 placeholder:italic resize-y whitespace-pre-wrap break-words leading-relaxed"
+                                    title="BRTE / HM Remarks Case Study (Column X in Google Sheet) — Wrap Text"
                                   />
                                 </td>
 
-                                {/* EDITABLE DEPT REMARKS (COL Y) */}
-                                <td className="py-2 px-3 bg-emerald-50/40 border-l border-r border-emerald-200">
-                                  <input
-                                    type="text"
+                                {/* EDITABLE DEPT REMARKS (COL Y) - WRAP TEXT */}
+                                <td className="py-2 px-3 bg-emerald-50/40 border-l border-r border-emerald-200 whitespace-normal break-words align-top">
+                                  <textarea
+                                    rows={2}
                                     value={st.deptRemarks || ''}
                                     placeholder="Enter department remarks..."
                                     onChange={(e) => handleDeptRemarksChange(key, e.target.value)}
-                                    className="w-full min-w-[200px] text-sm py-1.5 px-3 rounded-lg border-2 border-emerald-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs font-medium placeholder:text-slate-400 placeholder:italic"
-                                    title="Department / Counsellors Remarks (Column Y in Google Sheet)"
+                                    className="w-full min-w-[200px] max-w-sm text-xs font-semibold py-1.5 px-3 rounded-lg border-2 border-emerald-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs placeholder:text-slate-400 placeholder:italic resize-y whitespace-pre-wrap break-words leading-relaxed"
+                                    title="Department / Counsellors Remarks (Column Y in Google Sheet) — Wrap Text"
                                   />
                                 </td>
                               </tr>
@@ -4196,6 +4443,30 @@ export default function App() {
 
         </main>
       </div>
+
+      {/* Apps Script Live Sync Setup Modal */}
+      <SheetSyncModal
+        isOpen={syncModalOpen}
+        onClose={() => setSyncModalOpen(false)}
+        webhookUrl={sheetSyncUrl}
+        onSaveWebhookUrl={handleSaveWebhookUrl}
+        hasEnvUrl={hasEnvSyncUrl}
+        selectedMonth={selectedMonth}
+        pendingLocalCount={
+          new Set([
+            ...Object.keys(editedStatuses),
+            ...Object.keys(editedDropoutReasons),
+            ...Object.keys(editedCounselling),
+            ...Object.keys(editedBrteRemarks),
+            ...Object.keys(editedDeptRemarks),
+            ...Object.keys(editedTransferDepts),
+            ...Object.keys(editedCounsellingBy),
+            ...Object.keys(editedCounsellorName),
+            ...Object.keys(editedCounsellingDate),
+          ]).size
+        }
+        onSyncAllLocalEdits={syncAllLocalEditsToSheet}
+      />
 
       {/* Footer */}
       <footer className="border-t-2 border-slate-300 bg-white/95 py-4 px-4 text-center text-sm text-slate-700 font-bold mt-auto">
