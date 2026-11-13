@@ -572,6 +572,7 @@ export function processSheetCSV(csvText: string, month: string): DashboardPayloa
     const statusVal = (r[statusIdx] || '').trim();
     const rLower = statusVal.toLowerCase();
     const cleanStatus = rLower.replace(/[\s\-_]+/g, '');
+    const normalizedStatus = rLower.replace(/\./g, '').replace(/[\-_]+/g, ' ').replace(/\s+/g, ' ').trim();
     const remarksVal = (r[remarksIdx] || '').toLowerCase();
     
     // Check for re-enrolled status taking details directly from Col W
@@ -585,7 +586,11 @@ export function processSheetCSV(csvText: string, month: string): DashboardPayloa
       rLower.includes('re- enrolled') ||
       rLower.includes('re enrolled') ||
       rLower.includes('reenrolled') ||
-      rLower.includes('readmitted');
+      rLower.includes('readmitted') ||
+      normalizedStatus.includes('admitted in iti') ||
+      normalizedStatus.includes('admitted in polytechnic') ||
+      normalizedStatus.includes('admitted in other course') ||
+      /\badmitted\s+(?:in|to)\s+(?:iti|polytechnic|other\s+courses?)\b/.test(normalizedStatus);
 
     if (isReEnrolled || remarksVal.includes('readmit') || remarksVal.includes('re-enroll')) {
       totalReadmitted++;

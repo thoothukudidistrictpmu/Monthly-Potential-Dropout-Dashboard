@@ -179,6 +179,9 @@ const PRESENT_STATUS_OPTIONS = [
   'Status Not Updated',
   'Re - Enrolled in  school',
   'Re-enrolled',
+  'Admitted in ITI',
+  'Admitted in Polytechnic',
+  'Admitted in Other Course',
   'Dropped out',
   'Migrated to other district',
   'Migrated to other state',
@@ -697,6 +700,7 @@ export default function App() {
 
       const lower = (customStatus || '').toLowerCase();
       const clean = lower.replace(/[\s\-_]+/g, '');
+      const normalizedStatus = lower.replace(/\./g, '').replace(/[\-_]+/g, ' ').replace(/\s+/g, ' ').trim();
       const isReEnrolled = 
         clean.includes('reenroll') || 
         clean.includes('readmit') || 
@@ -705,7 +709,11 @@ export default function App() {
         lower.includes('re - enroll') ||
         lower.includes('re enrolled') ||
         lower.includes('reenrolled') ||
-        lower.includes('readmitted');
+        lower.includes('readmitted') ||
+        normalizedStatus.includes('admitted in iti') ||
+        normalizedStatus.includes('admitted in polytechnic') ||
+        normalizedStatus.includes('admitted in other course') ||
+        /\badmitted\s+(?:in|to)\s+(?:iti|polytechnic|other\s+courses?)\b/.test(normalizedStatus);
       const isMigratedToOtherBlock = lower.includes('other block');
       const isMigrated = !isMigratedToOtherBlock && lower.includes('migrat');
       const isStatusNotUpdated = lower === 'status not updated' || lower === 'not updated' || !customStatus.trim();
