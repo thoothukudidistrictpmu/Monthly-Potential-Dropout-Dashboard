@@ -46,8 +46,7 @@ import {
   Download,
   LayoutDashboard,
   School,
-  BarChart3,
-  CloudUpload
+  BarChart3
 } from 'lucide-react';
 import { 
   SPREADSHEET_ID, 
@@ -66,7 +65,6 @@ import { TamilNaduLogo } from './components/TamilNaduLogo';
 import { DepartmentLoginForm } from './components/DepartmentLoginForm';
 import { CounsellorSlicerView } from './components/CounsellorSlicerView';
 import { PWAInstallButton } from './components/PWAInstallButton';
-import { SheetSyncModal } from './components/SheetSyncModal';
 import { 
   exportStudentsToExcel, 
   exportStudentsToWord, 
@@ -232,7 +230,7 @@ export default function App() {
   const [editedCounsellingDate, setEditedCounsellingDate] = useState<Record<string, string>>({});
   const [deptShowTransferMap, setDeptShowTransferMap] = useState<Record<string, boolean>>({});
   const [statusSaveNotice, setStatusSaveNotice] = useState<string | null>(null);
-  const [sheetSyncUrl, setSheetSyncUrl] = useState<string>(() => {
+  const [sheetSyncUrl] = useState<string>(() => {
     try {
       return localStorage.getItem('thoothukudi_apps_script_url') || (import.meta as any).env?.VITE_APPS_SCRIPT_URL || '';
     } catch {
@@ -240,7 +238,6 @@ export default function App() {
     }
   });
   const [hasEnvSyncUrl, setHasEnvSyncUrl] = useState<boolean>(false);
-  const [syncModalOpen, setSyncModalOpen] = useState<boolean>(false);
   const syncTimersRef = useRef<Record<string, number>>({});
 
   // Department Credentials (taken live from Google Sheet 'User and Password' tab with fallback)
@@ -276,7 +273,9 @@ export default function App() {
     fetch('/api/sheet-sync')
       .then((res) => (res.ok ? res.json() : null))
       .then((info) => {
-        if (info?.hasEnvUrl) setHasEnvSyncUrl(true);
+        if (info?.hasEnvUrl || info?.configured || info?.ok) {
+          setHasEnvSyncUrl(true);
+        }
       })
       .catch(() => {});
   }, []);
@@ -450,16 +449,6 @@ export default function App() {
     fetchData(false);
   }, []);
 
-  const handleSaveWebhookUrl = (url: string) => {
-    setSheetSyncUrl(url);
-    try {
-      if (url) localStorage.setItem('thoothukudi_apps_script_url', url);
-      else localStorage.removeItem('thoothukudi_apps_script_url');
-    } catch {
-      // ignore storage errors
-    }
-  };
-
   // Sync a single edited field back to Google Sheet via Apps Script Web App
   const syncFieldToSheet = (
     studentKey: string,
@@ -536,76 +525,6 @@ export default function App() {
       syncTimersRef.current[timerKey] = window.setTimeout(executeSync, debounceMs);
     } else {
       void executeSync();
-    }
-  };
-
-  // Batch sync all localStorage edits for the active month to Google Sheet
-  const syncAllLocalEditsToSheet = async (): Promise<{ updated: number; error?: string }> => {
-    const activeWebhookUrl = sheetSyncUrl.trim();
-    if (!activeWebhookUrl && !hasEnvSyncUrl) {
-      return { updated: 0, error: 'Please save your Apps Script Web App URL first.' };
-    }
-
-    const keys = new Set<string>([
-      ...Object.keys(editedStatuses),
-      ...Object.keys(editedDropoutReasons),
-      ...Object.keys(editedCounselling),
-      ...Object.keys(editedBrteRemarks),
-      ...Object.keys(editedDeptRemarks),
-      ...Object.keys(editedTransferDepts),
-      ...Object.keys(editedCounsellingBy),
-      ...Object.keys(editedCounsellorName),
-      ...Object.keys(editedCounsellingDate),
-    ]);
-
-    const updates: any[] = [];
-    keys.forEach((studentKey) => {
-      const st = (data?.students || []).find(
-        (s: StudentRecord) => (s.emisId || String(s.sNo)) === studentKey
-      );
-      if (!st) return;
-
-      const fields: Record<string, string> = {};
-      if (editedStatuses[studentKey] !== undefined) fields.status = editedStatuses[studentKey];
-      if (editedDropoutReasons[studentKey] !== undefined) fields.dropoutReason = editedDropoutReasons[studentKey];
-      if (editedCounselling[studentKey] !== undefined) fields.counsellingRequired = editedCounselling[studentKey];
-      if (editedBrteRemarks[studentKey] !== undefined) fields.brteRemarks = editedBrteRemarks[studentKey];
-      if (editedDeptRemarks[studentKey] !== undefined) fields.deptRemarks = editedDeptRemarks[studentKey];
-      if (editedTransferDepts[studentKey] !== undefined) fields.transferRequestDept = editedTransferDepts[studentKey];
-      if (editedCounsellingBy[studentKey] !== undefined) fields.counsellingBy = editedCounsellingBy[studentKey];
-      if (editedCounsellorName[studentKey] !== undefined) fields.counsellorName = editedCounsellorName[studentKey];
-      if (editedCounsellingDate[studentKey] !== undefined) fields.counsellingDate = editedCounsellingDate[studentKey];
-
-      if (Object.keys(fields).length > 0) {
-        updates.push({
-          month: selectedMonth,
-          emisId: st.emisId || '',
-          studentName: st.studentName || '',
-          sNo: st.sNo || '',
-          fields,
-        });
-      }
-    });
-
-    if (updates.length === 0) {
-      return { updated: 0, error: 'No pending local edits found for this month.' };
-    }
-
-    try {
-      const res = await fetch('/api/sheet-sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ webhookUrl: activeWebhookUrl || undefined, updates }),
-      });
-      const json = await res.json();
-      if (json?.success) {
-        setStatusSaveNotice(`Synced ${json.updatedCount || updates.length} records to Google Sheet`);
-        setTimeout(() => setStatusSaveNotice(null), 3000);
-        return { updated: json.updatedCount || updates.length };
-      }
-      return { updated: json?.updatedCount || 0, error: json?.error || 'Some records failed to sync.' };
-    } catch (err: any) {
-      return { updated: 0, error: err?.message || 'Failed to reach sync endpoint.' };
     }
   };
 
@@ -787,7 +706,8 @@ export default function App() {
         lower.includes('re enrolled') ||
         lower.includes('reenrolled') ||
         lower.includes('readmitted');
-      const isMigrated = lower.includes('migrat');
+      const isMigratedToOtherBlock = lower.includes('other block');
+      const isMigrated = !isMigratedToOtherBlock && lower.includes('migrat');
       const isStatusNotUpdated = lower === 'status not updated' || lower === 'not updated' || !customStatus.trim();
       const isCounsellingNeeded = (customCounselling || '').toLowerCase().trim() === 'yes';
 
@@ -1353,21 +1273,6 @@ export default function App() {
 
             {/* Install App Button */}
             <PWAInstallButton />
-
-            {/* Apps Script Sheet Sync Setup Button */}
-            <button
-              onClick={() => setSyncModalOpen(true)}
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-bold bg-white/15 hover:bg-white/25 text-white border border-white/30 shadow-md transition-all cursor-pointer"
-              title="Configure Google Apps Script live write-back to Google Sheet"
-            >
-              <CloudUpload className="w-4 h-4 text-white" />
-              <span className="hidden sm:inline">Sheet Sync</span>
-              <span
-                className={`w-2 h-2 rounded-full ${
-                  sheetSyncUrl || hasEnvSyncUrl ? 'bg-emerald-400' : 'bg-amber-300'
-                }`}
-              />
-            </button>
 
             {/* Refresh Button */}
             <button
@@ -3010,10 +2915,10 @@ export default function App() {
                               Present Status
                             </th>
                             <th className="py-3 px-3.5 min-w-56 bg-amber-900 text-white font-black border-l border-r border-amber-800 whitespace-normal text-center">
-                              BRTE / HM Remarks (Case Study) [Col X]
+                              BRTE / HM Remarks (Case Study)
                             </th>
                             <th className="py-3 px-3.5 min-w-56 bg-emerald-900 text-white font-black border-l border-r border-emerald-800 whitespace-normal text-center">
-                              Dept / Counsellors Remarks [Col Y]
+                              Dept / Counsellors Remarks
                             </th>
                           </tr>
                         </thead>
@@ -3720,10 +3625,10 @@ export default function App() {
                             </th>
                             <th className="py-3 px-3.5">Contact No</th>
                             <th className="py-3 px-3.5 min-w-56 bg-amber-900 text-white font-black border-l border-r border-amber-800 whitespace-normal text-center">
-                              BRTE / HM Remarks (Case Study) [Col X]
+                              BRTE / HM Remarks (Case Study)
                             </th>
                             <th className="py-3 px-3.5 min-w-56 bg-emerald-900 text-white font-black border-l border-r border-emerald-800 whitespace-normal text-center">
-                              Dept / Counsellors Remarks [Col Y]
+                              Dept / Counsellors Remarks
                             </th>
                           </tr>
                         </thead>
@@ -4253,10 +4158,10 @@ export default function App() {
                                 Present Status
                               </th>
                               <th className="py-3 px-3.5 min-w-56 bg-amber-900 text-white font-black border-l border-r border-amber-800 whitespace-normal text-center">
-                                BRTE / HM Remarks (Case Study) [Col X]
+                                BRTE / HM Remarks (Case Study)
                               </th>
                               <th className="py-3 px-3.5 min-w-56 bg-emerald-900 text-white font-black border-l border-r border-emerald-800 whitespace-normal text-center">
-                                Dept / Counsellors Remarks [Col Y]
+                                Dept / Counsellors Remarks
                               </th>
                             </tr>
                           </thead>
@@ -4443,30 +4348,6 @@ export default function App() {
 
         </main>
       </div>
-
-      {/* Apps Script Live Sync Setup Modal */}
-      <SheetSyncModal
-        isOpen={syncModalOpen}
-        onClose={() => setSyncModalOpen(false)}
-        webhookUrl={sheetSyncUrl}
-        onSaveWebhookUrl={handleSaveWebhookUrl}
-        hasEnvUrl={hasEnvSyncUrl}
-        selectedMonth={selectedMonth}
-        pendingLocalCount={
-          new Set([
-            ...Object.keys(editedStatuses),
-            ...Object.keys(editedDropoutReasons),
-            ...Object.keys(editedCounselling),
-            ...Object.keys(editedBrteRemarks),
-            ...Object.keys(editedDeptRemarks),
-            ...Object.keys(editedTransferDepts),
-            ...Object.keys(editedCounsellingBy),
-            ...Object.keys(editedCounsellorName),
-            ...Object.keys(editedCounsellingDate),
-          ]).size
-        }
-        onSyncAllLocalEdits={syncAllLocalEditsToSheet}
-      />
 
       {/* Footer */}
       <footer className="border-t-2 border-slate-300 bg-white/95 py-4 px-4 text-center text-sm text-slate-700 font-bold mt-auto">

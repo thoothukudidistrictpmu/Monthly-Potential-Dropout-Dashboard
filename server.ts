@@ -158,10 +158,12 @@ app.get('/api/sheet-sync', async (req, res) => {
     process.env.VITE_APPS_SCRIPT_URL ||
     '';
 
+  const envUrlExists = Boolean(process.env.GOOGLE_APPS_SCRIPT_URL || process.env.VITE_APPS_SCRIPT_URL);
+
   if (!webhookUrl) {
     return res.json({
       configured: false,
-      hasEnvUrl: Boolean(process.env.GOOGLE_APPS_SCRIPT_URL || process.env.VITE_APPS_SCRIPT_URL),
+      hasEnvUrl: envUrlExists,
     });
   }
 
@@ -174,13 +176,14 @@ app.get('/api/sheet-sync', async (req, res) => {
     } catch {
       return res.status(502).json({
         ok: false,
+        hasEnvUrl: envUrlExists,
         error: 'Apps Script did not return valid JSON. Make sure "Who has access" is set to "Anyone" and use the /exec Web App URL.',
         rawPreview: text.slice(0, 200),
       });
     }
-    return res.json({ configured: true, ...parsed });
+    return res.json({ configured: true, hasEnvUrl: envUrlExists, ...parsed });
   } catch (err: any) {
-    return res.status(502).json({ ok: false, error: err?.message || 'Failed to connect to Apps Script' });
+    return res.status(502).json({ ok: false, hasEnvUrl: envUrlExists, error: err?.message || 'Failed to connect to Apps Script' });
   }
 });
 

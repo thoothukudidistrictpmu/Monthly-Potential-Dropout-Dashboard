@@ -591,7 +591,8 @@ export function processSheetCSV(csvText: string, month: string): DashboardPayloa
       totalReadmitted++;
     }
 
-    const isMigrated = rLower.includes('migrat') || remarksVal.includes('migrat');
+    const isMigratedToOtherBlock = rLower.includes('other block');
+    const isMigrated = !isMigratedToOtherBlock && rLower.includes('migrat');
     if (isMigrated) {
       totalMigrated++;
     }

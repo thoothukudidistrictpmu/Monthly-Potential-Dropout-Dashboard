@@ -21,11 +21,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     process.env.VITE_APPS_SCRIPT_URL ||
     '';
 
+  const envUrlExists = Boolean(process.env.GOOGLE_APPS_SCRIPT_URL || process.env.VITE_APPS_SCRIPT_URL);
+
   if (req.method === 'GET') {
     if (!webhookUrl) {
       return res.status(200).json({
         configured: false,
-        hasEnvUrl: Boolean(process.env.GOOGLE_APPS_SCRIPT_URL || process.env.VITE_APPS_SCRIPT_URL),
+        hasEnvUrl: envUrlExists,
       });
     }
 
@@ -38,13 +40,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       } catch {
         return res.status(502).json({
           ok: false,
+          hasEnvUrl: envUrlExists,
           error: 'Apps Script did not return valid JSON. Make sure "Who has access" is set to "Anyone" and you deployed a Web App URL.',
           rawPreview: text.slice(0, 200),
         });
       }
-      return res.status(200).json({ configured: true, ...parsed });
+      return res.status(200).json({ configured: true, hasEnvUrl: envUrlExists, ...parsed });
     } catch (err: any) {
-      return res.status(502).json({ ok: false, error: err?.message || 'Failed to reach Apps Script URL' });
+      return res.status(502).json({ ok: false, hasEnvUrl: envUrlExists, error: err?.message || 'Failed to reach Apps Script URL' });
     }
   }
 

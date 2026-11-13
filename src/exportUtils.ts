@@ -43,8 +43,8 @@ export function exportStudentsToExcel(students: StudentRecord[], filename: strin
     'Counsellor Name': s.counsellorName || '-',
     'Counselling Given Date': s.counsellingDate || '-',
     'Present Status': s.status,
-    'BRTE / HM Remarks (Case Study) [Col X]': s.brteRemarks || '-',
-    'Department / Counsellors Remarks [Col Y]': s.deptRemarks || '-',
+    'BRTE / HM Remarks (Case Study)': s.brteRemarks || '-',
+    'Department / Counsellors Remarks': s.deptRemarks || '-',
   }));
 
   const worksheet = XLSX.utils.json_to_sheet(exportData);
@@ -122,8 +122,8 @@ export function exportDivisionToExcel(division: DivisionExportData, students: St
     'Counsellor Name': s.counsellorName || '-',
     'Counselling Given Date': s.counsellingDate || '-',
     'Present Status': s.status,
-    'BRTE / HM Remarks (Case Study) [Col X]': s.brteRemarks || '-',
-    'Department / Counsellors Remarks [Col Y]': s.deptRemarks || '-',
+    'BRTE / HM Remarks (Case Study)': s.brteRemarks || '-',
+    'Department / Counsellors Remarks': s.deptRemarks || '-',
   }));
   const studentsSheet = XLSX.utils.json_to_sheet(studentRows);
   XLSX.utils.book_append_sheet(workbook, studentsSheet, `${division.name} Students`);
@@ -395,8 +395,8 @@ export function formatStudentRecordForExcel(s: StudentRecord, index: number) {
     'Counsellor Name': s.counsellorName || '-',
     'Counselling Given Date': s.counsellingDate || '-',
     'Present Status': s.status,
-    'BRTE / HM Remarks (Case Study) [Col X]': s.brteRemarks || '-',
-    'Department / Counsellors Remarks [Col Y]': s.deptRemarks || '-',
+    'BRTE / HM Remarks (Case Study)': s.brteRemarks || '-',
+    'Department / Counsellors Remarks': s.deptRemarks || '-',
   };
 }
 

@@ -345,10 +345,10 @@ export function CounsellorSlicerView({
                     Present Status
                   </th>
                   <th className="py-3 px-3.5 min-w-64 bg-cyan-900 text-white font-black border-l border-r border-cyan-800 whitespace-normal text-center">
-                    BRTE / HM Remarks (Case Study) [Col X]
+                    BRTE / HM Remarks (Case Study)
                   </th>
                   <th className="py-3 px-3.5 min-w-64 bg-indigo-900 text-white font-black border-l border-r border-indigo-800 whitespace-normal text-center">
-                    Department / Counsellors Remarks [Col Y]
+                    Department / Counsellors Remarks
                   </th>
                 </tr>
               </thead>
