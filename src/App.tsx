@@ -756,6 +756,7 @@ export default function App() {
 
   // Recalculate summary metrics dynamically to reflect department official edits
   const totalRepeaters = allStudents.filter(s => s.isRepeater).length;
+  const totalRepeatersReEnrolled = allStudents.filter(s => s.isRepeater && s.isReEnrolled).length;
   const totalReEnrolled = allStudents.filter(s => s.isReEnrolled).length;
   const totalMigrated = allStudents.filter(s => s.isMigrated).length;
   const totalCounsellingNeeded = allStudents.filter(s => s.isCounsellingNeeded).length;
@@ -767,6 +768,7 @@ export default function App() {
     reEnrolled: totalReEnrolled,
     migrated: totalMigrated,
     repeaters: totalRepeaters,
+    repeatersReEnrolled: totalRepeatersReEnrolled,
     counsellingNeeded: totalCounsellingNeeded,
     statusNotUpdated: totalStatusNotUpdated,
   };
@@ -1590,8 +1592,13 @@ export default function App() {
                           </div>
                         </div>
                         <div className="p-4 sm:p-5 flex flex-col justify-between flex-1">
-                          <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-purple-950 font-mono tracking-tight mt-1">
-                            {summary.repeaters}
+                          <div className="flex items-baseline justify-between gap-2 flex-wrap mt-1">
+                            <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-purple-950 font-mono tracking-tight">
+                              {summary.repeaters}
+                            </div>
+                            <span className="text-xs font-bold text-emerald-900 bg-emerald-100/90 border border-emerald-300 px-2.5 py-1 rounded-lg">
+                              Re-Enrolled in Repeaters: <span className="font-black font-mono text-emerald-950">{summary.repeatersReEnrolled}</span>
+                            </span>
                           </div>
                           <div className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-purple-900 font-bold pt-2 sm:pt-2.5 border-t border-purple-200 flex justify-between items-center">
                             <span>Repeaters Caseload</span>
@@ -2090,7 +2097,10 @@ export default function App() {
                                 <span className="text-3xl sm:text-4xl font-black text-slate-900 block tracking-tight font-mono">
                                   {div.repeaters}
                                 </span>
-                                <span className="text-xs sm:text-sm text-slate-700 font-bold mt-1.5 block">
+                                <span className="text-[11px] font-bold text-emerald-800 mt-1 block">
+                                  Re-Enrolled: {divStudents.filter(s => s.isRepeater && s.isReEnrolled).length}
+                                </span>
+                                <span className="text-xs sm:text-sm text-slate-700 font-bold mt-1 block">
                                   {div.totalStudents > 0 ? ((div.repeaters / div.totalStudents) * 100).toFixed(0) : 0}% of Division
                                 </span>
                               </div>
@@ -2272,6 +2282,9 @@ export default function App() {
                   <div className="p-3.5">
                     <span className="text-2xl sm:text-3xl font-black text-slate-900 block font-mono">
                       {computedDepartments.reduce((acc, d) => acc + d.repeaters, 0)}
+                    </span>
+                    <span className="text-[11px] font-bold text-emerald-800 mt-1 block">
+                      Re-Enrolled: {allStudents.filter(s => s.lineDept && s.lineDept !== 'Unassigned' && s.lineDept !== '-' && s.isRepeater && s.isReEnrolled).length}
                     </span>
                   </div>
                 </div>
@@ -2478,6 +2491,7 @@ export default function App() {
             }).length;
             const reEnrolledCounselling = allCounsellingStudents.filter(s => s.isReEnrolled).length;
             const repeatersCounselling = allCounsellingStudents.filter(s => s.isRepeater).length;
+            const repeatersReEnrolledCounselling = allCounsellingStudents.filter(s => s.isRepeater && s.isReEnrolled).length;
 
             return (
               <div className="space-y-6">
@@ -2720,8 +2734,13 @@ export default function App() {
                       </div>
                     </div>
                     <div className="p-3.5 sm:p-5 flex flex-col justify-between flex-1">
-                      <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight mt-1">
-                        {repeatersCounselling}
+                      <div className="flex items-baseline justify-between gap-2 flex-wrap mt-1">
+                        <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight">
+                          {repeatersCounselling}
+                        </div>
+                        <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                          Re-Enrolled: <strong className="font-mono">{repeatersReEnrolledCounselling}</strong>
+                        </span>
                       </div>
                       <div className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-slate-700 font-bold pt-2 sm:pt-2.5 border-t border-slate-300 flex justify-between items-center">
                         <span>Repeaters</span>
@@ -3249,7 +3268,10 @@ export default function App() {
                         <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight">
                           {repCount}
                         </div>
-                        <div className="text-xs sm:text-sm text-slate-700 mt-1.5 font-bold">
+                        <div className="text-[11px] font-bold text-emerald-800 mt-1">
+                          Re-Enrolled in Repeaters: <span className="font-black font-mono">{revenueStudents.filter(s => s.isRepeater && s.isReEnrolled).length}</span>
+                        </div>
+                        <div className="text-xs sm:text-sm text-slate-700 mt-1 font-bold">
                           Repeaters Caseload
                         </div>
                       </div>
@@ -4061,7 +4083,10 @@ export default function App() {
                         <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight">
                           {repCount}
                         </div>
-                        <div className="text-xs sm:text-sm text-slate-700 mt-1.5 font-bold">
+                        <div className="text-[11px] font-bold text-emerald-800 mt-1">
+                          Re-Enrolled in Repeaters: <span className="font-black font-mono">{deptStudents.filter(s => s.isRepeater && s.isReEnrolled).length}</span>
+                        </div>
+                        <div className="text-xs sm:text-sm text-slate-700 mt-1 font-bold">
                           Repeaters Caseload
                         </div>
                       </div>

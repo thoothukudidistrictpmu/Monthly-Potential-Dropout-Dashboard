@@ -118,10 +118,7 @@ export function CounsellorSlicerView({
   const totalCaseload = agencyStudents.length;
   const reEnrolledCount = agencyStudents.filter(s => s.isReEnrolled).length;
   const repeatersCount = agencyStudents.filter(s => s.isRepeater).length;
-  const highAbsenteeCount = agencyStudents.filter(s => {
-    const days = parseInt(s.absentDays, 10);
-    return !isNaN(days) && days >= 30;
-  }).length;
+  const repeatersReEnrolledCount = agencyStudents.filter(s => s.isRepeater && s.isReEnrolled).length;
 
   return (
     <div className="space-y-6">
@@ -209,6 +206,9 @@ export function CounsellorSlicerView({
           <div className="p-4">
             <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-purple-950 font-mono tracking-tight">
               {repeatersCount}
+            </div>
+            <div className="text-[11px] font-bold text-emerald-900 mt-1">
+              Re-Enrolled in Repeaters: <span className="font-black font-mono">{repeatersReEnrolledCount}</span>
             </div>
             <div className="text-xs sm:text-sm text-purple-900 mt-1 font-bold">
               Repeater Caseload
