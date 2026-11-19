@@ -1148,13 +1148,10 @@ export default function App() {
                 const isSelected = selectedSlicer === slicer;
                 const meta = DEPT_META[slicer] || DEPT_META['Overview'];
                 const IconComponent = meta.icon;
-                const isLineDept = slicer !== 'Overview' && 
+                const isProtectedSlicer = slicer !== 'Overview' && 
                                    slicer !== 'Division' && 
                                    slicer !== 'Line Department Overview' && 
-                                   slicer !== 'Counselling Overview' &&
-                                   slicer !== 'DCPO Counsellors' &&
-                                   slicer !== 'ICTC Counsellors' &&
-                                   slicer !== 'PAD Counsellors';
+                                   slicer !== 'Counselling Overview';
                 const isAuthed = !!authenticatedDepts[slicer];
 
                 return (
@@ -1187,7 +1184,7 @@ export default function App() {
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0 ml-1">
-                      {isLineDept && (
+                      {isProtectedSlicer && (
                         isAuthed ? (
                           <span
                             title="Session Authenticated"
@@ -1326,13 +1323,10 @@ export default function App() {
                 const isSelected = selectedSlicer === slicer;
                 const meta = DEPT_META[slicer] || DEPT_META['Overview'];
                 const IconComponent = meta.icon;
-                const isLineDept = slicer !== 'Overview' && 
+                const isProtectedSlicer = slicer !== 'Overview' && 
                                    slicer !== 'Division' && 
                                    slicer !== 'Line Department Overview' && 
-                                   slicer !== 'Counselling Overview' &&
-                                   slicer !== 'DCPO Counsellors' &&
-                                   slicer !== 'ICTC Counsellors' &&
-                                   slicer !== 'PAD Counsellors';
+                                   slicer !== 'Counselling Overview';
                 const isAuthed = !!authenticatedDepts[slicer];
 
                 return (
@@ -1361,7 +1355,7 @@ export default function App() {
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0 ml-1">
-                      {isLineDept && (
+                      {isProtectedSlicer && (
                         isAuthed ? (
                           <span
                             title="Session Authenticated"
@@ -3131,25 +3125,63 @@ export default function App() {
           {/* COUNSELLOR SPECIFIC SLICERS (DCPO / ICTC / PAD) */}
           {/* ======================================================== */}
           {(selectedSlicer === 'DCPO Counsellors' || selectedSlicer === 'ICTC Counsellors' || selectedSlicer === 'PAD Counsellors') && (
-            <CounsellorSlicerView
-              agencyName={selectedSlicer}
-              allStudents={allStudents}
-              deptList={deptList}
-              dynamicCounsellingByOptions={dynamicCounsellingByOptions}
-              selectedMonth={selectedMonth}
-              presentStatusOptions={PRESENT_STATUS_OPTIONS}
-              handleCounsellingChange={handleCounsellingChange}
-              handleCounsellingByChange={handleCounsellingByChange}
-              handleCounsellorNameChange={handleCounsellorNameChange}
-              handleCounsellingDateChange={handleCounsellingDateChange}
-              handleTransferDeptChange={handleTransferDeptChange}
-              handleDropoutReasonChange={handleDropoutReasonChange}
-              handleStatusChange={handleStatusChange}
-              handleBrteRemarksChange={handleBrteRemarksChange}
-              handleDeptRemarksChange={handleDeptRemarksChange}
-              exportStudentsToExcel={exportStudentsToExcel}
-              exportStudentsToWord={exportStudentsToWord}
-            />
+            !authenticatedDepts[selectedSlicer] ? (
+              <DepartmentLoginForm
+                key={selectedSlicer}
+                departmentName={selectedSlicer}
+                credentials={deptCredentials[selectedSlicer] || DEFAULT_DEPARTMENT_CREDENTIALS[selectedSlicer]}
+                departmentMeta={DEPT_META[selectedSlicer]}
+                onLoginSuccess={(userId) => handleDepartmentLoginSuccess(selectedSlicer, userId)}
+                onCancel={() => setSelectedSlicer('Counselling Overview')}
+              />
+            ) : (
+            <div className="space-y-6">
+              {/* Authorized Counsellor Session Banner */}
+              <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl p-3 sm:px-5 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-[#1e3a5f] text-white flex items-center justify-center font-bold shadow-xs">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-black text-slate-900 uppercase tracking-wider block">
+                      Authorized Counsellor Session
+                    </span>
+                    <span className="text-xs sm:text-sm font-bold text-slate-800">
+                      Logged in as: <span className="font-mono font-black">{deptCredentials[selectedSlicer]?.userId || 'counsellor'}</span> • {selectedSlicer}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleDepartmentLogout(selectedSlicer)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black bg-white hover:bg-rose-50 text-rose-700 hover:text-rose-800 border border-rose-300 shadow-2xs transition-colors cursor-pointer"
+                  title={`Lock ${selectedSlicer} and logout`}
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Lock / Logout</span>
+                </button>
+              </div>
+
+              <CounsellorSlicerView
+                agencyName={selectedSlicer}
+                allStudents={allStudents}
+                deptList={deptList}
+                dynamicCounsellingByOptions={dynamicCounsellingByOptions}
+                selectedMonth={selectedMonth}
+                presentStatusOptions={PRESENT_STATUS_OPTIONS}
+                handleCounsellingChange={handleCounsellingChange}
+                handleCounsellingByChange={handleCounsellingByChange}
+                handleCounsellorNameChange={handleCounsellorNameChange}
+                handleCounsellingDateChange={handleCounsellingDateChange}
+                handleTransferDeptChange={handleTransferDeptChange}
+                handleDropoutReasonChange={handleDropoutReasonChange}
+                handleStatusChange={handleStatusChange}
+                handleBrteRemarksChange={handleBrteRemarksChange}
+                handleDeptRemarksChange={handleDeptRemarksChange}
+                exportStudentsToExcel={exportStudentsToExcel}
+                exportStudentsToWord={exportStudentsToWord}
+              />
+            </div>
+            )
           )}
 
           {/* ======================================================== */}
@@ -3855,6 +3887,7 @@ export default function App() {
            selectedSlicer !== 'Revenue Department' && (
             !authenticatedDepts[selectedSlicer] ? (
               <DepartmentLoginForm
+                key={selectedSlicer}
                 departmentName={selectedSlicer}
                 credentials={deptCredentials[selectedSlicer] || DEFAULT_DEPARTMENT_CREDENTIALS[selectedSlicer]}
                 departmentMeta={DEPT_META[selectedSlicer]}

@@ -116,10 +116,18 @@ export const DEFAULT_DEPARTMENT_CREDENTIALS: Record<string, DepartmentCredential
   'Revenue Department': { departmentName: 'Revenue Department', userId: 'revenue_dept', password: 'Reve@123' },
   'DDRO': { departmentName: 'DDRO', userId: 'ddro_dept', password: 'Ddro@123' },
   'DSE': { departmentName: 'DSE', userId: 'dse_dept', password: 'Dsep@123' },
+  'DCPO Counsellors': { departmentName: 'DCPO Counsellors', userId: 'dcpo_coun', password: 'dcpo@123' },
+  'ICTC Counsellors': { departmentName: 'ICTC Counsellors', userId: 'ictc_coun', password: 'ictc@123' },
+  'PAD Counsellors': { departmentName: 'PAD Counsellors', userId: 'pad_coun', password: 'pad@123' },
 };
 
 export function matchDepartmentToSlicer(rawName: string): string | null {
   const clean = rawName.toLowerCase().trim();
+  if (clean.includes('dcpo') && (clean.includes('counsellor') || clean.includes('counselor'))) return 'DCPO Counsellors';
+  if (clean.includes('ictc') && (clean.includes('counsellor') || clean.includes('counselor'))) return 'ICTC Counsellors';
+  if (clean.includes('pad') && (clean.includes('counsellor') || clean.includes('counselor'))) return 'PAD Counsellors';
+  if (clean === 'ictc') return 'ICTC Counsellors';
+  if (clean === 'pad') return 'PAD Counsellors';
   if (clean.includes('health') || clean.includes('medical')) return 'Health Department';
   if (clean.includes('labour') || clean.includes('labor') || clean.includes('employ')) return 'Labour Department';
   if (clean.includes('child protection') || clean.includes('dcpo') || clean.includes('dcpu')) return 'DCPO';

@@ -185,9 +185,11 @@ export const DepartmentLoginForm: React.FC<DepartmentLoginFormProps> = ({
             <button
               type="button"
               onClick={onCancel}
-              className="w-full py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold text-slate-700 hover:text-slate-950 bg-slate-100 hover:bg-slate-200 border border-slate-300 transition-colors"
+              className="w-full py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold text-slate-700 hover:text-slate-950 bg-slate-100 hover:bg-slate-200 border border-slate-300 transition-colors cursor-pointer"
             >
-              ← Return to Line Department Overview
+              {departmentName.toLowerCase().includes('counsellor')
+                ? '← Return to Counselling Overview'
+                : '← Return to Line Department Overview'}
             </button>
           </div>
 
